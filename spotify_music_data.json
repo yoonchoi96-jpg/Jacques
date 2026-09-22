@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-22T12:31:11.196424+00:00",
+  "collected_at": "2026-09-22T18:13:35.930268+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -49,7 +49,7 @@
         "2026-09-22T05:34:14.449Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/776vLcNy6mHNmPisdejR0I"
     },
@@ -128,7 +128,7 @@
         "2026-09-22T08:35:10.205Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/7tCuCjhxzjX2XCz4JiiAsp"
     },
@@ -145,7 +145,7 @@
         "2026-09-22T10:13:03.854Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/55wlsNYqcfiQsHuX8l0jmF"
     },
@@ -178,7 +178,7 @@
         "2026-09-22T08:50:52.013Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/4dR11SE6eYy2hUTC0TbHaW"
     },
@@ -195,7 +195,7 @@
         "2026-09-22T10:30:00.789Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/2XcmjSdYqdhFjyWFdbnBaY"
     },
@@ -212,7 +212,7 @@
         "2026-09-22T10:27:06.237Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/57rkFdhoKjgkg16fsS4pgg"
     },
@@ -229,7 +229,7 @@
         "2026-09-22T10:22:06.315Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/7KGHenqXZofXNm5MKDbT3J"
     },
@@ -246,7 +246,7 @@
         "2026-09-22T10:18:25.695Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/73ycOMnODtUc2Ggj6EfCpO"
     },
@@ -263,7 +263,7 @@
         "2026-09-22T10:05:25.630Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/6ACWgt6Jab2Pl6KK2Go4o9"
     },
@@ -280,7 +280,7 @@
         "2026-09-22T08:55:58.725Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/1FavaeOrzS5LtUz0ftzPdU"
     },
@@ -297,7 +297,7 @@
         "2026-09-22T08:52:45.412Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/0tOS64UB7jjGG5dWBgoubg"
     },
@@ -314,7 +314,7 @@
         "2026-09-22T08:42:25.729Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/14QaXYIK3K3QPtezqxRRPN"
     },
@@ -331,7 +331,7 @@
         "2026-09-22T08:38:59.021Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/6VNXmo59yDYgcwLS17UNAW"
     },
@@ -346,7 +346,7 @@
       "last_played": null,
       "play_history": [],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/5TFD2bmFKGhoCRbX61nXY5"
     },
@@ -361,7 +361,7 @@
       "last_played": null,
       "play_history": [],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/1Hg0e997pObvZ91w1FCPFk"
     },
@@ -376,9 +376,90 @@
       "last_played": null,
       "play_history": [],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/5TqW4eo90tNi3sdFdHkSML"
+    },
+    {
+      "track_id": "3B4cjvGlPvyBLNG3AzEgkZ",
+      "title": "E85",
+      "artists": "Don Toliver",
+      "album": "OCTANE",
+      "release_date": "2026-01-30",
+      "saved": true,
+      "saved_at": "2026-09-22T17:48:33Z",
+      "last_played": "2026-09-22T17:48:07.199Z",
+      "play_history": [
+        "2026-09-22T17:48:07.199Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/3B4cjvGlPvyBLNG3AzEgkZ"
+    },
+    {
+      "track_id": "0eaVIYo2zeOaGJeqZ5TwYz",
+      "title": "No Pole",
+      "artists": "Don Toliver",
+      "album": "Love Sick (Deluxe)",
+      "release_date": "2023-02-28",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T17:51:12.892Z",
+      "play_history": [
+        "2026-09-22T17:51:12.892Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0eaVIYo2zeOaGJeqZ5TwYz"
+    },
+    {
+      "track_id": "514joG57v4yKTsfQmz7stz",
+      "title": "Janice STFU",
+      "artists": "Drake",
+      "album": "ICEMAN",
+      "release_date": "2026-05-15",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T16:52:02.638Z",
+      "play_history": [
+        "2026-09-22T16:52:02.638Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/514joG57v4yKTsfQmz7stz"
+    },
+    {
+      "track_id": "0wLCA75tmsos5ZcVzqHFQ1",
+      "title": "PARISIENNE",
+      "artists": "GIMS, La Mano 1.9",
+      "album": "LE NORD SE SOUVIENT : L'ODYSSÉE",
+      "release_date": "2025-02-20",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0wLCA75tmsos5ZcVzqHFQ1"
+    },
+    {
+      "track_id": "3h5T5JypYU7huFiVYhv1dr",
+      "title": "BbY WOW",
+      "artists": "KAROL G, Judeline, rusowsky",
+      "album": "NO ME ARREPIENTO DE SENTIR TANTO",
+      "release_date": "2026-08-07",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/3h5T5JypYU7huFiVYhv1dr"
     }
   ],
   "schema_version": 1
