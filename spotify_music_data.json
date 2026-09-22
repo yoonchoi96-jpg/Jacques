@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-22T08:23:55.268439+00:00",
+  "collected_at": "2026-09-22T12:31:11.196424+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -28,8 +28,8 @@
       "saved_at": null,
       "last_played": "2026-09-22T04:32:31.581Z",
       "play_history": [
-        "2026-09-22T05:38:28.321Z",
-        "2026-09-22T04:32:31.581Z"
+        "2026-09-22T04:32:31.581Z",
+        "2026-09-22T05:38:28.321Z"
       ],
       "top_short_term": false,
       "top_medium_term": false,
@@ -123,12 +123,263 @@
       "release_date": "2025-01-05",
       "saved": true,
       "saved_at": "2026-09-22T07:07:51Z",
+      "last_played": "2026-09-22T08:35:10.205Z",
+      "play_history": [
+        "2026-09-22T08:35:10.205Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/7tCuCjhxzjX2XCz4JiiAsp"
+    },
+    {
+      "track_id": "55wlsNYqcfiQsHuX8l0jmF",
+      "title": "Make Them Cry",
+      "artists": "Drake",
+      "album": "ICEMAN",
+      "release_date": "2026-05-15",
+      "saved": true,
+      "saved_at": "2026-09-22T10:07:59Z",
+      "last_played": "2026-09-22T10:13:03.854Z",
+      "play_history": [
+        "2026-09-22T10:13:03.854Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/55wlsNYqcfiQsHuX8l0jmF"
+    },
+    {
+      "track_id": "1QC4Ztt2GlFWpdSMLwt5ol",
+      "title": "LOV3 (Feat. Bryan Chase, Okasian)",
+      "artists": "Sik-K, Lil Moshpit, Bryan Chase, Okasian",
+      "album": "K-FLIP+",
+      "release_date": "2025-03-17",
+      "saved": true,
+      "saved_at": "2026-09-22T10:07:44Z",
       "last_played": null,
       "play_history": [],
       "top_short_term": false,
       "top_medium_term": false,
       "top_long_term": false,
-      "spotify_url": "https://open.spotify.com/track/7tCuCjhxzjX2XCz4JiiAsp"
+      "spotify_url": "https://open.spotify.com/track/1QC4Ztt2GlFWpdSMLwt5ol"
+    },
+    {
+      "track_id": "4dR11SE6eYy2hUTC0TbHaW",
+      "title": "너",
+      "artists": "SYSTEM SEOUL, ycs",
+      "album": "SS-POP 1",
+      "release_date": "2026-03-29",
+      "saved": true,
+      "saved_at": "2026-09-22T08:47:47Z",
+      "last_played": "2026-09-22T08:47:43.670Z",
+      "play_history": [
+        "2026-09-22T08:47:43.670Z",
+        "2026-09-22T08:50:52.013Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/4dR11SE6eYy2hUTC0TbHaW"
+    },
+    {
+      "track_id": "2XcmjSdYqdhFjyWFdbnBaY",
+      "title": "Little Birdie",
+      "artists": "Drake",
+      "album": "ICEMAN",
+      "release_date": "2026-05-15",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T10:30:00.789Z",
+      "play_history": [
+        "2026-09-22T10:30:00.789Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/2XcmjSdYqdhFjyWFdbnBaY"
+    },
+    {
+      "track_id": "57rkFdhoKjgkg16fsS4pgg",
+      "title": "Make Them Pay",
+      "artists": "Drake",
+      "album": "ICEMAN",
+      "release_date": "2026-05-15",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T10:27:06.237Z",
+      "play_history": [
+        "2026-09-22T10:27:06.237Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/57rkFdhoKjgkg16fsS4pgg"
+    },
+    {
+      "track_id": "7KGHenqXZofXNm5MKDbT3J",
+      "title": "Whisper My Name",
+      "artists": "Drake",
+      "album": "ICEMAN",
+      "release_date": "2026-05-15",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T10:22:06.315Z",
+      "play_history": [
+        "2026-09-22T10:22:06.315Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/7KGHenqXZofXNm5MKDbT3J"
+    },
+    {
+      "track_id": "73ycOMnODtUc2Ggj6EfCpO",
+      "title": "Make Them Remember",
+      "artists": "Drake",
+      "album": "ICEMAN",
+      "release_date": "2026-05-15",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T10:18:25.695Z",
+      "play_history": [
+        "2026-09-22T10:18:25.695Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/73ycOMnODtUc2Ggj6EfCpO"
+    },
+    {
+      "track_id": "6ACWgt6Jab2Pl6KK2Go4o9",
+      "title": "Two Pills",
+      "artists": "Coogie",
+      "album": "UPSET",
+      "release_date": "2025-04-30",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T10:05:25.630Z",
+      "play_history": [
+        "2026-09-22T10:05:25.630Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/6ACWgt6Jab2Pl6KK2Go4o9"
+    },
+    {
+      "track_id": "1FavaeOrzS5LtUz0ftzPdU",
+      "title": "Zombie (feat. DRIP TARKO)",
+      "artists": "MilliMax, DRIP TARKO",
+      "album": "Zombie (feat. DRIP TARKO)",
+      "release_date": "2025-05-09",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T08:55:58.725Z",
+      "play_history": [
+        "2026-09-22T08:55:58.725Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/1FavaeOrzS5LtUz0ftzPdU"
+    },
+    {
+      "track_id": "0tOS64UB7jjGG5dWBgoubg",
+      "title": "i miss ㅠ",
+      "artists": "SYSTEM SEOUL, sn7, ycs",
+      "album": "SS-POP 2",
+      "release_date": "2026-03-29",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T08:52:45.412Z",
+      "play_history": [
+        "2026-09-22T08:52:45.412Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0tOS64UB7jjGG5dWBgoubg"
+    },
+    {
+      "track_id": "14QaXYIK3K3QPtezqxRRPN",
+      "title": "PIToRRO DE COCO",
+      "artists": "Bad Bunny",
+      "album": "DeBÍ TiRAR MáS FOToS",
+      "release_date": "2025-01-05",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T08:42:25.729Z",
+      "play_history": [
+        "2026-09-22T08:42:25.729Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/14QaXYIK3K3QPtezqxRRPN"
+    },
+    {
+      "track_id": "6VNXmo59yDYgcwLS17UNAW",
+      "title": "CAFé CON RON",
+      "artists": "Bad Bunny, Los Pleneros de la Cresta",
+      "album": "DeBÍ TiRAR MáS FOToS",
+      "release_date": "2025-01-05",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T08:38:59.021Z",
+      "play_history": [
+        "2026-09-22T08:38:59.021Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/6VNXmo59yDYgcwLS17UNAW"
+    },
+    {
+      "track_id": "5TFD2bmFKGhoCRbX61nXY5",
+      "title": "NUEVAYoL",
+      "artists": "Bad Bunny",
+      "album": "DeBÍ TiRAR MáS FOToS",
+      "release_date": "2025-01-05",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/5TFD2bmFKGhoCRbX61nXY5"
+    },
+    {
+      "track_id": "1Hg0e997pObvZ91w1FCPFk",
+      "title": "LO QUE LE PASÓ A HAWAii",
+      "artists": "Bad Bunny",
+      "album": "DeBÍ TiRAR MáS FOToS",
+      "release_date": "2025-01-05",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/1Hg0e997pObvZ91w1FCPFk"
+    },
+    {
+      "track_id": "5TqW4eo90tNi3sdFdHkSML",
+      "title": "처음처럼",
+      "artists": "MUNZi, yuri63k",
+      "album": "처음처럼",
+      "release_date": "2022-10-26",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/5TqW4eo90tNi3sdFdHkSML"
     }
-  ]
+  ],
+  "schema_version": 1
 }
