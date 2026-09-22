@@ -1,0 +1,134 @@
+{
+  "collected_at": "2026-09-22T08:23:55.268439+00:00",
+  "tracks": [
+    {
+      "track_id": "76oCvJj6LRoed2754GybpH",
+      "title": "mosi mosi?",
+      "artists": "楽音",
+      "album": "mosi mosi?",
+      "release_date": "2026-04-22",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T05:51:52.791Z",
+      "play_history": [
+        "2026-09-22T05:51:52.791Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/76oCvJj6LRoed2754GybpH"
+    },
+    {
+      "track_id": "4Gasn91fsCefnN8zM5GjA8",
+      "title": "Finesse",
+      "artists": "Pheelz, BNXN",
+      "album": "Finesse",
+      "release_date": "2022-03-03",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T04:32:31.581Z",
+      "play_history": [
+        "2026-09-22T05:38:28.321Z",
+        "2026-09-22T04:32:31.581Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": true,
+      "spotify_url": "https://open.spotify.com/track/4Gasn91fsCefnN8zM5GjA8"
+    },
+    {
+      "track_id": "776vLcNy6mHNmPisdejR0I",
+      "title": "Nostalgia",
+      "artists": "BIG Naughty",
+      "album": "Nostalgia",
+      "release_date": "2026-08-31",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T05:34:14.449Z",
+      "play_history": [
+        "2026-09-22T05:34:14.449Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/776vLcNy6mHNmPisdejR0I"
+    },
+    {
+      "track_id": "0o9zmvc5f3EFApU52PPIyW",
+      "title": "Shinunoga E-Wa",
+      "artists": "Fujii Kaze",
+      "album": "HELP EVER HURT NEVER",
+      "release_date": "2020-05-20",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T04:29:48.737Z",
+      "play_history": [
+        "2026-09-22T04:29:48.737Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0o9zmvc5f3EFApU52PPIyW"
+    },
+    {
+      "track_id": "45lKz9WsEol7FEV8HhjSjZ",
+      "title": "Finesse",
+      "artists": "Pheelz, BNXN",
+      "album": "Pheelz Good",
+      "release_date": "2023-02-10",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "top_short_term": true,
+      "top_medium_term": true,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/45lKz9WsEol7FEV8HhjSjZ",
+      "play_history": []
+    },
+    {
+      "track_id": "3sK8wGT43QFpWrvNQsrQya",
+      "title": "DtMF",
+      "artists": "Bad Bunny",
+      "album": "DeBÍ TiRAR MáS FOToS",
+      "release_date": "2025-01-05",
+      "saved": true,
+      "saved_at": "2026-09-22T07:08:14Z",
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/3sK8wGT43QFpWrvNQsrQya"
+    },
+    {
+      "track_id": "0Nwar8rweBUyfyuoyjjUvk",
+      "title": "Privilege",
+      "artists": "The Weeknd",
+      "album": "My Dear Melancholy,",
+      "release_date": "2018-03-30",
+      "saved": true,
+      "saved_at": "2026-09-22T07:08:06Z",
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0Nwar8rweBUyfyuoyjjUvk"
+    },
+    {
+      "track_id": "7tCuCjhxzjX2XCz4JiiAsp",
+      "title": "TURiSTA",
+      "artists": "Bad Bunny",
+      "album": "DeBÍ TiRAR MáS FOToS",
+      "release_date": "2025-01-05",
+      "saved": true,
+      "saved_at": "2026-09-22T07:07:51Z",
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/7tCuCjhxzjX2XCz4JiiAsp"
+    }
+  ]
+}
