@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-22T18:13:35.930268+00:00",
+  "collected_at": "2026-09-23T00:14:22.696417+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -460,6 +460,55 @@
       "top_medium_term": false,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/3h5T5JypYU7huFiVYhv1dr"
+    },
+    {
+      "track_id": "1p0rEzrK7YtdRZVtiyV7RN",
+      "title": "Lemonade (feat. NAV)",
+      "artists": "Internet Money, Gunna, Don Toliver, NAV",
+      "album": "B4 The Storm",
+      "release_date": "2020-08-28",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T19:51:24.800Z",
+      "play_history": [
+        "2026-09-22T19:51:24.800Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/1p0rEzrK7YtdRZVtiyV7RN"
+    },
+    {
+      "track_id": "2CGNAOSuO1MEFCbBRgUzjd",
+      "title": "luther (with sza)",
+      "artists": "Kendrick Lamar, SZA",
+      "album": "GNX",
+      "release_date": "2024-11-21",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-22T19:48:11.413Z",
+      "play_history": [
+        "2026-09-22T19:48:11.413Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/2CGNAOSuO1MEFCbBRgUzjd"
+    },
+    {
+      "track_id": "7oDbkGSI3IRzKmhrTiQdID",
+      "title": "What Did I Miss?",
+      "artists": "Drake",
+      "album": "ICEMAN",
+      "release_date": "2026-05-15",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/7oDbkGSI3IRzKmhrTiQdID"
     }
   ],
   "schema_version": 1
