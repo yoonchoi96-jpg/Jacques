@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-23T00:14:22.696417+00:00",
+  "collected_at": "2026-09-23T06:14:05.868361+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -50,7 +50,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/776vLcNy6mHNmPisdejR0I"
     },
     {
@@ -125,11 +125,12 @@
       "saved_at": "2026-09-22T07:07:51Z",
       "last_played": "2026-09-22T08:35:10.205Z",
       "play_history": [
-        "2026-09-22T08:35:10.205Z"
+        "2026-09-22T08:35:10.205Z",
+        "2026-09-23T04:38:12.402Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/7tCuCjhxzjX2XCz4JiiAsp"
     },
     {
@@ -142,11 +143,12 @@
       "saved_at": "2026-09-22T10:07:59Z",
       "last_played": "2026-09-22T10:13:03.854Z",
       "play_history": [
-        "2026-09-22T10:13:03.854Z"
+        "2026-09-22T10:13:03.854Z",
+        "2026-09-23T04:47:10.617Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/55wlsNYqcfiQsHuX8l0jmF"
     },
     {
@@ -157,9 +159,11 @@
       "release_date": "2025-03-17",
       "saved": true,
       "saved_at": "2026-09-22T10:07:44Z",
-      "last_played": null,
-      "play_history": [],
-      "top_short_term": false,
+      "last_played": "2026-09-23T04:35:04.209Z",
+      "play_history": [
+        "2026-09-23T04:35:04.209Z"
+      ],
+      "top_short_term": true,
       "top_medium_term": false,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/1QC4Ztt2GlFWpdSMLwt5ol"
@@ -175,11 +179,12 @@
       "last_played": "2026-09-22T08:47:43.670Z",
       "play_history": [
         "2026-09-22T08:47:43.670Z",
-        "2026-09-22T08:50:52.013Z"
+        "2026-09-22T08:50:52.013Z",
+        "2026-09-23T04:31:09.972Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/4dR11SE6eYy2hUTC0TbHaW"
     },
     {
@@ -196,7 +201,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/2XcmjSdYqdhFjyWFdbnBaY"
     },
     {
@@ -213,7 +218,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/57rkFdhoKjgkg16fsS4pgg"
     },
     {
@@ -230,7 +235,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/7KGHenqXZofXNm5MKDbT3J"
     },
     {
@@ -247,7 +252,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/73ycOMnODtUc2Ggj6EfCpO"
     },
     {
@@ -264,7 +269,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/6ACWgt6Jab2Pl6KK2Go4o9"
     },
     {
@@ -281,7 +286,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/1FavaeOrzS5LtUz0ftzPdU"
     },
     {
@@ -298,7 +303,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/0tOS64UB7jjGG5dWBgoubg"
     },
     {
@@ -315,7 +320,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/14QaXYIK3K3QPtezqxRRPN"
     },
     {
@@ -332,7 +337,7 @@
       ],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/6VNXmo59yDYgcwLS17UNAW"
     },
     {
@@ -347,7 +352,7 @@
       "play_history": [],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/5TFD2bmFKGhoCRbX61nXY5"
     },
     {
@@ -362,7 +367,7 @@
       "play_history": [],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/1Hg0e997pObvZ91w1FCPFk"
     },
     {
@@ -377,7 +382,7 @@
       "play_history": [],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/5TqW4eo90tNi3sdFdHkSML"
     },
     {
@@ -393,8 +398,8 @@
         "2026-09-22T17:48:07.199Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/3B4cjvGlPvyBLNG3AzEgkZ"
     },
     {
@@ -410,8 +415,8 @@
         "2026-09-22T17:51:12.892Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/0eaVIYo2zeOaGJeqZ5TwYz"
     },
     {
@@ -427,8 +432,8 @@
         "2026-09-22T16:52:02.638Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/514joG57v4yKTsfQmz7stz"
     },
     {
@@ -442,7 +447,7 @@
       "last_played": null,
       "play_history": [],
       "top_short_term": true,
-      "top_medium_term": false,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/0wLCA75tmsos5ZcVzqHFQ1"
     },
@@ -457,8 +462,8 @@
       "last_played": null,
       "play_history": [],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/3h5T5JypYU7huFiVYhv1dr"
     },
     {
@@ -474,8 +479,8 @@
         "2026-09-22T19:51:24.800Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/1p0rEzrK7YtdRZVtiyV7RN"
     },
     {
@@ -491,8 +496,8 @@
         "2026-09-22T19:48:11.413Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/2CGNAOSuO1MEFCbBRgUzjd"
     },
     {
@@ -506,9 +511,139 @@
       "last_played": null,
       "play_history": [],
       "top_short_term": true,
+      "top_medium_term": true,
+      "top_long_term": true,
+      "spotify_url": "https://open.spotify.com/track/7oDbkGSI3IRzKmhrTiQdID"
+    },
+    {
+      "track_id": "4Z1ZlABSKDlVByJL3y5OVs",
+      "title": "HEAVEN TO ME",
+      "artists": "Tyler, The Creator",
+      "album": "CALL ME IF YOU GET LOST: The Estate Sale",
+      "release_date": "2023-03-31",
+      "saved": true,
+      "saved_at": "2026-09-23T04:24:18Z",
+      "last_played": "2026-09-23T04:42:01.023Z",
+      "play_history": [
+        "2026-09-23T04:42:01.023Z"
+      ],
+      "top_short_term": true,
       "top_medium_term": false,
       "top_long_term": false,
-      "spotify_url": "https://open.spotify.com/track/7oDbkGSI3IRzKmhrTiQdID"
+      "spotify_url": "https://open.spotify.com/track/4Z1ZlABSKDlVByJL3y5OVs"
+    },
+    {
+      "track_id": "1NhjYYcYTRywc0di98xHxf",
+      "title": "Here We Go… Again (feat. Tyler, the Creator)",
+      "artists": "The Weeknd, Tyler, The Creator",
+      "album": "Dawn FM",
+      "release_date": "2022-01-06",
+      "saved": true,
+      "saved_at": "2026-09-23T04:24:12Z",
+      "last_played": "2026-09-23T04:27:58.316Z",
+      "play_history": [
+        "2026-09-23T04:27:58.316Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/1NhjYYcYTRywc0di98xHxf"
+    },
+    {
+      "track_id": "4iJyoBOLtHqaGxP12qzhQI",
+      "title": "Peaches (feat. Daniel Caesar & Giveon)",
+      "artists": "Justin Bieber, Daniel Caesar, GIVĒON",
+      "album": "Justice",
+      "release_date": "2021-03-19",
+      "saved": true,
+      "saved_at": "2026-09-23T04:15:59Z",
+      "last_played": "2026-09-23T04:19:12.355Z",
+      "play_history": [
+        "2026-09-23T04:19:12.355Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": true,
+      "spotify_url": "https://open.spotify.com/track/4iJyoBOLtHqaGxP12qzhQI"
+    },
+    {
+      "track_id": "3T03rPwlL8NVk1yIaxeD8U",
+      "title": "Off My Face",
+      "artists": "Justin Bieber",
+      "album": "Justice",
+      "release_date": "2021-03-19",
+      "saved": true,
+      "saved_at": "2026-09-23T04:12:09Z",
+      "last_played": "2026-09-23T04:15:56.258Z",
+      "play_history": [
+        "2026-09-23T04:15:56.258Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": true,
+      "spotify_url": "https://open.spotify.com/track/3T03rPwlL8NVk1yIaxeD8U"
+    },
+    {
+      "track_id": "2Hh3ETdQKrmSI3QS0hme7g",
+      "title": "Too Many Nights (feat. Don Toliver & with Future)",
+      "artists": "Metro Boomin, Future, Don Toliver",
+      "album": "HEROES & VILLAINS",
+      "release_date": "2022-12-02",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T04:08:58.225Z",
+      "play_history": [
+        "2026-09-23T04:08:58.225Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": true,
+      "spotify_url": "https://open.spotify.com/track/2Hh3ETdQKrmSI3QS0hme7g"
+    },
+    {
+      "track_id": "2WdAV1VqmllcEznKlVOFxG",
+      "title": "Paris in the Rain",
+      "artists": "Lauv",
+      "album": "I met you when I was 18. (the playlist)",
+      "release_date": "2018-05-31",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": true,
+      "spotify_url": "https://open.spotify.com/track/2WdAV1VqmllcEznKlVOFxG"
+    },
+    {
+      "track_id": "2LBqCSwhJGcFQeTHMVGwy3",
+      "title": "Die For You",
+      "artists": "The Weeknd",
+      "album": "Starboy",
+      "release_date": "2016-11-24",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/2LBqCSwhJGcFQeTHMVGwy3"
+    },
+    {
+      "track_id": "3igbfkHq3s5wGMvC8iAscj",
+      "title": "PARISIENNE",
+      "artists": "GIMS, La Mano 1.9",
+      "album": "PARISIENNE",
+      "release_date": "2025-08-01",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": true,
+      "spotify_url": "https://open.spotify.com/track/3igbfkHq3s5wGMvC8iAscj"
     }
   ],
   "schema_version": 1
