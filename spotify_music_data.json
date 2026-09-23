@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-23T06:14:05.868361+00:00",
+  "collected_at": "2026-09-23T12:14:03.665445+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -93,9 +93,11 @@
       "release_date": "2025-01-05",
       "saved": true,
       "saved_at": "2026-09-22T07:08:14Z",
-      "last_played": null,
-      "play_history": [],
-      "top_short_term": false,
+      "last_played": "2026-09-23T06:46:03.208Z",
+      "play_history": [
+        "2026-09-23T06:46:03.208Z"
+      ],
+      "top_short_term": true,
       "top_medium_term": false,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/3sK8wGT43QFpWrvNQsrQya"
@@ -123,7 +125,7 @@
       "release_date": "2025-01-05",
       "saved": true,
       "saved_at": "2026-09-22T07:07:51Z",
-      "last_played": "2026-09-22T08:35:10.205Z",
+      "last_played": "2026-09-23T04:38:12.402Z",
       "play_history": [
         "2026-09-22T08:35:10.205Z",
         "2026-09-23T04:38:12.402Z"
@@ -176,7 +178,7 @@
       "release_date": "2026-03-29",
       "saved": true,
       "saved_at": "2026-09-22T08:47:47Z",
-      "last_played": "2026-09-22T08:47:43.670Z",
+      "last_played": "2026-09-23T04:31:09.972Z",
       "play_history": [
         "2026-09-22T08:47:43.670Z",
         "2026-09-22T08:50:52.013Z",
@@ -395,7 +397,8 @@
       "saved_at": "2026-09-22T17:48:33Z",
       "last_played": "2026-09-22T17:48:07.199Z",
       "play_history": [
-        "2026-09-22T17:48:07.199Z"
+        "2026-09-22T17:48:07.199Z",
+        "2026-09-23T06:42:08.180Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -412,7 +415,8 @@
       "saved_at": null,
       "last_played": "2026-09-22T17:51:12.892Z",
       "play_history": [
-        "2026-09-22T17:51:12.892Z"
+        "2026-09-22T17:51:12.892Z",
+        "2026-09-23T08:08:06.222Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -425,11 +429,12 @@
       "artists": "Drake",
       "album": "ICEMAN",
       "release_date": "2026-05-15",
-      "saved": false,
-      "saved_at": null,
+      "saved": true,
+      "saved_at": "2026-09-23T08:01:09Z",
       "last_played": "2026-09-22T16:52:02.638Z",
       "play_history": [
-        "2026-09-22T16:52:02.638Z"
+        "2026-09-22T16:52:02.638Z",
+        "2026-09-23T08:05:00.606Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -559,7 +564,9 @@
       "saved_at": "2026-09-23T04:15:59Z",
       "last_played": "2026-09-23T04:19:12.355Z",
       "play_history": [
-        "2026-09-23T04:19:12.355Z"
+        "2026-09-23T04:19:12.355Z",
+        "2026-09-23T06:37:00.688Z",
+        "2026-09-23T06:39:03.277Z"
       ],
       "top_short_term": true,
       "top_medium_term": false,
@@ -644,6 +651,409 @@
       "top_medium_term": false,
       "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/3igbfkHq3s5wGMvC8iAscj"
+    },
+    {
+      "track_id": "0KDgGJf3DYJNzXDIlmRtxJ",
+      "title": "A Good Day",
+      "artists": "Anderson .Paak, Cordae",
+      "album": "A Good Day",
+      "release_date": "2026-09-16",
+      "saved": true,
+      "saved_at": "2026-09-23T08:11:32Z",
+      "last_played": "2026-09-23T08:14:00.327Z",
+      "play_history": [
+        "2026-09-23T08:14:00.327Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0KDgGJf3DYJNzXDIlmRtxJ"
+    },
+    {
+      "track_id": "2igwFfvr1OAGX9SKDCPBwO",
+      "title": "Empire State Of Mind",
+      "artists": "JAŸ-Z, Alicia Keys",
+      "album": "The Blueprint 3",
+      "release_date": "2009-09-08",
+      "saved": true,
+      "saved_at": "2026-09-23T08:08:10Z",
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO"
+    },
+    {
+      "track_id": "3xKsf9qdS1CyvXSMEid6g8",
+      "title": "Pink + White",
+      "artists": "Frank Ocean",
+      "album": "Blonde",
+      "release_date": "2016-08-20",
+      "saved": true,
+      "saved_at": "2026-09-23T08:00:39Z",
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/3xKsf9qdS1CyvXSMEid6g8"
+    },
+    {
+      "track_id": "00WLowvlN5cjkYpQV6pjo4",
+      "title": "Die For You",
+      "artists": "Joji",
+      "album": "SMITHEREENS",
+      "release_date": "2022-11-04",
+      "saved": true,
+      "saved_at": "2026-09-23T07:57:10Z",
+      "last_played": "2026-09-23T08:00:35.545Z",
+      "play_history": [
+        "2026-09-23T08:00:35.545Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/00WLowvlN5cjkYpQV6pjo4"
+    },
+    {
+      "track_id": "7rbECVPkY5UODxoOUVKZnA",
+      "title": "I Wonder",
+      "artists": "Kanye West",
+      "album": "Graduation",
+      "release_date": "2007-09-11",
+      "saved": true,
+      "saved_at": "2026-09-23T07:52:57Z",
+      "last_played": "2026-09-23T07:56:50.461Z",
+      "play_history": [
+        "2026-09-23T07:56:50.461Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/7rbECVPkY5UODxoOUVKZnA"
+    },
+    {
+      "track_id": "4jyyma8YdFC4S4llusSFRu",
+      "title": "butterflies.",
+      "artists": "Brent Faiyaz",
+      "album": "Icon",
+      "release_date": "2026-02-13",
+      "saved": true,
+      "saved_at": "2026-09-23T07:45:57Z",
+      "last_played": "2026-09-23T07:49:31.101Z",
+      "play_history": [
+        "2026-09-23T07:49:31.101Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/4jyyma8YdFC4S4llusSFRu"
+    },
+    {
+      "track_id": "3azJifCSqg9fRij2yKIbWz",
+      "title": "The Color Violet",
+      "artists": "Tory Lanez",
+      "album": "Alone At Prom",
+      "release_date": "2021-12-10",
+      "saved": true,
+      "saved_at": "2026-09-23T07:41:50Z",
+      "last_played": "2026-09-23T07:45:24.763Z",
+      "play_history": [
+        "2026-09-23T07:45:24.763Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/3azJifCSqg9fRij2yKIbWz"
+    },
+    {
+      "track_id": "1KZfsdxhCqX3SJnRjRPJiD",
+      "title": "BABY I'M BACK",
+      "artists": "The Kid LAROI",
+      "album": "THE FIRST TIME (DELUXE VERSION)",
+      "release_date": "2024-08-09",
+      "saved": true,
+      "saved_at": "2026-09-23T07:26:43Z",
+      "last_played": "2026-09-23T07:27:26.002Z",
+      "play_history": [
+        "2026-09-23T07:27:26.002Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/1KZfsdxhCqX3SJnRjRPJiD"
+    },
+    {
+      "track_id": "4k6Uh1HXdhtusDW5y8Gbvy",
+      "title": "Bad Habit",
+      "artists": "Steve Lacy",
+      "album": "Gemini Rights",
+      "release_date": "2022-07-15",
+      "saved": true,
+      "saved_at": "2026-09-23T07:21:11Z",
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/4k6Uh1HXdhtusDW5y8Gbvy"
+    },
+    {
+      "track_id": "3Yd3J42s3GZaYty4Iy4ewT",
+      "title": "So Good (feat. Kendrick Lamar)",
+      "artists": "Jhené Aiko, Kendrick Lamar",
+      "album": "Westside Whimsy",
+      "release_date": "2026-09-11",
+      "saved": true,
+      "saved_at": "2026-09-23T07:17:40Z",
+      "last_played": "2026-09-23T07:21:05.666Z",
+      "play_history": [
+        "2026-09-23T07:21:05.666Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/3Yd3J42s3GZaYty4Iy4ewT"
+    },
+    {
+      "track_id": "5BZsQlgw21vDOAjoqkNgKb",
+      "title": "DAISIES",
+      "artists": "Justin Bieber",
+      "album": "SWAG",
+      "release_date": "2025-07-11",
+      "saved": true,
+      "saved_at": "2026-09-23T07:14:22Z",
+      "last_played": "2026-09-23T07:17:10.397Z",
+      "play_history": [
+        "2026-09-23T07:17:10.397Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/5BZsQlgw21vDOAjoqkNgKb"
+    },
+    {
+      "track_id": "3ym8ajVmKm6Fybgov3WBI5",
+      "title": "Let Me Go",
+      "artists": "Daniel Caesar",
+      "album": "NEVER ENOUGH",
+      "release_date": "2023-04-07",
+      "saved": true,
+      "saved_at": "2026-09-23T07:10:50Z",
+      "last_played": "2026-09-23T07:10:52.359Z",
+      "play_history": [
+        "2026-09-23T07:10:52.359Z",
+        "2026-09-23T07:14:15.964Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/3ym8ajVmKm6Fybgov3WBI5"
+    },
+    {
+      "track_id": "2uvE4L5ZsYKpv8hbK4TIOt",
+      "title": "MUTT",
+      "artists": "Leon Thomas",
+      "album": "MUTT",
+      "release_date": "2024-09-27",
+      "saved": true,
+      "saved_at": "2026-09-23T07:06:27Z",
+      "last_played": "2026-09-23T07:09:11.728Z",
+      "play_history": [
+        "2026-09-23T07:09:11.728Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/2uvE4L5ZsYKpv8hbK4TIOt"
+    },
+    {
+      "track_id": "0XWf8CRB6IptewumZDi5b6",
+      "title": "WANTCHU",
+      "artists": "keshi",
+      "album": "WANTCHU",
+      "release_date": "2025-08-08",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:52:49.006Z",
+      "play_history": [
+        "2026-09-23T07:52:49.006Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0XWf8CRB6IptewumZDi5b6"
+    },
+    {
+      "track_id": "53iuhJlwXhSER5J2IYYv1W",
+      "title": "The Fate of Ophelia",
+      "artists": "Taylor Swift",
+      "album": "The Life of a Showgirl",
+      "release_date": "2025-10-03",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:41:40.290Z",
+      "play_history": [
+        "2026-09-23T07:41:40.290Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/53iuhJlwXhSER5J2IYYv1W"
+    },
+    {
+      "track_id": "12VH4g5pTMZmrUVzfJq7F7",
+      "title": "M a k e I t T o T h e M o r n i n g",
+      "artists": "PARTYNEXTDOOR",
+      "album": "PARTYNEXTDOOR 4 (P4)",
+      "release_date": "2024-04-26",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:37:56.175Z",
+      "play_history": [
+        "2026-09-23T07:37:56.175Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/12VH4g5pTMZmrUVzfJq7F7"
+    },
+    {
+      "track_id": "0BYuy4jQEMJzyo6rySSQpC",
+      "title": "Please Do Not Lean (feat. BADBADNOTGOOD) - Bonus",
+      "artists": "Daniel Caesar, BADBADNOTGOOD",
+      "album": "NEVER ENOUGH (Bonus Version)",
+      "release_date": "2023-04-10",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:35:09.791Z",
+      "play_history": [
+        "2026-09-23T07:35:09.791Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0BYuy4jQEMJzyo6rySSQpC"
+    },
+    {
+      "track_id": "4Z5KKoBGxpJo8YbDcGQXd5",
+      "title": "Secondhand (feat. Rema)",
+      "artists": "Don Toliver, Rema",
+      "album": "OCTANE",
+      "release_date": "2026-01-30",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:31:10.578Z",
+      "play_history": [
+        "2026-09-23T07:31:10.578Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/4Z5KKoBGxpJo8YbDcGQXd5"
+    },
+    {
+      "track_id": "6XeAixOyTbaI2DMOtBfC37",
+      "title": "Lonesome",
+      "artists": "Jack Harlow",
+      "album": "Monica",
+      "release_date": "2026-03-13",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:24:31.176Z",
+      "play_history": [
+        "2026-09-23T07:24:31.176Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/6XeAixOyTbaI2DMOtBfC37"
+    },
+    {
+      "track_id": "5hVghJ4KaYES3BFUATCYn0",
+      "title": "EARFQUAKE",
+      "artists": "Tyler, The Creator",
+      "album": "IGOR",
+      "release_date": "2019-05-17",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:06:00.754Z",
+      "play_history": [
+        "2026-09-23T07:06:00.754Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/5hVghJ4KaYES3BFUATCYn0"
+    },
+    {
+      "track_id": "6rY5FAWxCdAGllYEOZMbjW",
+      "title": "SLOW DANCING IN THE DARK",
+      "artists": "Joji",
+      "album": "BALLADS 1",
+      "release_date": "2018-10-26",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T07:02:52.722Z",
+      "play_history": [
+        "2026-09-23T07:02:52.722Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/6rY5FAWxCdAGllYEOZMbjW"
+    },
+    {
+      "track_id": "5vPUv0xziXbV4lnWeVNXNq",
+      "title": "Roommates",
+      "artists": "Malcolm Todd",
+      "album": "Sweet Boy",
+      "release_date": "2024-04-05",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T06:59:25.322Z",
+      "play_history": [
+        "2026-09-23T06:59:25.322Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/5vPUv0xziXbV4lnWeVNXNq"
+    },
+    {
+      "track_id": "4WFgvKVfEhb3IUAFGrutTR",
+      "title": "Love Me Not",
+      "artists": "Ravyn Lenae",
+      "album": "Bird's Eye",
+      "release_date": "2024-08-09",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T06:52:41.496Z",
+      "play_history": [
+        "2026-09-23T06:52:41.496Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/4WFgvKVfEhb3IUAFGrutTR"
+    },
+    {
+      "track_id": "55Tys2QDQ6nxf2efuR1RLD",
+      "title": "A COLD PLAY",
+      "artists": "The Kid LAROI",
+      "album": "BEFORE I FORGET",
+      "release_date": "2026-01-09",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T06:49:10.101Z",
+      "play_history": [
+        "2026-09-23T06:49:10.101Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/55Tys2QDQ6nxf2efuR1RLD"
     }
   ],
   "schema_version": 1
