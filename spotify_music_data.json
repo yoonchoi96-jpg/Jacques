@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-23T18:13:51.187207+00:00",
+  "collected_at": "2026-09-24T00:14:20.813191+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -95,7 +95,8 @@
       "saved_at": "2026-09-22T07:08:14Z",
       "last_played": "2026-09-23T06:46:03.208Z",
       "play_history": [
-        "2026-09-23T06:46:03.208Z"
+        "2026-09-23T06:46:03.208Z",
+        "2026-09-23T18:50:07.245Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -128,7 +129,10 @@
       "last_played": "2026-09-23T04:38:12.402Z",
       "play_history": [
         "2026-09-22T08:35:10.205Z",
-        "2026-09-23T04:38:12.402Z"
+        "2026-09-23T04:38:12.402Z",
+        "2026-09-23T18:39:30.764Z",
+        "2026-09-23T18:42:48.105Z",
+        "2026-09-23T18:45:56.063Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -143,7 +147,7 @@
       "release_date": "2026-05-15",
       "saved": true,
       "saved_at": "2026-09-22T10:07:59Z",
-      "last_played": "2026-09-22T10:13:03.854Z",
+      "last_played": "2026-09-23T04:47:10.617Z",
       "play_history": [
         "2026-09-22T10:13:03.854Z",
         "2026-09-23T04:47:10.617Z"
@@ -431,7 +435,7 @@
       "release_date": "2026-05-15",
       "saved": true,
       "saved_at": "2026-09-23T08:01:09Z",
-      "last_played": "2026-09-22T16:52:02.638Z",
+      "last_played": "2026-09-23T08:05:00.606Z",
       "play_history": [
         "2026-09-22T16:52:02.638Z",
         "2026-09-23T08:05:00.606Z"
@@ -709,7 +713,8 @@
       "saved_at": "2026-09-23T07:57:10Z",
       "last_played": "2026-09-23T08:00:35.545Z",
       "play_history": [
-        "2026-09-23T08:00:35.545Z"
+        "2026-09-23T08:00:35.545Z",
+        "2026-09-23T19:00:02.902Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -726,9 +731,10 @@
       "saved_at": "2026-09-23T07:52:57Z",
       "last_played": "2026-09-23T07:56:50.461Z",
       "play_history": [
-        "2026-09-23T07:56:50.461Z"
+        "2026-09-23T07:56:50.461Z",
+        "2026-09-23T20:27:22.433Z"
       ],
-      "top_short_term": false,
+      "top_short_term": true,
       "top_medium_term": false,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/7rbECVPkY5UODxoOUVKZnA"
@@ -828,7 +834,7 @@
       "play_history": [
         "2026-09-23T07:17:10.397Z"
       ],
-      "top_short_term": true,
+      "top_short_term": false,
       "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/5BZsQlgw21vDOAjoqkNgKb"
@@ -982,7 +988,7 @@
       "play_history": [
         "2026-09-23T07:06:00.754Z"
       ],
-      "top_short_term": true,
+      "top_short_term": false,
       "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/5hVghJ4KaYES3BFUATCYn0"
@@ -1054,6 +1060,57 @@
       "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/55Tys2QDQ6nxf2efuR1RLD"
+    },
+    {
+      "track_id": "1sOW4PuG5X3Ie3EXUhAopJ",
+      "title": "Escape From LA",
+      "artists": "The Weeknd",
+      "album": "After Hours",
+      "release_date": "2020-03-20",
+      "saved": true,
+      "saved_at": "2026-09-23T18:50:28Z",
+      "last_played": "2026-09-23T18:56:15.932Z",
+      "play_history": [
+        "2026-09-23T18:56:15.932Z"
+      ],
+      "top_short_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/1sOW4PuG5X3Ie3EXUhAopJ"
+    },
+    {
+      "track_id": "0mL82sxCRjrs3br407IdJh",
+      "title": "Is There Someone Else?",
+      "artists": "The Weeknd",
+      "album": "Dawn FM",
+      "release_date": "2022-01-06",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T18:56:15.934Z",
+      "play_history": [
+        "2026-09-23T18:56:15.934Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/0mL82sxCRjrs3br407IdJh"
+    },
+    {
+      "track_id": "6PGoSes0D9eUDeeAafB2As",
+      "title": "LOVE. FEAT. ZACARI.",
+      "artists": "Kendrick Lamar, Zacari",
+      "album": "DAMN.",
+      "release_date": "2017-04-14",
+      "saved": false,
+      "saved_at": null,
+      "last_played": "2026-09-23T10:20:34.296Z",
+      "play_history": [
+        "2026-09-23T10:20:34.296Z"
+      ],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/6PGoSes0D9eUDeeAafB2As"
     }
   ],
   "schema_version": 1
