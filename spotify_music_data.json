@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-24T12:13:53.536042+00:00",
+  "collected_at": "2026-09-24T18:13:11.984787+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -24,12 +24,13 @@
       "artists": "Pheelz, BNXN",
       "album": "Finesse",
       "release_date": "2022-03-03",
-      "saved": false,
-      "saved_at": null,
-      "last_played": "2026-09-22T04:32:31.581Z",
+      "saved": true,
+      "saved_at": "2026-09-24T17:54:31Z",
+      "last_played": "2026-09-24T17:56:20.649Z",
       "play_history": [
         "2026-09-22T04:32:31.581Z",
-        "2026-09-22T05:38:28.321Z"
+        "2026-09-22T05:38:28.321Z",
+        "2026-09-24T17:56:20.649Z"
       ],
       "top_short_term": false,
       "top_medium_term": false,
@@ -399,7 +400,7 @@
       "release_date": "2026-01-30",
       "saved": true,
       "saved_at": "2026-09-22T17:48:33Z",
-      "last_played": "2026-09-22T17:48:07.199Z",
+      "last_played": "2026-09-23T06:42:08.180Z",
       "play_history": [
         "2026-09-22T17:48:07.199Z",
         "2026-09-23T06:42:08.180Z"
@@ -417,7 +418,7 @@
       "release_date": "2023-02-28",
       "saved": false,
       "saved_at": null,
-      "last_played": "2026-09-22T17:51:12.892Z",
+      "last_played": "2026-09-23T08:08:06.222Z",
       "play_history": [
         "2026-09-22T17:51:12.892Z",
         "2026-09-23T08:08:06.222Z"
@@ -498,11 +499,12 @@
       "artists": "Kendrick Lamar, SZA",
       "album": "GNX",
       "release_date": "2024-11-21",
-      "saved": false,
-      "saved_at": null,
+      "saved": true,
+      "saved_at": "2026-09-24T17:56:29Z",
       "last_played": "2026-09-22T19:48:11.413Z",
       "play_history": [
-        "2026-09-22T19:48:11.413Z"
+        "2026-09-22T19:48:11.413Z",
+        "2026-09-24T17:59:15.727Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -1111,6 +1113,21 @@
       "top_medium_term": false,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/6PGoSes0D9eUDeeAafB2As"
+    },
+    {
+      "track_id": "19Hg1UCZaCdpHB37L7x63X",
+      "title": "EVERYTHING",
+      "artists": "The Black Skirts",
+      "album": "TEAM BABY",
+      "release_date": "2017-05-30",
+      "saved": true,
+      "saved_at": "2026-09-24T17:49:45Z",
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": false,
+      "top_medium_term": false,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/19Hg1UCZaCdpHB37L7x63X"
     }
   ],
   "schema_version": 1
