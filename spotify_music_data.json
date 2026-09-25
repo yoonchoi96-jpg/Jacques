@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-25T12:13:55.967244+00:00",
+  "collected_at": "2026-09-25T18:12:40.576770+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -757,8 +757,8 @@
         "2026-09-23T07:49:31.101Z"
       ],
       "top_short_term": false,
-      "top_medium_term": true,
-      "top_long_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/4jyyma8YdFC4S4llusSFRu"
     },
     {
@@ -858,8 +858,8 @@
         "2026-09-23T07:14:15.964Z"
       ],
       "top_short_term": false,
-      "top_medium_term": true,
-      "top_long_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/3ym8ajVmKm6Fybgov3WBI5"
     },
     {
@@ -910,7 +910,7 @@
       ],
       "top_short_term": false,
       "top_medium_term": false,
-      "top_long_term": true,
+      "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/53iuhJlwXhSER5J2IYYv1W"
     },
     {
@@ -927,7 +927,7 @@
       ],
       "top_short_term": false,
       "top_medium_term": false,
-      "top_long_term": true,
+      "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/12VH4g5pTMZmrUVzfJq7F7"
     },
     {
@@ -1046,8 +1046,8 @@
         "2026-09-23T06:52:41.496Z"
       ],
       "top_short_term": false,
-      "top_medium_term": true,
-      "top_long_term": true,
+      "top_medium_term": false,
+      "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/4WFgvKVfEhb3IUAFGrutTR"
     },
     {
@@ -1130,7 +1130,7 @@
       "play_history": [],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/19Hg1UCZaCdpHB37L7x63X"
     },
     {
@@ -1145,7 +1145,7 @@
       "play_history": [],
       "top_short_term": true,
       "top_medium_term": true,
-      "top_long_term": false,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/1qoNKlnjY5vICvGZK1m0Yu"
     },
     {
@@ -1176,8 +1176,8 @@
         "2026-09-25T04:49:13.884Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/2dd3G3ZqEcG2cNS1tp3oEk"
     },
     {
@@ -1208,8 +1208,8 @@
         "2026-09-24T22:36:12.582Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/3D24ErT1MMmUfXWotSj2A2"
     },
     {
@@ -1226,8 +1226,8 @@
         "2026-09-25T11:27:07.916Z"
       ],
       "top_short_term": true,
-      "top_medium_term": false,
-      "top_long_term": false,
+      "top_medium_term": true,
+      "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/1i1n7hUzCDkXGFqIJSSzom"
     },
     {
