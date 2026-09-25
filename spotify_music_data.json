@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-25T06:14:06.394861+00:00",
+  "collected_at": "2026-09-25T12:13:55.967244+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -127,7 +127,7 @@
       "release_date": "2025-01-05",
       "saved": true,
       "saved_at": "2026-09-22T07:07:51Z",
-      "last_played": "2026-09-23T04:38:12.402Z",
+      "last_played": "2026-09-23T18:39:30.764Z",
       "play_history": [
         "2026-09-22T08:35:10.205Z",
         "2026-09-23T04:38:12.402Z",
@@ -183,11 +183,12 @@
       "release_date": "2026-03-29",
       "saved": true,
       "saved_at": "2026-09-22T08:47:47Z",
-      "last_played": "2026-09-23T04:31:09.972Z",
+      "last_played": "2026-09-25T11:56:03.437Z",
       "play_history": [
         "2026-09-22T08:47:43.670Z",
         "2026-09-22T08:50:52.013Z",
-        "2026-09-23T04:31:09.972Z"
+        "2026-09-23T04:31:09.972Z",
+        "2026-09-25T11:56:03.437Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -339,9 +340,10 @@
       "release_date": "2025-01-05",
       "saved": false,
       "saved_at": null,
-      "last_played": "2026-09-22T08:38:59.021Z",
+      "last_played": "2026-09-25T11:30:55.354Z",
       "play_history": [
-        "2026-09-22T08:38:59.021Z"
+        "2026-09-22T08:38:59.021Z",
+        "2026-09-25T11:30:55.354Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -1220,7 +1222,8 @@
       "saved_at": null,
       "last_played": "2026-09-25T05:23:12.164Z",
       "play_history": [
-        "2026-09-25T05:23:12.164Z"
+        "2026-09-25T05:23:12.164Z",
+        "2026-09-25T11:27:07.916Z"
       ],
       "top_short_term": true,
       "top_medium_term": false,
