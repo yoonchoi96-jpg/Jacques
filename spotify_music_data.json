@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-09-24T18:13:11.984787+00:00",
+  "collected_at": "2026-09-25T00:15:43.585864+00:00",
   "tracks": [
     {
       "track_id": "76oCvJj6LRoed2754GybpH",
@@ -217,11 +217,12 @@
       "artists": "Drake",
       "album": "ICEMAN",
       "release_date": "2026-05-15",
-      "saved": false,
-      "saved_at": null,
-      "last_played": "2026-09-22T10:27:06.237Z",
+      "saved": true,
+      "saved_at": "2026-09-24T20:45:41Z",
+      "last_played": "2026-09-24T20:50:08.428Z",
       "play_history": [
-        "2026-09-22T10:27:06.237Z"
+        "2026-09-22T10:27:06.237Z",
+        "2026-09-24T20:50:08.428Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -501,7 +502,7 @@
       "release_date": "2024-11-21",
       "saved": true,
       "saved_at": "2026-09-24T17:56:29Z",
-      "last_played": "2026-09-22T19:48:11.413Z",
+      "last_played": "2026-09-24T17:59:15.727Z",
       "play_history": [
         "2026-09-22T19:48:11.413Z",
         "2026-09-24T17:59:15.727Z"
@@ -905,8 +906,8 @@
       "play_history": [
         "2026-09-23T07:41:40.290Z"
       ],
-      "top_short_term": true,
-      "top_medium_term": true,
+      "top_short_term": false,
+      "top_medium_term": false,
       "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/53iuhJlwXhSER5J2IYYv1W"
     },
@@ -922,8 +923,8 @@
       "play_history": [
         "2026-09-23T07:37:56.175Z"
       ],
-      "top_short_term": true,
-      "top_medium_term": true,
+      "top_short_term": false,
+      "top_medium_term": false,
       "top_long_term": true,
       "spotify_url": "https://open.spotify.com/track/12VH4g5pTMZmrUVzfJq7F7"
     },
@@ -954,7 +955,8 @@
       "saved_at": null,
       "last_played": "2026-09-23T07:31:10.578Z",
       "play_history": [
-        "2026-09-23T07:31:10.578Z"
+        "2026-09-23T07:31:10.578Z",
+        "2026-09-24T20:53:55.156Z"
       ],
       "top_short_term": true,
       "top_medium_term": true,
@@ -1018,8 +1020,8 @@
       "artists": "Malcolm Todd",
       "album": "Sweet Boy",
       "release_date": "2024-04-05",
-      "saved": false,
-      "saved_at": null,
+      "saved": true,
+      "saved_at": "2026-09-24T20:55:04Z",
       "last_played": "2026-09-23T06:59:25.322Z",
       "play_history": [
         "2026-09-23T06:59:25.322Z"
@@ -1124,10 +1126,25 @@
       "saved_at": "2026-09-24T17:49:45Z",
       "last_played": null,
       "play_history": [],
-      "top_short_term": false,
-      "top_medium_term": false,
+      "top_short_term": true,
+      "top_medium_term": true,
       "top_long_term": false,
       "spotify_url": "https://open.spotify.com/track/19Hg1UCZaCdpHB37L7x63X"
+    },
+    {
+      "track_id": "1qoNKlnjY5vICvGZK1m0Yu",
+      "title": "No matter what",
+      "artists": "Haha",
+      "album": "GAP",
+      "release_date": "2021-12-08",
+      "saved": false,
+      "saved_at": null,
+      "last_played": null,
+      "play_history": [],
+      "top_short_term": true,
+      "top_medium_term": true,
+      "top_long_term": false,
+      "spotify_url": "https://open.spotify.com/track/1qoNKlnjY5vICvGZK1m0Yu"
     }
   ],
   "schema_version": 1
