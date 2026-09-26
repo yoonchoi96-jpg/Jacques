@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from songbpm_sync_v2 import (
+from music_db.enrichment.sources.songbpm_core import (
     HEADERS,
     songbpm_search,
     classify_result,
