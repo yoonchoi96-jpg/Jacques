@@ -428,5 +428,10 @@ print(f"Enrichment queued: {len(pending_tracks)}")
 
 print("=" * 60)
 
+# =========================================================
+# Final WAL checkpoint
+# GitHub Actions commits only db/music.db
+# =========================================================
 
+conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 conn.close()

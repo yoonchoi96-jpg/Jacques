@@ -2,8 +2,9 @@ name: Spotify Music DB
 
 on:
   workflow_dispatch:
+
   schedule:
-    - cron: "0 0,6,12,18 * * *"
+    - cron: "0 0,8,15 * * *"
 
 permissions:
   contents: write
@@ -13,8 +14,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  collect:
+  sync:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,23 +27,29 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Update Spotify database
+      - name: Run Spotify → SQLite → Enrichment
         env:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
-        run: python spotify_music_data_github.py
+          FREQBLOG_API_KEY: ${{ secrets.FREQBLOG_API_KEY }}
+        run: |
+          python spotify_to_db.py
 
-      - name: Commit and push JSON when changed
+      - name: Commit database changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add spotify_music_data.json
+
+          git add db/music.db
+
           if git diff --cached --quiet; then
-            echo "No data changes"
+            echo "No database changes."
           else
-            git commit -m "Update Spotify music data"
+            git commit -m "Automated music database sync"
             git push
           fi
