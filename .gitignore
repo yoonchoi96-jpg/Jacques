@@ -1,6 +1,31 @@
+# Python
 __pycache__/
 *.pyc
+.venv/
+
+# Environment / secrets
 .env
 .env.*
-.venv/
+.spotify_cache
+
+# macOS
 .DS_Store
+
+# Logs
+*.log
+
+# SQLite
+/music.db
+db/*.db
+!db/music.db
+db/*.db-wal
+db/*.db-shm
+
+# Local backup files
+*.bak
+*.bak*
+*.backup_*
+*.before_*
+
+# Local archive
+/archive/
