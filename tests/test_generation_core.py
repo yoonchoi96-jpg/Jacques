@@ -95,6 +95,12 @@ class GenerationCoreTests(unittest.TestCase):
         self.assertNotIn("tempo_bpm", out)
         self.assertTrue(out["estimated_key"]["same"])
 
+        out = compare(
+            {"estimated_key": "F# minor"},
+            {"estimated_key": "Gb minor"},
+        )
+        self.assertTrue(out["estimated_key"]["same"])
+
     def test_compare_extended_metrics(self):
         a = {"tempo_bpm": 120, "spectral_flatness": 0.1, "silence_ratio": 0.2}
         b = {"tempo_bpm": 130, "spectral_flatness": 0.2, "silence_ratio": 0.1}
