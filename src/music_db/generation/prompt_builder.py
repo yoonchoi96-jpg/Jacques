@@ -24,6 +24,9 @@ def build_prompt(features: dict, *, genre="", mood="", vocal="",
         parts.append("noticeable negative space")
     if features.get("key_confidence") is not None and features["key_confidence"] < 0.08:
         parts.append("ambiguous tonal center")
+    if features.get("stereo_width") is not None:
+        width = features["stereo_width"]
+        parts.append("wide stereo image" if width > 0.25 else "focused stereo image")
     if features.get("onset_rate_per_second"):
         parts.append(
             "dense rhythmic articulation"
