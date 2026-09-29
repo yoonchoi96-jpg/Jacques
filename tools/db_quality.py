@@ -39,6 +39,35 @@ def add_issue(conn, entity_type, entity_id, issue_type, severity, details):
 def run_checks(conn):
     checks = []
 
+    # Mark the previous findings from this validator as resolved first.
+    # check() below re-opens any issue that is still present. This keeps
+    # data_quality_issues useful as a current-state audit trail instead of
+    # accumulating stale unresolved rows forever.
+    issue_types = (
+        "missing_track_artist_link",
+        "orphan_track_artist",
+        "orphan_track_album",
+        "invalid_duration",
+        "invalid_audio_range",
+        "generation_relation_self_link",
+        "generation_orphan_output",
+        "generation_orphan_analysis",
+        "generation_duplicate_fingerprint",
+        "relation_self_link",
+        "source_without_canonical_audio",
+        "audio_without_source",
+    )
+    placeholders = ",".join("?" for _ in issue_types)
+    conn.execute(
+        f"""
+        UPDATE data_quality_issues
+        SET resolved_at = ?
+        WHERE resolved_at IS NULL
+          AND issue_type IN ({placeholders})
+        """,
+        (now(), *issue_types),
+    )
+
     def check(name, sql, severity="error"):
         rows = conn.execute(sql).fetchall()
         for row in rows:
