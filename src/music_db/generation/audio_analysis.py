@@ -25,6 +25,8 @@ def analyze_audio(path):
     tempo = float(np.asarray(tempo).reshape(-1)[0])
 
     rms = librosa.feature.rms(y=y)[0]
+    spectral_bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)[0]
+    spectral_flatness = librosa.feature.spectral_flatness(y=y)[0]
     centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
     rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)[0]
     zcr = librosa.feature.zero_crossing_rate(y)[0]
@@ -41,6 +43,7 @@ def analyze_audio(path):
                  "F#", "G", "G#", "A", "A#", "B"]
 
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    silence_ratio = float(np.mean(np.abs(y) < max(peak * 0.01, 1e-5)))
     onset_rate = float(len(librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)) / max(duration, 1e-9))
 
     return {
@@ -57,13 +60,17 @@ def analyze_audio(path):
         "zero_crossing_rate": float(np.mean(zcr)),
         "onset_rate_per_second": onset_rate,
         "beat_count": int(len(beat_frames)),
+        "spectral_bandwidth_hz": float(np.mean(spectral_bandwidth)),
+        "spectral_flatness": float(np.mean(spectral_flatness)),
+        "silence_ratio": silence_ratio,
+        "analysis_version": "audio_features_v2",
     }
 
 
 def analyze_and_store(conn, output_id, path):
     from .outputs import add_analysis
     payload = analyze_audio(path)
-    add_analysis(conn, output_id, "audio_features_v1", payload)
+    add_analysis(conn, output_id, payload["analysis_version"], payload)
     conn.execute(
         """UPDATE generation_outputs
            SET duration_seconds=?, bpm=?, sample_rate=?, format=?, analysis_json=?
