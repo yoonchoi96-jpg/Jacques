@@ -189,10 +189,59 @@ def upsert_track(track, saved=False, saved_at=None):
 
 
     # -----------------------------------------------------
-    # Artists
+    # Album normalization
     # -----------------------------------------------------
 
-    for artist in track.get("artists", []):
+    album = track.get("album", {}) or {}
+    album_id = album.get("id")
+
+    if album_id:
+        conn.execute(
+            """
+            INSERT INTO albums (
+                spotify_id, name, release_date, album_type,
+                spotify_url, image_url, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(spotify_id) DO UPDATE SET
+                name = excluded.name,
+                release_date = excluded.release_date,
+                album_type = excluded.album_type,
+                spotify_url = excluded.spotify_url,
+                image_url = excluded.image_url,
+                updated_at = excluded.updated_at
+            """,
+            (
+                album_id,
+                album.get("name"),
+                album.get("release_date"),
+                album.get("album_type"),
+                album.get("external_urls", {}).get("spotify"),
+                (album.get("images") or [{}])[0].get("url"),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+        normalized_album = conn.execute(
+            "SELECT album_id FROM albums WHERE spotify_id = ?",
+            (album_id,),
+        ).fetchone()
+
+        if normalized_album:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO track_albums
+                    (track_id, album_id)
+                VALUES (?, ?)
+                """,
+                (track_id, normalized_album[0]),
+            )
+
+    # -----------------------------------------------------
+    # Artists + canonical track/artist links
+    # -----------------------------------------------------
+
+    for artist_order, artist in enumerate(track.get("artists", [])):
         artist_id = artist.get("id")
 
         if not artist_id:
@@ -200,20 +249,14 @@ def upsert_track(track, saved=False, saved_at=None):
 
         existing = conn.execute(
             """
-            SELECT 1
-            FROM artists
-            WHERE spotify_id = ?
+            SELECT 1 FROM artists WHERE spotify_id = ?
             """,
             (artist_id,),
         ).fetchone()
 
         conn.execute(
             """
-            INSERT INTO artists (
-                name,
-                spotify_id,
-                spotify_url
-            )
+            INSERT INTO artists (name, spotify_id, spotify_url)
             VALUES (?, ?, ?)
             ON CONFLICT(spotify_id) DO UPDATE SET
                 name = excluded.name,
@@ -225,6 +268,23 @@ def upsert_track(track, saved=False, saved_at=None):
                 artist.get("external_urls", {}).get("spotify"),
             ),
         )
+
+        db_artist = conn.execute(
+            "SELECT artist_id FROM artists WHERE spotify_id = ?",
+            (artist_id,),
+        ).fetchone()
+
+        if db_artist:
+            conn.execute(
+                """
+                INSERT INTO track_artists
+                    (track_id, artist_id, artist_order)
+                VALUES (?, ?, ?)
+                ON CONFLICT(track_id, artist_id)
+                DO UPDATE SET artist_order = excluded.artist_order
+                """,
+                (track_id, db_artist[0], artist_order),
+            )
 
         if existing is None:
             artists_created += 1
@@ -312,6 +372,19 @@ for item in recent_items:
             ),
         )
 
+        conn.execute(
+            """
+            UPDATE tracks
+            SET last_played = CASE
+                WHEN last_played IS NULL OR last_played < ?
+                THEN ?
+                ELSE last_played
+            END
+            WHERE track_id = ?
+            """,
+            (played_at, played_at, track["id"]),
+        )
+
         play_history_added += 1
 
 
@@ -336,8 +409,24 @@ for term in [
     print(f"  {term}")
     print(f"    {len(items)} tracks")
 
+    flag_column = {
+        "short_term": "top_short_term",
+        "medium_term": "top_medium_term",
+        "long_term": "top_long_term",
+    }[term]
+
     for track in items:
         upsert_track(track)
+
+        conn.execute(
+            f"""
+            UPDATE tracks
+            SET {flag_column} = 1
+            WHERE track_id = ?
+            """,
+            (track["id"],),
+        )
+
 
 
 # =========================================================
