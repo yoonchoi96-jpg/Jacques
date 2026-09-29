@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
 from music_db.database import initialize_database, get_connection
 from music_db.generation.base import create_generation_job, update_generation_job
 from music_db.generation.outputs import create_output, extract_audio_refs, download_audio_ref
+from music_db.generation.projects import create_project, stage_dir, STAGES
 from music_db.generation.audio_analysis import analyze_and_store
 
 
@@ -27,17 +28,31 @@ def main():
     p.add_argument("--audio", action="append", default=[],
                    help="Existing local audio to attach/analyze after generation")
     p.add_argument("--dry-run", action="store_true")
-    p.add_argument("--download-dir", default=str(ROOT / "generated_audio"))
+    p.add_argument("--download-dir", default=str(ROOT / "generated_audio"), help="Legacy output directory when --project is omitted")
+    p.add_argument("--project", default=None, help="Project title/key; enables projects/<project>/{reference,generations,edits,final}")
+    p.add_argument("--stage", choices=STAGES, default="generations")
     p.add_argument("--timeout", type=int, default=1800)
     args = p.parse_args()
 
     initialize_database()
     conn = get_connection()
 
+    project_id = None
+    download_dir = Path(args.download_dir)
+    if args.project:
+        project_id, project_root = create_project(
+            conn, args.project, reference_track_id=args.reference_track_id
+        )
+        download_dir = stage_dir(conn, project_id, args.stage)
+        print(f"project_id={project_id}")
+        print(f"project_root={project_root}")
+        print(f"project_stage={args.stage}")
+
     job_id = create_generation_job(
         conn, args.provider, model=args.model, prompt=args.prompt,
         lyrics=args.lyrics, reference_track_id=args.reference_track_id,
         parent_job_id=args.parent_job_id,
+        project_id=project_id,
         request=vars(args),
     )
     print(f"job_id={job_id}")
@@ -79,13 +94,15 @@ def main():
     refs = extract_audio_refs(response)
     for i, ref in enumerate(refs):
         local = download_audio_ref(
-            ref, Path(args.download_dir),
+            ref, download_dir,
             filename=f"job_{job_id:06d}_output_{i:02d}" + Path(ref.split("?", 1)[0]).suffix,
         )
         output_id = create_output(
             conn, job_id, output_index=i,
             audio_path=local,
             audio_url=None if local else ref,
+            project_id=project_id,
+            stage=args.stage,
         )
         if local:
             try:
@@ -97,7 +114,9 @@ def main():
 
     for i, audio in enumerate(args.audio):
         output_id = create_output(conn, job_id, output_index=len(refs) + i,
-                                  audio_path=str(Path(audio).expanduser().resolve()))
+                                  audio_path=str(Path(audio).expanduser().resolve()),
+                                  project_id=project_id,
+                                  stage=args.stage)
         analysis = analyze_and_store(conn, output_id, audio)
         print(json.dumps(analysis, ensure_ascii=False, indent=2))
 
