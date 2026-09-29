@@ -367,6 +367,21 @@ def repair_missing_normalized_links():
 
 print("=== 1. Saved Tracks ===")
 
+# Saved/top flags are current Spotify snapshots, not historical facts.
+# Reset the snapshot before ingesting the current paginated results so
+# unliked tracks and tracks that fell out of a top range do not remain
+# falsely marked forever.
+conn.execute(
+    """
+    UPDATE tracks
+    SET saved = 0,
+        saved_at = NULL,
+        top_short_term = 0,
+        top_medium_term = 0,
+        top_long_term = 0
+    """
+)
+
 saved_items = []
 saved_page = sp.current_user_saved_tracks(limit=50)
 
