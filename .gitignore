@@ -32,3 +32,6 @@ db/*.db-shm
 
 # Generated audio artifacts (local provenance)
 generated_audio/
+
+# Local music production projects (audio + edits)
+projects/
