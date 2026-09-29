@@ -14,6 +14,23 @@ from music_db.generation.http import post_json
 
 
 class GenerationCoreTests(unittest.TestCase):
+    def test_source_registry_enabled_state_survives_seed_refresh(self):
+        from music_db.database import SOURCE_SEED, run_migrations
+
+        conn = sqlite3.connect(":memory:")
+        try:
+            run_migrations(conn)
+            conn.execute(
+                "UPDATE source_registry SET enabled=0 WHERE source='billboard'"
+            )
+            conn.executescript(SOURCE_SEED)
+            enabled = conn.execute(
+                "SELECT enabled FROM source_registry WHERE source='billboard'"
+            ).fetchone()[0]
+            self.assertEqual(enabled, 0)
+        finally:
+            conn.close()
+
     def test_compare_extended_metrics(self):
         a = {"tempo_bpm": 120, "spectral_flatness": 0.1, "silence_ratio": 0.2}
         b = {"tempo_bpm": 130, "spectral_flatness": 0.2, "silence_ratio": 0.1}
