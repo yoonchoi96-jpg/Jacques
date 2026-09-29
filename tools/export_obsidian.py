@@ -285,7 +285,6 @@ def export_generation(conn, root):
            FROM generation_jobs j
            LEFT JOIN generation_outputs o ON o.job_id = j.job_id
            LEFT JOIN generation_projects p ON p.project_id = COALESCE(o.project_id, j.project_id)
-           LEFT JOIN generation_outputs o ON o.job_id = j.job_id
            ORDER BY j.created_at DESC, o.output_index"""
     ).fetchall()
     lines = ["# Generation Lineage", ""]
