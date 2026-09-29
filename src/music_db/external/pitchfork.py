@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import requests
 from bs4 import BeautifulSoup
 
-from music_db.external.matching import find_track
+from music_db.external.matching import find_track, find_track_by_album
 
 SOURCE = "pitchfork"
 FEEDS = (
@@ -74,7 +74,13 @@ def sync(conn, dry_run=False):
                     page_title, score, author, review_date = _metadata(link, session)
                 except Exception:
                     page_title, score, author, review_date = rss_title, None, None, pub
-                track_id = find_track(conn, page_title or rss_title)
+                review_title = page_title or rss_title
+                artist_name = None
+                album_name = review_title
+                if ":" in review_title:
+                    artist_name, album_name = review_title.split(":", 1)
+                album_name = re.sub(r"\s+(?:Album|Track)\s+Review.*$", "", album_name, flags=re.I).strip()
+                track_id = find_track_by_album(conn, album_name, artist_name) or find_track(conn, album_name, artist_name)
                 conn.execute("""
                     INSERT INTO review_entries
                     (source,entity_type,title,score,review_date,author,headline,url,track_id,raw_data,observed_at)
@@ -83,7 +89,7 @@ def sync(conn, dry_run=False):
                       title=excluded.title, score=excluded.score, review_date=excluded.review_date,
                       author=excluded.author, headline=excluded.headline, track_id=excluded.track_id,
                       raw_data=excluded.raw_data, observed_at=excluded.observed_at
-                """, (SOURCE, "album_review", page_title or rss_title, score, review_date,
+                """, (SOURCE, "album_review", album_name, score, review_date,
                       author, rss_title, link, track_id,
                       json.dumps({"feed": feed_url, "title": rss_title, "pubDate": pub}, ensure_ascii=False)))
                 stats["matched"] += int(bool(track_id))
