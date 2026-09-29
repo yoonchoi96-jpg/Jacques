@@ -117,16 +117,20 @@ def download_audio_ref(ref, destination_dir, *, filename=None, timeout=120):
 
     with requests.get(ref, stream=True, timeout=timeout) as r:
         r.raise_for_status()
+        content_type = (
+            r.headers.get("Content-Type", "")
+            .split(";", 1)[0]
+            .strip()
+            .lower()
+        )
+        if content_type in {"application/json", "text/html"} or content_type.startswith("image/"):
+            raise ValueError(
+                f"Refused non-audio response Content-Type: {content_type or 'unknown'}"
+            )
         if path.suffix.lower() not in {
             ".mp3", ".wav", ".flac", ".m4a", ".aac",
             ".ogg", ".opus", ".webm",
         }:
-            content_type = (
-                r.headers.get("Content-Type", "")
-                .split(";", 1)[0]
-                .strip()
-                .lower()
-            )
             extension_map = {
                 "audio/mpeg": ".mp3",
                 "audio/wav": ".wav",
