@@ -191,6 +191,28 @@ class GenerationCoreTests(unittest.TestCase):
             )
             db.close()
 
+    @patch("requests.get")
+    def test_download_audio_ref_infers_extension_from_content_type(self, get):
+        from music_db.generation.outputs import download_audio_ref
+
+        class Response:
+            headers = {"Content-Type": "audio/mpeg; charset=binary"}
+            def raise_for_status(self): pass
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def iter_content(self, chunk_size):
+                yield b"audio"
+
+        get.return_value = Response()
+        with tempfile.TemporaryDirectory() as td:
+            path = download_audio_ref(
+                "https://cdn.test/generated",
+                td,
+                filename="track.bin",
+            )
+            self.assertTrue(path.endswith(".mp3"))
+            self.assertEqual(Path(path).read_bytes(), b"audio")
+
     def test_extract_audio_refs_ignores_generic_image_urls(self):
         response = {
             "audio_url": "https://cdn.test/song.mp3",
