@@ -42,6 +42,9 @@ jobs:
       - name: Import smoke test
         run: PYTHONPATH=src python tools/validate_install.py
 
+      - name: Generation regression tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -p "test_*.py" -v
+
       - name: Database integrity
         run: |
           PYTHONPATH=src python -c "from music_db.database import initialize_database; initialize_database()"
