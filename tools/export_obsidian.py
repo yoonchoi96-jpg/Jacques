@@ -315,12 +315,13 @@ def main():
     root = Path(args.vault) / "Music"
     root.mkdir(parents=True, exist_ok=True)
 
+    chart_rows, review_rows = export_editorial(conn, root)
     counts = {
         "tracks": export_tracks(conn, root, args.limit),
         "artists": export_artists(conn, root),
         "albums": export_albums(conn, root),
-        "chart_rows": export_editorial(conn, root)[0],
-        "review_rows": export_editorial(conn, root)[1],
+        "chart_rows": chart_rows,
+        "review_rows": review_rows,
         "generation_rows": export_generation(conn, root),
     }
 
