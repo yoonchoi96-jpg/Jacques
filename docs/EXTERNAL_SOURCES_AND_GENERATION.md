@@ -104,4 +104,4 @@ MusicBrainz requests must be rate-aware; Jacques should use a meaningful User-Ag
 
 `source_registry.enabled` is persistent operator state. Database initialization refreshes source metadata without overwriting an existing enabled/disabled choice.
 
-The live enrichment dispatcher and editorial sync honor this flag. SongBPM remains eligible only after a terminal FreqBlog `not_found`; transient FreqBlog errors do not trigger fallback.
+The live enrichment dispatcher, bulk enrichment engine, editorial sync, and AcoustID identification honor this flag. SongBPM remains eligible only after a terminal FreqBlog `not_found`; transient FreqBlog errors do not trigger fallback. Disabled sources are skipped without creating API calls.
