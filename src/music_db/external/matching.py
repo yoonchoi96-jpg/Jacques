@@ -53,3 +53,17 @@ def find_track_by_album(conn, album, artist=None):
             continue
         return row["track_id"]
     return None
+
+
+def match_score(title, artist=None, album=None, row=None) -> float:
+    """Deterministic 0..1 score for an already matched candidate row."""
+    if row is None:
+        return 0.0
+    score = 0.0
+    if norm(title) and norm(title) == norm(row["title"]):
+        score += 0.6
+    if artist and artist_match(artist, row["artist_name"]):
+        score += 0.3
+    if album and row["album"] and norm(album) == norm(row["album"]):
+        score += 0.1
+    return min(score, 1.0)
