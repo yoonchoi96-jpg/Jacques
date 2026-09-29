@@ -83,17 +83,17 @@ Jacques now includes a provider-neutral generation execution layer:
 
 AcoustID is implemented as an optional local-file identity layer. It uses Chromaprint/fpcalc to fingerprint an actual audio file and then queries AcoustID for MusicBrainz-linked identity. It is deliberately not part of the Spotify metadata schedule because Spotify catalog metadata alone is not an audio fingerprint.
 
-AcoustID's public service is rate-limited to 3 requests/second and is free for non-commercial use; commercial deployment requires registration. citeturn0search4
+AcoustID's public service is rate-limited to 3 requests/second and is free for non-commercial use; commercial deployment requires registration.
 
 ## External-source boundary
 
-Apple Music remains API-first for catalog/charts; its official API supports catalog songs, albums, artists, search, charts and storefront-specific catalog access. citeturn1search0turn1search3
+Apple Music remains API-first for catalog/charts; its official API supports catalog songs, albums, artists, search, charts and storefront-specific catalog access.
 
-Beatport has an official v4 developer portal, but the current portal requires Beatport login. Jacques therefore does not invent undocumented endpoints or scrape it as a pretend API. A dedicated Beatport adapter can be added once authenticated endpoint details/credentials are available. citeturn1search12
+Beatport has an official v4 developer portal, but the current portal requires Beatport login. Jacques therefore does not invent undocumented endpoints or scrape it as a pretend API. A dedicated Beatport adapter can be added once authenticated endpoint details/credentials are available.
 
-Bandcamp's documented API is primarily for labels/merchandise fulfillment and requires approved OAuth access, so it is not treated as a general public catalog API for Jacques. citeturn0search2
+Bandcamp's documented API is primarily for labels/merchandise fulfillment and requires approved OAuth access, so it is not treated as a general public catalog API for Jacques.
 
-MusicBrainz requests must be rate-aware; Jacques should use a meaningful User-Agent and avoid synchronized bulk polling. citeturn0search1
+MusicBrainz requests must be rate-aware; Jacques should use a meaningful User-Agent and avoid synchronized bulk polling.
 
 ## Automated quality gate
 
