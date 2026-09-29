@@ -90,9 +90,7 @@ def export_tracks(conn, root, limit=None):
         ).fetchall()
         lines += [f"- {r[0]} → {wiki(r[1])}" for r in relations] or ["- None"]
         (out / f"{safe_filename(row['title'])}__{row['track_id'][:8]}.md").write_text(
-            "
-".join(lines) + "
-",
+            "\n".join(lines) + "\n",
             encoding="utf-8",
         )
 
@@ -131,9 +129,7 @@ def export_artists(conn, root):
         ]
         lines += [f"- {wiki(t[0])}" for t in tracks] or ["- None"]
         (out / f"{safe_filename(row['name'])}__{row['artist_id']}.md").write_text(
-            "
-".join(lines) + "
-",
+            "\n".join(lines) + "\n",
             encoding="utf-8",
         )
 
@@ -173,9 +169,7 @@ def export_albums(conn, root):
         ]
         lines += [f"- {wiki(t[0])}" for t in tracks] or ["- None"]
         (out / f"{safe_filename(row['name'])}__{row['album_id']}.md").write_text(
-            "
-".join(lines) + "
-",
+            "\n".join(lines) + "\n",
             encoding="utf-8",
         )
 
