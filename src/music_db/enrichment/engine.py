@@ -4,6 +4,7 @@ import argparse
 import sqlite3
 import time
 import traceback
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from music_db.database import initialize_database
@@ -49,10 +50,43 @@ def open_worker_connection():
     return conn
 
 
+def _record_enrichment_run(conn, source, started_at, finished_at, candidate_count, stats, status, error=None):
+    conn.execute(
+        """
+        INSERT INTO enrichment_runs (
+            source, started_at, finished_at, candidate_count,
+            success_count, no_data_count, not_found_count,
+            error_count, status, error
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            source.lower().replace(".", ""),
+            started_at,
+            finished_at,
+            candidate_count,
+            int(stats.get("success", 0)),
+            int(stats.get("no_data", stats.get("no_match", 0))),
+            int(stats.get("not_found", 0)),
+            int(
+                stats.get("error", 0)
+                + stats.get("search_failed", 0)
+                + stats.get("retryable", 0)
+                + stats.get("rate_limit", 0)
+                + stats.get("timeout", 0)
+            ),
+            status,
+            error,
+        ),
+    )
+    conn.commit()
+
+
 def run_source(name, worker, candidates, dry_run):
     print(f"[{name}] START")
 
     started = time.perf_counter()
+    started_at = datetime.now(timezone.utc).isoformat()
     conn = open_worker_connection()
 
     try:
@@ -63,6 +97,18 @@ def run_source(name, worker, candidates, dry_run):
         )
 
         elapsed = time.perf_counter() - started
+        finished_at = datetime.now(timezone.utc).isoformat()
+
+        if not dry_run:
+            _record_enrichment_run(
+                conn,
+                name,
+                started_at,
+                finished_at,
+                len(candidates),
+                stats,
+                "success",
+            )
 
         print(f"[{name}] DONE | {elapsed:.3f}s")
 
@@ -75,6 +121,19 @@ def run_source(name, worker, candidates, dry_run):
 
     except Exception as exc:
         elapsed = time.perf_counter() - started
+        finished_at = datetime.now(timezone.utc).isoformat()
+
+        if not dry_run:
+            _record_enrichment_run(
+                conn,
+                name,
+                started_at,
+                finished_at,
+                len(candidates),
+                {},
+                "error",
+                error=f"{type(exc).__name__}: {exc}",
+            )
 
         print(
             f"[{name}] ERROR | "
