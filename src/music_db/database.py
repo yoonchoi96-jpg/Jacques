@@ -594,6 +594,15 @@ CREATE TABLE IF NOT EXISTS generation_analysis (
     created_at TEXT,
     FOREIGN KEY (output_id) REFERENCES generation_outputs(output_id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS audio_analysis_cache (
+    fingerprint_sha256 TEXT NOT NULL,
+    analysis_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (fingerprint_sha256, analysis_type)
+);
+
 CREATE TABLE IF NOT EXISTS generation_relations (
     relation_id INTEGER PRIMARY KEY AUTOINCREMENT,
     from_output_id INTEGER NOT NULL,
