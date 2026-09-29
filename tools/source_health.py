@@ -27,7 +27,6 @@ def main():
     for r in rows:
         report["sources"].append(dict(r))
 
-    print("\n=== GENERATION ===")
     for r in conn.execute("""
         SELECT provider, status, COUNT(*) AS n
         FROM generation_jobs GROUP BY provider, status
