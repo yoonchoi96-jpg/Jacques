@@ -64,6 +64,7 @@ jobs:
               "chart_entries", "review_entries", "source_records",
               "generation_jobs", "generation_outputs",
               "generation_analysis", "generation_relations",
+              "audio_analysis_cache",
           }
           actual = {r[0] for r in c.execute(
               "select name from sqlite_master where type='table'"
@@ -109,5 +110,53 @@ jobs:
           assert r["duration_seconds"] > 4.9
           assert "mfcc_mean" in r
           assert "spectral_contrast_mean_db" in r
-          print("Audio analysis v3 OK")
+          print("Audio analysis v4 OK")
+          PYTHONPATH=src python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+          from unittest.mock import patch
+          from music_db.generation.audio_analysis import analyze_and_store
+
+          audio = "/tmp/jacques_test.wav"
+          with TemporaryDirectory() as td:
+              db = sqlite3.connect(Path(td) / "cache.db")
+              db.row_factory = sqlite3.Row
+              db.executescript("""
+              CREATE TABLE generation_outputs (
+                  output_id INTEGER PRIMARY KEY,
+                  duration_seconds REAL,
+                  bpm REAL,
+                  sample_rate INTEGER,
+                  format TEXT,
+                  analysis_json TEXT
+              );
+              CREATE TABLE generation_analysis (
+                  output_id INTEGER,
+                  analysis_type TEXT,
+                  payload_json TEXT,
+                  created_at TEXT
+              );
+              CREATE TABLE audio_analysis_cache (
+                  fingerprint_sha256 TEXT NOT NULL,
+                  analysis_type TEXT NOT NULL,
+                  payload_json TEXT NOT NULL,
+                  created_at TEXT,
+                  updated_at TEXT,
+                  PRIMARY KEY (fingerprint_sha256, analysis_type)
+              );
+              """)
+              db.execute("INSERT INTO generation_outputs(output_id) VALUES (1)")
+              db.commit()
+              analyze_and_store(db, 1, audio)
+              first = db.execute("SELECT COUNT(*) FROM audio_analysis_cache").fetchone()[0]
+              with patch("music_db.generation.audio_analysis.analyze_audio",
+                         side_effect=AssertionError("DSP recomputed despite cache")):
+                  analyze_and_store(db, 1, audio)
+              second = db.execute("SELECT COUNT(*) FROM audio_analysis_cache").fetchone()[0]
+              assert first == 1 and second == 1
+              print("DSP fingerprint cache OK")
+              db.close()
+          PY
+
           PY
