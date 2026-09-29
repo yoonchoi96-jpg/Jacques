@@ -82,6 +82,31 @@ def link_outputs(conn, from_output_id, to_output_id, relation_type,
     conn.commit()
 
 
+def download_audio_ref(ref, destination_dir, *, filename=None, timeout=120):
+    """Download an HTTP(S) audio reference and return the local path."""
+    if not ref.startswith(("http://", "https://")):
+        local = Path(ref.replace("file://", "")).expanduser()
+        return str(local.resolve()) if local.exists() else None
+
+    import requests
+    destination = Path(destination_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+
+    if not filename:
+        clean = ref.split("?", 1)[0].rstrip("/")
+        filename = Path(clean).name or "generated_audio.bin"
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", filename)
+    path = destination / safe
+
+    with requests.get(ref, stream=True, timeout=timeout) as r:
+        r.raise_for_status()
+        with path.open("wb") as fh:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    fh.write(chunk)
+    return str(path.resolve())
+
+
 def find_local_audio_refs(response):
     return [x for x in extract_audio_refs(response)
             if Path(x.replace("file://", "")).exists()]
