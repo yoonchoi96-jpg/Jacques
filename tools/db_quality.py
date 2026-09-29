@@ -1,0 +1,194 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+
+DB_PATH = Path("db/music.db")
+
+
+def now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def add_issue(conn, entity_type, entity_id, issue_type, severity, details):
+    conn.execute(
+        """
+        INSERT INTO data_quality_issues
+            (entity_type, entity_id, issue_type, severity, details, detected_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(entity_type, entity_id, issue_type)
+        DO UPDATE SET
+            severity = excluded.severity,
+            details = excluded.details,
+            detected_at = excluded.detected_at,
+            resolved_at = NULL
+        """,
+        (entity_type, str(entity_id), issue_type, severity, details, now()),
+    )
+
+
+def run_checks(conn):
+    checks = []
+
+    def check(name, sql, severity="error"):
+        rows = conn.execute(sql).fetchall()
+        for row in rows:
+            add_issue(
+                conn,
+                row[0],
+                row[1],
+                name,
+                severity,
+                row[2],
+            )
+        checks.append((name, len(rows)))
+        return len(rows)
+
+    check(
+        "missing_track_artist_link",
+        """
+        SELECT 'track', t.track_id,
+               'Track has Spotify artists but no track_artists relation'
+        FROM tracks t
+        WHERE NOT EXISTS (
+            SELECT 1 FROM track_artists ta
+            WHERE ta.track_id = t.track_id
+        )
+        """,
+    )
+
+    check(
+        "orphan_track_artist",
+        """
+        SELECT 'track_artist', ta.track_id,
+               'track_artists references a missing artist'
+        FROM track_artists ta
+        LEFT JOIN artists a ON a.artist_id = ta.artist_id
+        WHERE a.artist_id IS NULL
+        """,
+    )
+
+    check(
+        "orphan_track_album",
+        """
+        SELECT 'track_album', ta.track_id,
+               'track_albums references a missing album'
+        FROM track_albums ta
+        LEFT JOIN albums a ON a.album_id = ta.album_id
+        WHERE a.album_id IS NULL
+        """,
+    )
+
+    check(
+        "invalid_duration",
+        """
+        SELECT 'track', track_id,
+               'duration_ms is zero or negative'
+        FROM tracks
+        WHERE duration_ms IS NOT NULL
+          AND duration_ms <= 0
+        """,
+    )
+
+    check(
+        "invalid_audio_range",
+        """
+        SELECT 'audio', af.track_id,
+               'audio feature is outside expected 0..1 range'
+        FROM audio_features af
+        WHERE energy IS NOT NULL AND (energy < 0 OR energy > 1)
+           OR danceability IS NOT NULL AND (danceability < 0 OR danceability > 1)
+           OR valence IS NOT NULL AND (valence < 0 OR valence > 1)
+           OR acousticness IS NOT NULL AND (acousticness < 0 OR acousticness > 1)
+           OR instrumentalness IS NOT NULL AND (instrumentalness < 0 OR instrumentalness > 1)
+           OR speechiness IS NOT NULL AND (speechiness < 0 OR speechiness > 1)
+        """,
+    )
+
+    check(
+        "relation_self_link",
+        """
+        SELECT 'track_relation', track_id,
+               'Track relation points to itself'
+        FROM track_relations
+        WHERE track_id = related_track_id
+        """,
+    )
+
+    # A missing FreqBlog row is not automatically an error because
+    # terminal not_found is allowed to fall back to SongBPM.
+    check(
+        "audio_without_source",
+        """
+        SELECT 'track', t.track_id,
+               'Canonical audio_features exists but no source row exists'
+        FROM tracks t
+        JOIN audio_features af ON af.track_id = t.track_id
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM audio_feature_sources s
+            WHERE s.track_id = t.track_id
+        )
+        """,
+        severity="warning",
+    )
+
+    return checks
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db", default=str(DB_PATH))
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+
+    conn = sqlite3.connect(args.db)
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    # Ensure the latest schema exists before validation.
+    from music_db.database import initialize_database
+    initialize_database()
+
+    checks = run_checks(conn)
+    conn.commit()
+
+    summary = {
+        "database": args.db,
+        "checked_at": now(),
+        "checks": [
+            {"name": name, "issues": count}
+            for name, count in checks
+        ],
+        "tracks": conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0],
+        "artists": conn.execute("SELECT COUNT(*) FROM artists").fetchone()[0],
+        "albums": conn.execute("SELECT COUNT(*) FROM albums").fetchone()[0],
+        "track_artist_links": conn.execute("SELECT COUNT(*) FROM track_artists").fetchone()[0],
+        "track_album_links": conn.execute("SELECT COUNT(*) FROM track_albums").fetchone()[0],
+        "relations": conn.execute("SELECT COUNT(*) FROM track_relations").fetchone()[0],
+    }
+
+    if args.json:
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+    else:
+        print("=" * 64)
+        print("JACQUES DATABASE QUALITY")
+        print("=" * 64)
+        for item in summary["checks"]:
+            print(f'{item["name"]:28} : {item["issues"]}')
+        print()
+        print(f'Tracks                    : {summary["tracks"]}')
+        print(f'Artists                   : {summary["artists"]}')
+        print(f'Albums                    : {summary["albums"]}')
+        print(f'Track/artist links        : {summary["track_artist_links"]}')
+        print(f'Track/album links         : {summary["track_album_links"]}')
+        print(f'Track relations           : {summary["relations"]}')
+        print("=" * 64)
+
+    conn.close()
+
+
+if __name__ == "__main__":
+    main()
