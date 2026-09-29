@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch, Mock
 from pathlib import Path
 
-from music_db.database import initialize_database, get_connection
+from music_db.database import initialize_database, get_connection, SCHEMA, run_migrations
 from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
 from music_db.generation.outputs import create_output, link_outputs, extract_audio_refs
@@ -367,7 +367,8 @@ class GenerationCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             db = sqlite3.connect(":memory:")
             db.row_factory = sqlite3.Row
-            initialize_database()
+            db.executescript(SCHEMA)
+            run_migrations(db)
             project_id, root = create_project(
                 db, "My Test Track", root_dir=td, reference_track_id=None
             )
