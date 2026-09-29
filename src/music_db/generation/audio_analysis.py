@@ -114,10 +114,23 @@ def analyze_and_store(conn, output_id, path):
            LIMIT 1""",
         (fingerprint, ANALYSIS_VERSION),
     ).fetchone()
+    payload = None
     if cached:
-        payload = json.loads(cached["payload_json"])
+        try:
+            candidate = json.loads(cached["payload_json"])
+            if (
+                isinstance(candidate, dict)
+                and candidate.get("analysis_version") == ANALYSIS_VERSION
+            ):
+                payload = candidate
+        except (TypeError, json.JSONDecodeError):
+            payload = None
+
+    if payload is not None:
         payload["file"] = str(Path(path).expanduser().resolve())
     else:
+        # A corrupted or stale cache entry is self-healed by recomputing
+        # the current analysis version for the same audio fingerprint.
         payload = analyze_audio(path)
         conn.execute(
             """INSERT INTO audio_analysis_cache
