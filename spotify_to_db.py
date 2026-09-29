@@ -14,6 +14,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from music_db.database import initialize_database
 from music_db.enrichment.live_dispatcher import LiveEnrichmentDispatcher
 
 
@@ -43,6 +44,8 @@ def load_env_file(path=".env"):
 
 
 load_env_file()
+
+initialize_database()
 
 
 # =========================================================
