@@ -117,6 +117,30 @@ def download_audio_ref(ref, destination_dir, *, filename=None, timeout=120):
 
     with requests.get(ref, stream=True, timeout=timeout) as r:
         r.raise_for_status()
+        if path.suffix.lower() not in {
+            ".mp3", ".wav", ".flac", ".m4a", ".aac",
+            ".ogg", ".opus", ".webm",
+        }:
+            content_type = (
+                r.headers.get("Content-Type", "")
+                .split(";", 1)[0]
+                .strip()
+                .lower()
+            )
+            extension_map = {
+                "audio/mpeg": ".mp3",
+                "audio/wav": ".wav",
+                "audio/x-wav": ".wav",
+                "audio/flac": ".flac",
+                "audio/mp4": ".m4a",
+                "audio/aac": ".aac",
+                "audio/ogg": ".ogg",
+                "audio/opus": ".opus",
+                "audio/webm": ".webm",
+            }
+            inferred = extension_map.get(content_type)
+            if inferred:
+                path = path.with_suffix(inferred)
         with path.open("wb") as fh:
             for chunk in r.iter_content(chunk_size=1024 * 1024):
                 if chunk:
