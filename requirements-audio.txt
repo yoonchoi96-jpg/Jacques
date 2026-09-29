@@ -1,0 +1,5 @@
+# Optional local audio analysis stack for Jacques
+numpy>=1.26,<3
+scipy>=1.11,<2
+soundfile>=0.12,<1
+librosa>=0.10,<1
