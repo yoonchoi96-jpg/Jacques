@@ -14,6 +14,42 @@ from music_db.generation.http import post_json
 
 
 class GenerationCoreTests(unittest.TestCase):
+    def test_songbpm_cannot_run_without_terminal_freqblog_miss(self):
+        from music_db.enrichment.sources.songbpm import enrich_one
+
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.executescript("""
+            CREATE TABLE audio_feature_sources (
+                track_id TEXT,
+                source TEXT,
+                PRIMARY KEY (track_id, source)
+            );
+            CREATE TABLE enrichment_status (
+                track_id TEXT,
+                source TEXT,
+                entity_type TEXT,
+                status TEXT,
+                attempts INTEGER,
+                last_error TEXT,
+                last_attempted_at TEXT,
+                completed_at TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                PRIMARY KEY (track_id, source, entity_type)
+            );
+        """)
+        track = {
+            "track_id": "t1",
+            "title": "Example",
+            "duration_ms": 180000,
+        }
+        try:
+            result = enrich_one(conn, track, dry_run=True)
+            self.assertEqual(result["status"], "skipped_freqblog")
+        finally:
+            conn.close()
+
     def test_source_registry_enabled_state_survives_seed_refresh(self):
         from music_db.database import SOURCE_SEED, run_migrations
 
