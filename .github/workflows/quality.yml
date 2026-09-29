@@ -104,7 +104,7 @@ jobs:
           PYTHONPATH=src python - <<'PY'
           from music_db.generation.audio_analysis import analyze_audio
           r = analyze_audio("/tmp/jacques_test.wav")
-          assert r["analysis_version"] == "audio_features_v3"
+          assert r["analysis_version"] == "audio_features_v4"
           assert r["sample_rate"] == 22050
           assert r["duration_seconds"] > 4.9
           assert "mfcc_mean" in r
