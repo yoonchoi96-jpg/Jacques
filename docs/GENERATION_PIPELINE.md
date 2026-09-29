@@ -25,6 +25,7 @@ Local generated/reference audio is identified by SHA-256. The hash is stored on
 - `audio_features_v2`: core loudness, spectral, onset, tempo and key metrics.
 - `audio_features_v3`: v2 plus estimated dynamic range, key confidence,
   MFCC summaries and spectral-contrast summaries.
+- `audio_features_v4`: v3 plus stereo correlation and stereo width.
 
 Analysis is deliberately versioned so future DSP upgrades do not silently
 overwrite historical measurements.
