@@ -8,6 +8,7 @@ from music_db.database import initialize_database, get_connection
 from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
 from music_db.generation.outputs import create_output, link_outputs
+from music_db.generation.prompt_builder import build_prompt
 
 
 class GenerationCoreTests(unittest.TestCase):
@@ -17,6 +18,21 @@ class GenerationCoreTests(unittest.TestCase):
         out = compare(a, b)
         self.assertEqual(out["tempo_bpm"]["delta"], 10)
         self.assertAlmostEqual(out["silence_ratio"]["delta"], -0.1)
+
+    def test_prompt_uses_v3_features(self):
+        prompt = build_prompt({
+            "tempo_bpm": 128,
+            "estimated_key": "F#",
+            "dynamic_range_estimate_db": 16,
+            "spectral_flatness": 0.1,
+            "silence_ratio": 0.2,
+            "key_confidence": 0.03,
+            "onset_rate_per_second": 4,
+        })
+        self.assertIn("wide dynamics", prompt)
+        self.assertIn("tonal/harmonic texture", prompt)
+        self.assertIn("noticeable negative space", prompt)
+        self.assertIn("ambiguous tonal center", prompt)
 
     def test_sha256(self):
         with tempfile.TemporaryDirectory() as td:
