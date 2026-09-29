@@ -56,7 +56,14 @@ def create_output(conn: sqlite3.Connection, job_id, *, output_index=0,
         ),
     )
     conn.commit()
-    return cur.lastrowid
+    output_id = cur.lastrowid
+    if audio_path:
+        try:
+            from .fingerprint import attach_fingerprint
+            attach_fingerprint(conn, output_id, audio_path)
+        except (OSError, ValueError):
+            pass
+    return output_id
 
 
 def add_analysis(conn, output_id, analysis_type, payload):
