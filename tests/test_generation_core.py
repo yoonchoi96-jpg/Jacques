@@ -101,6 +101,20 @@ class GenerationCoreTests(unittest.TestCase):
         )
         self.assertTrue(out["estimated_key"]["same"])
 
+    def test_discogs_best_release_requires_strong_artist_album_match(self):
+        from music_db.external.discogs import _best_release
+
+        result, score = _best_release(
+            [
+                {"id": 1, "title": "Wrong Artist - Target Album"},
+                {"id": 2, "title": "Right Artist - Target Album"},
+            ],
+            "Right Artist",
+            "Target Album",
+        )
+        self.assertEqual(result["id"], 2)
+        self.assertEqual(score, 1.0)
+
     def test_acoustid_respects_disabled_source_registry(self):
         from music_db.external.acoustid import identify_track
 
