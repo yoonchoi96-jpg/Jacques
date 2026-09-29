@@ -9,6 +9,7 @@ from music_db.database import initialize_database, get_connection
 from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
 from music_db.generation.outputs import create_output, link_outputs, extract_audio_refs
+from music_db.generation.projects import create_project, stage_dir
 from music_db.generation.prompt_builder import build_prompt
 from music_db.generation.http import post_json
 
@@ -361,6 +362,39 @@ class GenerationCoreTests(unittest.TestCase):
                 sha256_file(str(p)),
                 hashlib.sha256(b"jacques").hexdigest(),
             )
+
+    def test_generation_project_creates_staged_directories_and_links_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = sqlite3.connect(":memory:")
+            db.row_factory = sqlite3.Row
+            initialize_database()
+            project_id, root = create_project(
+                db, "My Test Track", root_dir=td, reference_track_id=None
+            )
+            self.assertTrue((root / "reference").is_dir())
+            self.assertTrue((root / "generations").is_dir())
+            self.assertTrue((root / "edits").is_dir())
+            self.assertTrue((root / "final").is_dir())
+
+            from music_db.generation.base import create_generation_job
+            job_id = create_generation_job(
+                db, "test", project_id=project_id, request={"x": 1}
+            )
+            output_id = create_output(
+                db, job_id, project_id=project_id, stage="generations"
+            )
+            row = db.execute(
+                """SELECT j.project_id, o.project_id, o.stage
+                   FROM generation_jobs j
+                   JOIN generation_outputs o ON o.job_id=j.job_id
+                   WHERE o.output_id=?""",
+                (output_id,),
+            ).fetchone()
+            self.assertEqual(row[0], project_id)
+            self.assertEqual(row[1], project_id)
+            self.assertEqual(row[2], "generations")
+            self.assertEqual(stage_dir(db, project_id, "final"), root / "final")
+            db.close()
 
     def test_output_fingerprint_column(self):
         initialize_database()
