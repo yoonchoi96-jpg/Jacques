@@ -331,10 +331,165 @@ def get_connection():
     return conn
 
 
+
+MIGRATION_SCHEMA = """
+-- ============================================================
+-- NORMALIZED MUSIC ENTITIES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS albums (
+    album_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    spotify_id TEXT UNIQUE,
+    name TEXT NOT NULL,
+    release_date TEXT,
+    album_type TEXT,
+    spotify_url TEXT,
+    image_url TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS track_albums (
+    track_id TEXT NOT NULL,
+    album_id INTEGER NOT NULL,
+    PRIMARY KEY (track_id, album_id),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE,
+    FOREIGN KEY (album_id) REFERENCES albums(album_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS track_credits (
+    credit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    person_name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    source TEXT NOT NULL,
+    source_id TEXT,
+    confidence REAL,
+    created_at TEXT,
+    updated_at TEXT,
+    UNIQUE (track_id, person_name, role, source),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS track_relations (
+    track_id TEXT NOT NULL,
+    related_track_id TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    source TEXT NOT NULL,
+    confidence REAL,
+    note TEXT,
+    created_at TEXT,
+    PRIMARY KEY (track_id, related_track_id, relation_type, source),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE,
+    FOREIGN KEY (related_track_id) REFERENCES tracks(track_id) ON DELETE CASCADE,
+    CHECK (track_id != related_track_id)
+);
+
+-- ============================================================
+-- SOURCE REGISTRY / ENRICHMENT RUNS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS source_registry (
+    source TEXT PRIMARY KEY,
+    source_type TEXT NOT NULL,
+    priority INTEGER DEFAULT 100,
+    enabled INTEGER DEFAULT 1,
+    role TEXT,
+    notes TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS enrichment_runs (
+    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    started_at TEXT,
+    finished_at TEXT,
+    candidate_count INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    no_data_count INTEGER DEFAULT 0,
+    not_found_count INTEGER DEFAULT 0,
+    error_count INTEGER DEFAULT 0,
+    status TEXT,
+    error TEXT
+);
+
+-- ============================================================
+-- DATA QUALITY
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS data_quality_issues (
+    issue_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    issue_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    details TEXT,
+    detected_at TEXT,
+    resolved_at TEXT,
+    UNIQUE (entity_type, entity_id, issue_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_track_albums_album
+    ON track_albums(album_id);
+
+CREATE INDEX IF NOT EXISTS idx_track_credits_track
+    ON track_credits(track_id);
+
+CREATE INDEX IF NOT EXISTS idx_track_credits_role
+    ON track_credits(role);
+
+CREATE INDEX IF NOT EXISTS idx_track_relations_related
+    ON track_relations(related_track_id);
+
+CREATE INDEX IF NOT EXISTS idx_track_relations_type
+    ON track_relations(relation_type);
+
+CREATE INDEX IF NOT EXISTS idx_enrichment_runs_source
+    ON enrichment_runs(source);
+
+CREATE INDEX IF NOT EXISTS idx_quality_entity
+    ON data_quality_issues(entity_type, entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_quality_severity
+    ON data_quality_issues(severity);
+"""
+
+SOURCE_SEED = """
+INSERT INTO source_registry
+    (source, source_type, priority, enabled, role, notes, updated_at)
+VALUES
+    ('spotify', 'api', 10, 1, 'canonical_identity',
+     'Spotify track/artist/listening source', CURRENT_TIMESTAMP),
+    ('freqblog', 'api', 20, 1, 'audio_primary',
+     'Canonical audio-feature source', CURRENT_TIMESTAMP),
+    ('songbpm', 'web', 30, 1, 'audio_fallback',
+     'Fallback only when FreqBlog has terminal not_found', CURRENT_TIMESTAMP),
+    ('lastfm', 'api', 40, 1, 'tags_secondary',
+     'Track/artist/album community tags', CURRENT_TIMESTAMP),
+    ('musicbrainz', 'api', 50, 1, 'identity_metadata',
+     'ISRC identity, MBIDs, tags/genres', CURRENT_TIMESTAMP),
+    ('billboard', 'web', 60, 0, 'chart_metadata',
+     'Planned chart-history source; disabled until adapter is implemented', CURRENT_TIMESTAMP),
+    ('pitchfork', 'web', 70, 0, 'review_metadata',
+     'Planned review source; disabled until adapter is implemented', CURRENT_TIMESTAMP),
+    ('rhythmer', 'web', 80, 0, 'production_metadata',
+     'Planned production metadata source; disabled until adapter is implemented', CURRENT_TIMESTAMP)
+ON CONFLICT(source) DO UPDATE SET
+    source_type = excluded.source_type,
+    priority = excluded.priority,
+    role = excluded.role,
+    notes = excluded.notes,
+    updated_at = excluded.updated_at;
+"""
+
+def run_migrations(conn):
+    conn.executescript(MIGRATION_SCHEMA)
+    conn.executescript(SOURCE_SEED)
+    conn.commit()
+
 def initialize_database():
     with get_connection() as conn:
         conn.executescript(SCHEMA)
-        conn.commit()
+        run_migrations(conn)
 
 
 def database_path():
