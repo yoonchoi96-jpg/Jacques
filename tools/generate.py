@@ -80,7 +80,7 @@ def main():
     for i, ref in enumerate(refs):
         local = download_audio_ref(
             ref, Path(args.download_dir),
-            filename=f"job_{job_id:06d}_output_{i:02d}",
+            filename=f"job_{job_id:06d}_output_{i:02d}" + Path(ref.split("?", 1)[0]).suffix,
         )
         output_id = create_output(
             conn, job_id, output_index=i,
