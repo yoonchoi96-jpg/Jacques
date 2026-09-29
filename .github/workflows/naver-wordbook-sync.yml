@@ -1,0 +1,31 @@
+name: NAVER Wordbook Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * *"
+    - cron: "0 22 * * *"
+
+jobs:
+  sync:
+    # IMPORTANT: this must be a runner on the user's own Mac.
+    # Never use a GitHub-hosted runner for the personal NAVER session.
+    runs-on: [self-hosted, macOS, naver-wordbook]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          python -m playwright install chromium
+
+      - name: Sync NAVER wordbook
+        run: |
+          python scripts/naver_wordbook_sync.py --sync
