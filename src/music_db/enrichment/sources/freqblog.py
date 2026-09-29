@@ -904,41 +904,89 @@ def enrich_bulk(conn, tracks, dry_run=False):
 
         return stats
 
-    # FreqBlog echoes each input item in order.
-    # Prefer ISRC for matching; fall back to position.
+    # Match each response item to the submitted track by stable identity.
+    # Positional matching is safe only when the provider returns no identity
+    # fields at all. Never let an explicit but unmatched identity silently
+    # attach another track's audio features.
+    def _norm(value):
+        return " ".join(
+            str(value or "").strip().casefold().split()
+        )
+
+    def _norm_isrc(value):
+        return str(value or "").replace("-", "").strip().upper()
+
     by_isrc = {}
+    by_title_artist = {}
 
     for track in tracks:
-        isrc = (track.get("isrc") or "").strip()
-
+        isrc = _norm_isrc(track.get("isrc"))
         if isrc:
-            by_isrc[
-                isrc.replace("-", "").upper()
-            ] = track
+            by_isrc.setdefault(isrc, []).append(track)
+
+        title = _norm(track.get("title"))
+        artist = _norm(" ".join(_artists(track)))
+        if title and artist:
+            by_title_artist.setdefault(
+                (title, artist), []
+            ).append(track)
 
     matched_track_ids = set()
 
     for index, result in enumerate(results):
+        if not isinstance(result, dict):
+            continue
 
         track = None
+        identity_present = False
 
-        result_isrc = (
-            result.get("isrc")
-            if isinstance(result, dict)
-            else None
-        )
-
+        result_isrc = result.get("isrc")
         if result_isrc:
-            track = by_isrc.get(
-                str(result_isrc)
-                .replace("-", "")
-                .upper()
+            identity_present = True
+            candidates = by_isrc.get(
+                _norm_isrc(result_isrc),
+                [],
+            )
+            if len(candidates) == 1:
+                track = candidates[0]
+
+        result_data = result.get("result")
+        result_title = result.get("track") or result.get("title")
+        result_artist = result.get("artist")
+
+        if isinstance(result_data, dict):
+            result_title = (
+                result_title
+                or result_data.get("track")
+                or result_data.get("title")
+            )
+            result_artist = (
+                result_artist
+                or result_data.get("artist")
             )
 
-        if track is None and index < len(tracks):
+        if result_title or result_artist:
+            identity_present = True
+
+        if track is None and result_title and result_artist:
+            candidates = by_title_artist.get(
+                (
+                    _norm(result_title),
+                    _norm(result_artist),
+                ),
+                [],
+            )
+            if len(candidates) == 1:
+                track = candidates[0]
+
+        if track is None and not identity_present and index < len(tracks):
             track = tracks[index]
 
         if track is None:
+            print(
+                "[FreqBlog BULK] UNMATCHED RESPONSE | "
+                f"index={index}"
+            )
             continue
 
         matched_track_ids.add(track["track_id"])
