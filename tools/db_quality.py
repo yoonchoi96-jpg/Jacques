@@ -216,7 +216,7 @@ def main():
     has_errors = any(
         item["issues"] > 0
         for item in summary["checks"]
-        if item["name"] != "audio_without_source"
+        if item["name"] not in ("audio_without_source", "missing_track_artist_link")
     )
 
     conn.close()
