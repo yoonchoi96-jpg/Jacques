@@ -7,12 +7,12 @@ from datetime import datetime, timezone
 def now():
     return datetime.now(timezone.utc).isoformat()
 
-def create_generation_job(conn: sqlite3.Connection, provider: str, *, model=None, prompt=None, lyrics=None, bpm=None, key_scale=None, duration_seconds=None, reference_track_id=None, parent_job_id=None, request=None):
+def create_generation_job(conn: sqlite3.Connection, provider: str, *, model=None, prompt=None, lyrics=None, bpm=None, key_scale=None, duration_seconds=None, reference_track_id=None, parent_job_id=None, project_id=None, request=None):
     cur = conn.execute("""
       INSERT INTO generation_jobs
-      (provider,model,status,prompt,lyrics,bpm,key_scale,duration_seconds,reference_track_id,parent_job_id,request_json,created_at)
+      (provider,model,status,prompt,lyrics,bpm,key_scale,duration_seconds,reference_track_id,parent_job_id,project_id,request_json,created_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (provider,model,"queued",prompt,lyrics,bpm,key_scale,duration_seconds,reference_track_id,parent_job_id,json.dumps(request or {},ensure_ascii=False),now()))
+    """, (provider,model,"queued",prompt,lyrics,bpm,key_scale,duration_seconds,reference_track_id,parent_job_id,project_id,json.dumps(request or {},ensure_ascii=False),now()))
     conn.commit()
     return cur.lastrowid
 
