@@ -94,18 +94,36 @@ def run_source(name, worker, candidates, dry_run):
 
 
 def run_parallel_sources(candidates, dry_run):
-    workers = {
-        "FREQBLOG": freqblog.enrich,
-        "SONGBPM": songbpm.enrich,
+    """
+    Source order is intentional:
+
+      1. FreqBlog primary
+      2. Last.fm + MusicBrainz in parallel
+      3. SongBPM fallback after FreqBlog has completed
+
+    This prevents SongBPM from waking up for tracks that already have
+    a usable FreqBlog result.
+    """
+    results = {}
+
+    print_header("PRIMARY SOURCE ENRICHMENT")
+
+    freqblog_result = run_source(
+        "FREQBLOG",
+        freqblog.enrich,
+        candidates,
+        dry_run,
+    )
+    results["FREQBLOG"] = freqblog_result
+
+    print_header("SECONDARY SOURCE ENRICHMENT")
+
+    secondary_workers = {
         "LAST.FM": lastfm.enrich,
         "MUSICBRAINZ": musicbrainz.enrich,
     }
 
-    results = {}
-
-    print_header("PARALLEL SOURCE ENRICHMENT")
-
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
             executor.submit(
                 run_source,
@@ -114,22 +132,29 @@ def run_parallel_sources(candidates, dry_run):
                 candidates,
                 dry_run,
             ): name
-            for name, worker in workers.items()
+            for name, worker in secondary_workers.items()
         }
 
         for future in as_completed(futures):
             name = futures[future]
-
             try:
-                result = future.result()
+                results[name] = future.result()
             except Exception as exc:
-                result = {
+                results[name] = {
                     "name": name,
                     "stats": {},
                     "error": exc,
+                    "elapsed_seconds": 0,
                 }
 
-            results[name] = result
+    print_header("FALLBACK SOURCE ENRICHMENT")
+
+    results["SONGBPM"] = run_source(
+        "SONGBPM",
+        songbpm.enrich,
+        candidates,
+        dry_run,
+    )
 
     return results
 
