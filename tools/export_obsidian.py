@@ -277,10 +277,14 @@ def export_generation(conn, root):
     out = root / "Generation"
     out.mkdir(parents=True, exist_ok=True)
     rows = conn.execute(
-        """SELECT j.*, o.output_id, o.output_index, o.audio_path, o.audio_url,
+        """SELECT j.*, p.title AS project_title, p.root_path AS project_root,
+                  o.output_id, o.output_index, o.audio_path, o.audio_url,
                   o.duration_seconds AS output_duration, o.bpm AS output_bpm,
-                  o.key_scale AS output_key, o.analysis_json, o.fingerprint_sha256
+                  o.key_scale AS output_key, o.analysis_json, o.fingerprint_sha256,
+                  o.stage AS output_stage
            FROM generation_jobs j
+           LEFT JOIN generation_outputs o ON o.job_id = j.job_id
+           LEFT JOIN generation_projects p ON p.project_id = COALESCE(o.project_id, j.project_id)
            LEFT JOIN generation_outputs o ON o.job_id = j.job_id
            ORDER BY j.created_at DESC, o.output_index"""
     ).fetchall()
@@ -290,6 +294,9 @@ def export_generation(conn, root):
             f"## Job {r['job_id']} — {r['provider']} / {r['model'] or ''}",
             "",
             f"- Status: {r['status']}",
+            f"- Project: {r['project_title'] or 'None'}",
+            f"- Project root: {r['project_root'] or 'None'}",
+            f"- Stage: {r['output_stage'] or 'generation'}",
             f"- Reference track: {wiki(r['reference_track_id']) if r['reference_track_id'] else 'None'}",
             f"- Parent job: {r['parent_job_id'] or 'None'}",
             f"- Prompt: {r['prompt'] or ''}",
