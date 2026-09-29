@@ -5,6 +5,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from music_db.generation.fingerprint import sha256_file
+
 import requests
 
 SOURCE = "acoustid"
@@ -42,7 +44,27 @@ def lookup_file(path, *, meta="recordings,recordingids,releases,releaseids,track
 
 
 def identify_track(conn, track_id, path):
-    data = lookup_file(path)
+    path = str(Path(path).expanduser().resolve())
+    sha256 = sha256_file(path)
+    cached = conn.execute(
+        """SELECT data_json FROM source_records
+           WHERE source=? AND entity_type=? AND external_id=?""",
+        (SOURCE, "audio_fingerprint_sha256", sha256),
+    ).fetchone()
+    if cached and cached["data_json"]:
+        data = json.loads(cached["data_json"])
+    else:
+        data = lookup_file(path)
+        conn.execute(
+            """INSERT INTO source_records
+            (source, entity_type, external_id, track_id, url, data_json, observed_at)
+            VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)
+            ON CONFLICT(source,entity_type,external_id)
+            DO UPDATE SET track_id=excluded.track_id, data_json=excluded.data_json,
+                          observed_at=excluded.observed_at""",
+            (SOURCE, "audio_fingerprint_sha256", sha256,
+             track_id, ENDPOINT, json.dumps(data, ensure_ascii=False)),
+        )
     conn.execute(
         """INSERT INTO source_records
         (source, entity_type, external_id, track_id, url, data_json, observed_at)
@@ -50,7 +72,7 @@ def identify_track(conn, track_id, path):
         ON CONFLICT(source,entity_type,external_id)
         DO UPDATE SET track_id=excluded.track_id, data_json=excluded.data_json,
                       observed_at=excluded.observed_at""",
-        (SOURCE, "audio_fingerprint", str(Path(path).resolve()),
+        (SOURCE, "audio_fingerprint", sha256,
          track_id, ENDPOINT, json.dumps(data, ensure_ascii=False)),
     )
     conn.execute(
