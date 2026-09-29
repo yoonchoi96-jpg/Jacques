@@ -25,11 +25,28 @@ def main():
     initialize_database()
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
+
+    def enabled(source):
+        row = conn.execute(
+            "SELECT enabled FROM source_registry WHERE source=?",
+            (source,),
+        ).fetchone()
+        return bool(row and row[0])
+
+    def run(source, label, worker):
+        if not enabled(source):
+            result = {"status": "disabled", "source": source}
+            print(f"{label}: {result}")
+            return result
+        result = worker(conn, dry_run=args.dry_run)
+        print(f"{label}: {result}")
+        return result
+
     print("=== JACQUES EDITORIAL SYNC ===")
-    print("Billboard :", sync_billboard(conn, dry_run=args.dry_run))
-    print("Pitchfork :", sync_pitchfork(conn, dry_run=args.dry_run))
-    print("AppleMusic:", sync_apple(conn, dry_run=args.dry_run))
-    print("Discogs   :", sync_discogs(conn, dry_run=args.dry_run))
+    run("billboard", "Billboard ", sync_billboard)
+    run("pitchfork", "Pitchfork ", sync_pitchfork)
+    run("apple_music", "AppleMusic", sync_apple)
+    run("discogs", "Discogs   ", sync_discogs)
     conn.close()
 
 if __name__ == "__main__":
