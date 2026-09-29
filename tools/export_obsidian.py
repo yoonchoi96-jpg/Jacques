@@ -74,7 +74,6 @@ def export_tracks(conn, root, limit=None):
             f"- Duration: {row['duration_ms'] or ''} ms",
             f"- ISRC: {row['isrc'] or ''}",
             f"- Spotify: {row['spotify_url'] or ''}",
-        ]
             "",
             "## Relations",
             "",
