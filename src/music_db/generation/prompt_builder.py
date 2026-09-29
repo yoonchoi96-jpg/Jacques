@@ -14,6 +14,16 @@ def build_prompt(features: dict, *, genre="", mood="", vocal="",
     if features.get("spectral_centroid_hz"):
         c = features["spectral_centroid_hz"]
         parts.append("bright spectral profile" if c > 3500 else "warm/dark spectral profile")
+    if features.get("dynamic_range_estimate_db") is not None:
+        dr = features["dynamic_range_estimate_db"]
+        parts.append("controlled dynamics" if dr < 12 else "wide dynamics")
+    if features.get("spectral_flatness") is not None:
+        flat = features["spectral_flatness"]
+        parts.append("tonal/harmonic texture" if flat < 0.2 else "noisy/textural character")
+    if features.get("silence_ratio") is not None and features["silence_ratio"] > 0.12:
+        parts.append("noticeable negative space")
+    if features.get("key_confidence") is not None and features["key_confidence"] < 0.08:
+        parts.append("ambiguous tonal center")
     if features.get("onset_rate_per_second"):
         parts.append(
             "dense rhythmic articulation"
