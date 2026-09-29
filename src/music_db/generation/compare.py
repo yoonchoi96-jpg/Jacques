@@ -9,6 +9,7 @@ NUMERIC = [
     "crest_factor_db", "spectral_centroid_hz", "spectral_rolloff_hz",
     "zero_crossing_rate", "onset_rate_per_second", "beat_count",
     "spectral_bandwidth_hz", "spectral_flatness", "silence_ratio",
+    "dynamic_range_estimate_db", "key_confidence",
 ]
 
 
