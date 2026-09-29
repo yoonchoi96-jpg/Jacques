@@ -239,6 +239,69 @@ def export_albums(conn, root):
     return len(rows)
 
 
+
+def export_editorial(conn, root):
+    out = root / "Editorial"
+    out.mkdir(parents=True, exist_ok=True)
+    rows = conn.execute(
+        """SELECT source, chart_name, chart_date, rank, title, artist_name,
+                  album_name, track_id, source_url
+           FROM chart_entries
+           ORDER BY chart_date DESC, source, chart_name, rank
+           LIMIT 500"""
+    ).fetchall()
+    (out / "Chart History.md").write_text(
+        "\n".join([
+            "# Chart History", "",
+            *[f"- {r['chart_date']} — **#{r['rank']}** {r['title']} — {r['artist_name'] or ''} "
+              f"({r['source']} / {r['chart_name']})" for r in rows],
+        ]) + "\n", encoding="utf-8")
+    reviews = conn.execute(
+        """SELECT source, title, artist_name, album_name, score, review_date,
+                  author, headline, url, track_id
+           FROM review_entries
+           ORDER BY review_date DESC, source
+           LIMIT 500"""
+    ).fetchall()
+    (out / "Reviews.md").write_text(
+        "\n".join([
+            "# Editorial Reviews", "",
+            *[f"- {r['review_date'] or ''} — **{r['score'] if r['score'] is not None else ''}** "
+              f"{r['artist_name'] or ''} — {r['album_name'] or r['title'] or ''} "
+              f"— {r['author'] or ''} — {r['url']}" for r in reviews],
+        ]) + "\n", encoding="utf-8")
+    return len(rows), len(reviews)
+
+
+def export_generation(conn, root):
+    out = root / "Generation"
+    out.mkdir(parents=True, exist_ok=True)
+    rows = conn.execute(
+        """SELECT j.*, o.output_id, o.output_index, o.audio_path, o.audio_url,
+                  o.duration_seconds AS output_duration, o.bpm AS output_bpm,
+                  o.key_scale AS output_key, o.analysis_json
+           FROM generation_jobs j
+           LEFT JOIN generation_outputs o ON o.job_id = j.job_id
+           ORDER BY j.created_at DESC, o.output_index"""
+    ).fetchall()
+    lines = ["# Generation Lineage", ""]
+    for r in rows:
+        lines += [
+            f"## Job {r['job_id']} — {r['provider']} / {r['model'] or ''}",
+            "",
+            f"- Status: {r['status']}",
+            f"- Reference track: {wiki(r['reference_track_id']) if r['reference_track_id'] else 'None'}",
+            f"- Parent job: {r['parent_job_id'] or 'None'}",
+            f"- Prompt: {r['prompt'] or ''}",
+            f"- BPM: {r['output_bpm'] or r['bpm'] or ''}",
+            f"- Key: {r['output_key'] or r['key_scale'] or ''}",
+            f"- Output: {r['audio_path'] or r['audio_url'] or 'None'}",
+            "",
+        ]
+    (out / "Generation Lineage.md").write_text("\n".join(lines), encoding="utf-8")
+    return len(rows)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Export Jacques SQLite to Obsidian")
     parser.add_argument("--db", default="db/music.db")
@@ -256,6 +319,9 @@ def main():
         "tracks": export_tracks(conn, root, args.limit),
         "artists": export_artists(conn, root),
         "albums": export_albums(conn, root),
+        "chart_rows": export_editorial(conn, root)[0],
+        "review_rows": export_editorial(conn, root)[1],
+        "generation_rows": export_generation(conn, root),
     }
 
     conn.close()
