@@ -4,6 +4,11 @@ import json
 import math
 
 
+KEY_ENHARMONIC = {
+    "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb",
+}
+
+
 NUMERIC = [
     "duration_seconds", "tempo_bpm", "rms_db", "peak_db",
     "crest_factor_db", "spectral_centroid_hz", "spectral_rolloff_hz",
@@ -18,7 +23,12 @@ def compare(a: dict, b: dict) -> dict:
     out = {}
     for key in NUMERIC:
         av, bv = a.get(key), b.get(key)
-        if isinstance(av, (int, float)) and isinstance(bv, (int, float)):
+        if (
+            isinstance(av, (int, float))
+            and isinstance(bv, (int, float))
+            and math.isfinite(float(av))
+            and math.isfinite(float(bv))
+        ):
             delta = bv - av
             pct = None if av == 0 else (delta / abs(av)) * 100
             out[key] = {"a": av, "b": bv, "delta": delta, "percent": pct}
@@ -27,7 +37,10 @@ def compare(a: dict, b: dict) -> dict:
         if (
             isinstance(av, list) and isinstance(bv, list)
             and av and len(av) == len(bv)
-            and all(isinstance(x, (int, float)) for x in av + bv)
+            and all(
+                isinstance(x, (int, float)) and math.isfinite(float(x))
+                for x in av + bv
+            )
         ):
             deltas = [y - x for x, y in zip(av, bv)]
             out[key] = {
@@ -40,7 +53,11 @@ def compare(a: dict, b: dict) -> dict:
     if a.get("estimated_key") and b.get("estimated_key"):
         out["estimated_key"] = {
             "a": a["estimated_key"], "b": b["estimated_key"],
-            "same": a["estimated_key"] == b["estimated_key"],
+            "same": (
+                a["estimated_key"] == b["estimated_key"]
+                or KEY_ENHARMONIC.get(a["estimated_key"]) == b["estimated_key"]
+                or KEY_ENHARMONIC.get(b["estimated_key"]) == a["estimated_key"]
+            ),
         }
     return out
 
