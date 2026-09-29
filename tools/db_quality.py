@@ -124,6 +124,20 @@ def run_checks(conn):
         """,
     )
 
+    check(
+        "source_without_canonical_audio",
+        """
+        SELECT 'track', s.track_id,
+               'Audio source exists but canonical audio_features is missing'
+        FROM audio_feature_sources s
+        WHERE NOT EXISTS (
+            SELECT 1 FROM audio_features af
+            WHERE af.track_id = s.track_id
+        )
+        GROUP BY s.track_id
+        """,
+    )
+
     # A missing FreqBlog row is not automatically an error because
     # terminal not_found is allowed to fall back to SongBPM.
     check(
@@ -149,6 +163,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default=str(DB_PATH))
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--fail-on-error", action="store_true")
     args = parser.parse_args()
 
     db_path = Path(args.db).resolve()
@@ -197,7 +212,16 @@ def main():
         print(f'Track relations           : {summary["relations"]}')
         print("=" * 64)
 
+    has_errors = any(
+        item["issues"] > 0
+        for item in summary["checks"]
+        if item["name"] != "audio_without_source"
+    )
+
     conn.close()
+
+    if args.fail_on_error and has_errors:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
