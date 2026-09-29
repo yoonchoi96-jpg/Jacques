@@ -35,16 +35,22 @@ def analyze_audio(path):
     rms_mean = float(np.mean(rms))
     rms_db = float(20 * np.log10(max(rms_mean, 1e-12)))
     peak_db = float(20 * np.log10(max(peak, 1e-12)))
+    p999 = float(np.percentile(np.abs(y), 99.9))
+    dynamic_range_estimate_db = float(20 * np.log10(max(p999, 1e-12)) - rms_db)
 
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
     chroma_mean = np.mean(chroma, axis=1)
     key_index = int(np.argmax(chroma_mean))
+    chroma_sorted = np.sort(chroma_mean)[::-1]
+    key_confidence = float((chroma_sorted[0] - chroma_sorted[1]) / max(chroma_sorted[0], 1e-12)) if len(chroma_sorted) > 1 else 1.0
     key_names = ["C", "C#", "D", "D#", "E", "F",
                  "F#", "G", "G#", "A", "A#", "B"]
 
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     silence_ratio = float(np.mean(np.abs(y) < max(peak * 0.01, 1e-5)))
     onset_rate = float(len(librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)) / max(duration, 1e-9))
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+    spectral_contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
 
     return {
         "file": path,
@@ -63,7 +69,12 @@ def analyze_audio(path):
         "spectral_bandwidth_hz": float(np.mean(spectral_bandwidth)),
         "spectral_flatness": float(np.mean(spectral_flatness)),
         "silence_ratio": silence_ratio,
-        "analysis_version": "audio_features_v2",
+        "dynamic_range_estimate_db": dynamic_range_estimate_db,
+        "key_confidence": key_confidence,
+        "mfcc_mean": [float(x) for x in np.mean(mfcc, axis=1)],
+        "mfcc_std": [float(x) for x in np.std(mfcc, axis=1)],
+        "spectral_contrast_mean_db": [float(x) for x in np.mean(spectral_contrast, axis=1)],
+        "analysis_version": "audio_features_v3",
     }
 
 
