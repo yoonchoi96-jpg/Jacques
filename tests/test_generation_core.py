@@ -308,6 +308,25 @@ class GenerationCoreTests(unittest.TestCase):
             self.assertTrue(path.endswith(".mp3"))
             self.assertEqual(Path(path).read_bytes(), b"audio")
 
+    @patch("requests.get")
+    def test_download_audio_ref_rejects_image_response(self, get):
+        from music_db.generation.outputs import download_audio_ref
+
+        class Response:
+            headers = {"Content-Type": "image/jpeg"}
+            def raise_for_status(self): pass
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+
+        get.return_value = Response()
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(ValueError):
+                download_audio_ref(
+                    "https://cdn.test/generated.mp3",
+                    td,
+                )
+        get.assert_called_once()
+
     def test_extract_audio_refs_ignores_generic_image_urls(self):
         response = {
             "audio_url": "https://cdn.test/song.mp3",
