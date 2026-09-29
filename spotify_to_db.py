@@ -318,6 +318,50 @@ def upsert_track(track, saved=False, saved_at=None):
 
 
 # =========================================================
+# Repair normalized Spotify relations
+# =========================================================
+
+def repair_missing_normalized_links():
+    rows = conn.execute(
+        """
+        SELECT t.track_id
+        FROM tracks t
+        WHERE NOT EXISTS (
+            SELECT 1 FROM track_artists ta
+            WHERE ta.track_id = t.track_id
+        )
+        OR NOT EXISTS (
+            SELECT 1 FROM track_albums ta
+            WHERE ta.track_id = t.track_id
+        )
+        """
+    ).fetchall()
+
+    if not rows:
+        return 0
+
+    repaired = 0
+
+    print(f"정규화 링크 복구 대상: {len(rows)}")
+
+    for row in rows:
+        track_id = row["track_id"] if hasattr(row, "keys") else row[0]
+
+        try:
+            track = sp.track(track_id)
+            if track and track.get("id"):
+                upsert_track(track)
+                repaired += 1
+        except Exception as exc:
+            print(
+                f"  relation repair failed | "
+                f"{track_id} | {type(exc).__name__}: {exc}"
+            )
+
+    return repaired
+
+
+# =========================================================
 # Saved tracks
 # =========================================================
 
@@ -355,6 +399,9 @@ for item in saved_items:
 
 print(f"  수집: {len(saved_items)}/{len(saved_items)}")
 
+repaired_links = repair_missing_normalized_links()
+if repaired_links:
+    print(f"  정규화 링크 복구: {repaired_links}")
 
 # =========================================================
 # Recently Played
