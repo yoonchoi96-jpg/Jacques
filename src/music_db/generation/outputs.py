@@ -29,7 +29,17 @@ def extract_audio_refs(response):
         if not isinstance(value, str):
             continue
         lk = str(key).lower()
-        if any(x in lk for x in ("audio_url", "audio_path", "audio", "output", "file_url", "file_path", "url", "path")):
+        explicit_audio = any(
+            x in lk for x in (
+                "audio_url", "audio_path", "audio_file", "audio_output",
+                "output_audio", "file_url", "file_path"
+            )
+        )
+        generic_url = lk in ("url", "path", "output", "file")
+        audio_ext = Path(value.split("?", 1)[0].lower()).suffix in {
+            ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".webm"
+        }
+        if (explicit_audio or (generic_url and audio_ext)):
             if value.startswith(("http://", "https://", "file://", "/")):
                 if value not in seen:
                     seen.add(value)
