@@ -326,9 +326,9 @@ class LiveEnrichmentDispatcher:
                     spotify_url =
                         excluded.spotify_url,
 
-                    # Live enrichment receives partial track payloads.
-                    # Never let a later non-saved occurrence erase an
-                    # already saved track or its listening/top metadata.
+                    -- Live enrichment receives partial track payloads.
+                    -- Never let a later non-saved occurrence erase an
+                    -- already saved track or its listening/top metadata.
                     saved =
                         MAX(tracks.saved, excluded.saved),
 
