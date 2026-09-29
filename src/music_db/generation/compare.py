@@ -4,9 +4,22 @@ import json
 import math
 
 
-KEY_ENHARMONIC = {
-    "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb",
+KEY_CANONICAL = {
+    "C": "C", "B#": "C", "C#": "Db", "Db": "Db",
+    "D": "D", "D#": "Eb", "Eb": "Eb", "E": "E", "Fb": "E",
+    "F": "F", "E#": "F", "F#": "Gb", "Gb": "Gb",
+    "G": "G", "G#": "Ab", "Ab": "Ab", "A": "A",
+    "A#": "Bb", "Bb": "Bb", "B": "B", "Cb": "B",
 }
+
+def _canonical_key(value):
+    if not isinstance(value, str):
+        return value
+    parts = value.strip().split(maxsplit=1)
+    if not parts:
+        return value
+    root = KEY_CANONICAL.get(parts[0], parts[0])
+    return root if len(parts) == 1 else f"{root} {parts[1]}"
 
 
 NUMERIC = [
@@ -54,9 +67,8 @@ def compare(a: dict, b: dict) -> dict:
         out["estimated_key"] = {
             "a": a["estimated_key"], "b": b["estimated_key"],
             "same": (
-                a["estimated_key"] == b["estimated_key"]
-                or KEY_ENHARMONIC.get(a["estimated_key"]) == b["estimated_key"]
-                or KEY_ENHARMONIC.get(b["estimated_key"]) == a["estimated_key"]
+                _canonical_key(a["estimated_key"])
+                == _canonical_key(b["estimated_key"])
             ),
         }
     return out
