@@ -48,6 +48,7 @@ def run_checks(conn):
         "orphan_track_artist",
         "orphan_track_album",
         "invalid_duration",
+        "invalid_audio_numeric",
         "invalid_audio_range",
         "generation_relation_self_link",
         "generation_orphan_output",
