@@ -9,6 +9,8 @@ from urllib.parse import urljoin
 
 import requests
 
+from music_db.enrichment.merge import refresh_canonical_audio_features
+
 
 BASE_URL = "https://api.freqblog.com"
 LOOKUP_URL = f"{BASE_URL}/lookup"
@@ -151,6 +153,7 @@ def _save(conn, track_id, isrc, data):
             now,
         ),
     )
+    refresh_canonical_audio_features(conn, track_id)
 
 
 def _artists(track):
