@@ -90,3 +90,10 @@ provider-neutral generation job/output layer.
 Generated audio and analysis are local/provenance data. Provider responses,
 external URLs and analysis payloads are retained as metadata; provider identity
 is never confused with the canonical Spotify track identity.
+
+
+## Duplicate detection
+
+Use `tools/generation_duplicates.py` to identify multiple outputs with the same
+audio SHA-256. Duplicate detection is diagnostic only; it never deletes outputs
+automatically.
