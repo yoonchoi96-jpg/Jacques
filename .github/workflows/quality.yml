@@ -72,3 +72,42 @@ jobs:
           assert not missing, f"Missing tables: {missing}"
           print("Required tables:", len(required))
           PY
+
+
+  audio-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install audio stack
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-audio.txt
+      - name: Analyze synthetic audio
+        run: |
+          python - <<'PY'
+          import math
+          import soundfile as sf
+          import numpy as np
+          from pathlib import Path
+          p = Path("/tmp/jacques_test.wav")
+          sr = 22050
+          t = np.arange(sr * 5) / sr
+          y = 0.2 * np.sin(2 * math.pi * 440 * t)
+          sf.write(p, y, sr)
+          PY
+          PYTHONPATH=src python - <<'PY'
+          from music_db.generation.audio_analysis import analyze_audio
+          r = analyze_audio("/tmp/jacques_test.wav")
+          assert r["analysis_version"] == "audio_features_v3"
+          assert r["sample_rate"] == 22050
+          assert r["duration_seconds"] > 4.9
+          assert "mfcc_mean" in r
+          assert "spectral_contrast_mean_db" in r
+          print("Audio analysis v3 OK")
+          PY
