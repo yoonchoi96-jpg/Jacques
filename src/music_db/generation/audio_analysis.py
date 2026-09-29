@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from datetime import datetime, timezone
+
+
+def now():
+    return datetime.now(timezone.utc).isoformat()
 
 
 def analyze_audio(path):
@@ -95,8 +100,32 @@ def analyze_audio(path):
 
 
 def analyze_and_store(conn, output_id, path):
+    from .fingerprint import sha256_file
     from .outputs import add_analysis
-    payload = analyze_audio(path)
+
+    fingerprint = sha256_file(path)
+    cached = conn.execute(
+        """SELECT analysis_type, payload_json
+           FROM audio_analysis_cache
+           WHERE fingerprint_sha256=?
+           ORDER BY updated_at DESC LIMIT 1""",
+        (fingerprint,),
+    ).fetchone()
+    if cached:
+        payload = json.loads(cached["payload_json"])
+    else:
+        payload = analyze_audio(path)
+        conn.execute(
+            """INSERT INTO audio_analysis_cache
+               (fingerprint_sha256, analysis_type, payload_json, created_at, updated_at)
+               VALUES (?,?,?,?,CURRENT_TIMESTAMP)
+               ON CONFLICT(fingerprint_sha256,analysis_type)
+               DO UPDATE SET payload_json=excluded.payload_json,
+                             updated_at=CURRENT_TIMESTAMP""",
+            (fingerprint, payload["analysis_version"],
+             json.dumps(payload, ensure_ascii=False), now()),
+        )
+        conn.commit()
     add_analysis(conn, output_id, payload["analysis_version"], payload)
     conn.execute(
         """UPDATE generation_outputs
