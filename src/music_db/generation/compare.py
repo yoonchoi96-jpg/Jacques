@@ -22,6 +22,21 @@ def compare(a: dict, b: dict) -> dict:
             delta = bv - av
             pct = None if av == 0 else (delta / abs(av)) * 100
             out[key] = {"a": av, "b": bv, "delta": delta, "percent": pct}
+    for key in ("mfcc_mean", "mfcc_std", "spectral_contrast_mean_db"):
+        av, bv = a.get(key), b.get(key)
+        if (
+            isinstance(av, list) and isinstance(bv, list)
+            and av and len(av) == len(bv)
+            and all(isinstance(x, (int, float)) for x in av + bv)
+        ):
+            deltas = [y - x for x, y in zip(av, bv)]
+            out[key] = {
+                "a": av,
+                "b": bv,
+                "mean_absolute_delta": sum(abs(x) for x in deltas) / len(deltas),
+                "euclidean_distance": math.sqrt(sum(x * x for x in deltas)),
+            }
+
     if a.get("estimated_key") and b.get("estimated_key"):
         out["estimated_key"] = {
             "a": a["estimated_key"], "b": b["estimated_key"],
