@@ -266,45 +266,48 @@ def enrich(conn, tracks, dry_run=False):
         "error": 0,
     }
 
+    # SongBPM is a fallback, not a parallel primary source.
+    # Only terminal FreqBlog not_found tracks are eligible.
+    fallback_tracks = []
+
+    for track in tracks:
+        track_id = track["track_id"]
+
+        if _has_source(conn, track_id):
+            stats["skipped_existing"] += 1
+            continue
+
+        status = conn.execute(
+            """
+            SELECT status
+            FROM enrichment_status
+            WHERE track_id = ?
+              AND source = 'freqblog'
+              AND entity_type = 'audio_features'
+            LIMIT 1
+            """,
+            (track_id,),
+        ).fetchone()
+
+        if not status or status["status"] != "not_found":
+            stats["skipped_freqblog"] += 1
+            continue
+
+        fallback_tracks.append(track)
+
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    for index, track in enumerate(tracks, 1):
+    for index, track in enumerate(fallback_tracks, 1):
         track_id = track["track_id"]
         title = track["title"]
 
-        # --------------------------------------------------
-        # SongBPM은 FreqBlog와 독립적으로 수집한다.
-        #
-        # FreqBlog가 존재해도 SongBPM은 조회/저장한다.
-        # 최종 우선순위(FreqBlog > SongBPM)는 merge 단계에서 결정한다.
-        # --------------------------------------------------
-        if _has_source(conn, track_id):
-            stats["skipped_existing"] += 1
-            print(
-                f"[SongBPM {index}/{len(tracks)}] "
-                f"EXISTS | {title}"
-            )
-            continue
-
-        # --------------------------------------------------
-        # SongBPM 자체 데이터가 이미 있으면 skip.
-        # --------------------------------------------------
-        if _has_source(conn, track_id):
-            stats["skipped_existing"] += 1
-            print(
-                f"[SongBPM {index}/{len(tracks)}] "
-                f"EXISTS | {title}"
-            )
-            continue
-
         artists = _artist_string(conn, track_id)
         clean_artists = artists.replace("|||", " ")
-
         query = f"{title} - {clean_artists}".strip()
 
         print(
-            f"[SongBPM {index}/{len(tracks)}] "
+            f"[SongBPM {index}/{len(fallback_tracks)}] "
             f"FALLBACK | {title}"
         )
 
@@ -313,10 +316,7 @@ def enrich(conn, tracks, dry_run=False):
             continue
 
         try:
-            data = songbpm_search(
-                session,
-                query,
-            )
+            data = songbpm_search(session, query)
         except Exception as exc:
             stats["search_failed"] += 1
             _set_status(
@@ -334,25 +334,20 @@ def enrich(conn, tracks, dry_run=False):
 
         if data.get("status") != "ok":
             stats["search_failed"] += 1
-
             _set_status(
                 conn,
                 track_id,
                 "search_failed",
                 attempts=1,
-                last_error=(
-                    f"http={data.get('http_status')}"
-                ),
+                last_error=f"http={data.get('http_status')}",
                 completed=False,
             )
             conn.commit()
-
             print(
                 "  SEARCH FAILED"
                 f" | status={data.get('status')}"
                 f" | http={data.get('http_status')}"
             )
-
             time.sleep(REQUEST_INTERVAL)
             continue
 
@@ -371,10 +366,8 @@ def enrich(conn, tracks, dry_run=False):
 
         if status == "EXACT MATCH":
             stats["exact_match"] += 1
-
         elif status == "FUZZY MATCH":
             stats["fuzzy_match"] += 1
-
         else:
             stats["no_match"] += 1
             _set_status(
@@ -386,16 +379,10 @@ def enrich(conn, tracks, dry_run=False):
                 completed=True,
             )
             conn.commit()
-
-            print(
-                f"  NO MATCH | candidates={len(candidates)}"
-            )
+            print(f"  NO MATCH | candidates={len(candidates)}")
             time.sleep(REQUEST_INTERVAL)
             continue
 
-        # --------------------------------------------------
-        # 기존 v2의 검증된 저장 로직 그대로 사용.
-        # --------------------------------------------------
         item = {
             "track_id": track_id,
             "title": title,
@@ -419,7 +406,6 @@ def enrich(conn, tracks, dry_run=False):
         )
 
         conn.commit()
-
         stats["success"] += 1
 
         print(
