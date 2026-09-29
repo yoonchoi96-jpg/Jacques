@@ -5,6 +5,9 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 
+ANALYSIS_VERSION = "audio_features_v4"
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -95,7 +98,7 @@ def analyze_audio(path):
         "mfcc_mean": [float(x) for x in np.mean(mfcc, axis=1)],
         "mfcc_std": [float(x) for x in np.std(mfcc, axis=1)],
         "spectral_contrast_mean_db": [float(x) for x in np.mean(spectral_contrast, axis=1)],
-        "analysis_version": "audio_features_v4",
+        "analysis_version": ANALYSIS_VERSION,
     }
 
 
@@ -107,12 +110,13 @@ def analyze_and_store(conn, output_id, path):
     cached = conn.execute(
         """SELECT analysis_type, payload_json
            FROM audio_analysis_cache
-           WHERE fingerprint_sha256=?
-           ORDER BY updated_at DESC LIMIT 1""",
-        (fingerprint,),
+           WHERE fingerprint_sha256=? AND analysis_type=?
+           LIMIT 1""",
+        (fingerprint, ANALYSIS_VERSION),
     ).fetchone()
     if cached:
         payload = json.loads(cached["payload_json"])
+        payload["file"] = str(Path(path).expanduser().resolve())
     else:
         payload = analyze_audio(path)
         conn.execute(
