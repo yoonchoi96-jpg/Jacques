@@ -48,13 +48,14 @@ def extract_audio_refs(response):
 
 
 def create_output(conn: sqlite3.Connection, job_id, *, output_index=0,
-                  audio_path=None, audio_url=None, metadata=None):
+                  audio_path=None, audio_url=None, metadata=None,
+                  project_id=None, stage="generation"):
     metadata = metadata or {}
     cur = conn.execute(
         """INSERT INTO generation_outputs
         (job_id, output_index, audio_path, audio_url, duration_seconds,
-         bpm, key_scale, sample_rate, format, analysis_json, created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+         bpm, key_scale, sample_rate, format, analysis_json, project_id, stage, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             job_id, output_index, audio_path, audio_url,
             metadata.get("duration_seconds"), metadata.get("bpm"),
@@ -62,7 +63,7 @@ def create_output(conn: sqlite3.Connection, job_id, *, output_index=0,
             metadata.get("format"),
             json.dumps(metadata.get("analysis"), ensure_ascii=False)
             if metadata.get("analysis") is not None else None,
-            now(),
+            project_id, stage, now(),
         ),
     )
     conn.commit()
