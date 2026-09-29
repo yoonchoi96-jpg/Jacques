@@ -151,18 +151,22 @@ def main():
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    conn = sqlite3.connect(args.db)
-    conn.execute("PRAGMA foreign_keys = ON")
+    db_path = Path(args.db).resolve()
 
-    # Ensure the latest schema exists before validation.
-    from music_db.database import initialize_database
-    initialize_database()
+    # initialize_database() owns Jacques' canonical DB path. Avoid
+    # silently initializing a different database while validating --db.
+    if db_path == DB_PATH.resolve():
+        from music_db.database import initialize_database
+        initialize_database()
+
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys = ON")
 
     checks = run_checks(conn)
     conn.commit()
 
     summary = {
-        "database": args.db,
+        "database": str(db_path),
         "checked_at": now(),
         "checks": [
             {"name": name, "issues": count}
