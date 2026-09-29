@@ -15,6 +15,8 @@ MODULES = [  # core import smoke test
     "music_db.generation.base",
     "music_db.generation.outputs",
     "music_db.generation.audio_analysis",
+    "music_db.generation.compare",
+    "music_db.generation.prompt_builder",
     "music_db.generation.mureka",
     "music_db.generation.ace_step",
 ]
