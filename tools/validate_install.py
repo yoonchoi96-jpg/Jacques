@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import sys
 
-MODULES = [
+MODULES = [  # core import smoke test
     "music_db.database",
     "music_db.enrichment.engine",
     "music_db.enrichment.live_dispatcher",
