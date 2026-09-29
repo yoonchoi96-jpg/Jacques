@@ -29,6 +29,6 @@ def post_json(url, *, json_body=None, headers=None, timeout=60, attempts=3):
             last = exc
         if attempt + 1 < attempts:
             time.sleep(delay)
-    if isinstance(last, requests.Response):
-        return last
-    raise last
+    if isinstance(last, BaseException):
+        raise last
+    return last
