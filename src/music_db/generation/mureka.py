@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import requests
 from .base import update_generation_job
+from .http import post_json
 
 ENDPOINT = "https://api.mureka.ai/v1/song/generate"
 
@@ -15,7 +16,7 @@ def submit(conn, job_id, *, lyrics, prompt=None, model="auto", n=1, gender=None,
     if gender: payload["gender"] = gender
     if reference_id: payload["reference_id"] = reference_id
     update_generation_job(conn, job_id, status="running", started=True)
-    r = requests.post(ENDPOINT, json=payload, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+    r = post_json(ENDPOINT, json_body=payload, headers={"Authorization": f"Bearer {token}"}, timeout=60)
     try:
         r.raise_for_status()
         data = r.json()
