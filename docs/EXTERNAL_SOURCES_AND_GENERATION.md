@@ -98,3 +98,10 @@ MusicBrainz requests must be rate-aware; Jacques should use a meaningful User-Ag
 ## Automated quality gate
 
 `.github/workflows/quality.yml` now runs on relevant pushes and manual dispatch. It compiles the codebase, imports the major modules, initializes/checks the SQLite schema, runs `PRAGMA integrity_check`, and executes the existing DB quality checks.
+
+
+## Source registry
+
+`source_registry.enabled` is persistent operator state. Database initialization refreshes source metadata without overwriting an existing enabled/disabled choice.
+
+The live enrichment dispatcher and editorial sync honor this flag. SongBPM remains eligible only after a terminal FreqBlog `not_found`; transient FreqBlog errors do not trigger fallback.
