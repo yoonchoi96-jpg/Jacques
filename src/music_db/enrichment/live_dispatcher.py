@@ -14,6 +14,7 @@ DB_PATH = "db/music.db"
 
 BATCH_SIZE = 15
 COALESCE_SECONDS = 0.75
+RETRY_COOLDOWN_SECONDS = 6 * 60 * 60
 
 
 def _open_connection():
@@ -58,6 +59,9 @@ class LiveEnrichmentDispatcher:
             return
 
         if not track.get("track_id"):
+            return
+
+        if not self._needs_enrichment(track["track_id"]):
             return
 
         self._persist_track(track)
@@ -280,6 +284,60 @@ class LiveEnrichmentDispatcher:
 
         finally:
 
+            conn.close()
+
+    def _needs_enrichment(self, track_id):
+        """Avoid re-querying already-enriched tracks every Spotify run."""
+        conn = _open_connection()
+        try:
+            freq = conn.execute(
+                """
+                SELECT status, last_attempted_at
+                FROM enrichment_status
+                WHERE track_id = ?
+                  AND source = 'freqblog'
+                  AND entity_type = 'audio_features'
+                """,
+                (track_id,),
+            ).fetchone()
+
+            song = conn.execute(
+                """
+                SELECT status
+                FROM enrichment_status
+                WHERE track_id = ?
+                  AND source = 'songbpm'
+                  AND entity_type = 'track'
+                """,
+                (track_id,),
+            ).fetchone()
+
+            if freq and freq["status"] == "success":
+                return False
+
+            if song and song["status"] == "success":
+                return False
+
+            if (
+                freq
+                and freq["status"] == "not_found"
+                and song
+                and song["status"] in ("success", "no_data")
+            ):
+                return False
+
+            if freq and freq["status"] == "error" and freq["last_attempted_at"]:
+                try:
+                    from datetime import datetime, timezone
+                    attempted = datetime.fromisoformat(freq["last_attempted_at"])
+                    age = (datetime.now(timezone.utc) - attempted).total_seconds()
+                    if age < RETRY_COOLDOWN_SECONDS:
+                        return False
+                except ValueError:
+                    pass
+
+            return True
+        finally:
             conn.close()
 
     # ---------------------------------------------------------
