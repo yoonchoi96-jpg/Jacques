@@ -66,3 +66,35 @@ Billboard currently has no stable public API that Jacques should depend on, so t
 Pitchfork exposes official RSS feeds. Jacques stores review metadata (score/date/author/URL) rather than reproducing review text.
 
 Apple Music API is appropriate for catalog and chart queries. Apple Music Feed bulk exports are intentionally not used because Apple documents restrictions on using Feed data for internal systems/analysis.
+
+
+## 2026-09 expansion: generation execution + audio intelligence
+
+Jacques now includes a provider-neutral generation execution layer:
+
+- `tools/generate.py` creates generation jobs and can submit to Mureka or ACE-Step 1.5.
+- `generation_outputs` stores generated audio paths/URLs.
+- `generation_analysis` stores analysis payloads separately from the output record.
+- `generation_relations` supports lineage such as reference → generated, generated → edited, and version-to-version derivation.
+- `src/music_db/generation/audio_analysis.py` provides optional local analysis for BPM, estimated key, loudness/RMS, crest factor, spectral centroid, spectral rolloff, zero-crossing rate, onset rate, and beat count.
+- The optional audio stack is isolated in `requirements-audio.txt` so the normal Spotify/editorial GitHub runners do not need heavy DSP packages.
+
+## Audio identity
+
+AcoustID is implemented as an optional local-file identity layer. It uses Chromaprint/fpcalc to fingerprint an actual audio file and then queries AcoustID for MusicBrainz-linked identity. It is deliberately not part of the Spotify metadata schedule because Spotify catalog metadata alone is not an audio fingerprint.
+
+AcoustID's public service is rate-limited to 3 requests/second and is free for non-commercial use; commercial deployment requires registration. citeturn0search4
+
+## External-source boundary
+
+Apple Music remains API-first for catalog/charts; its official API supports catalog songs, albums, artists, search, charts and storefront-specific catalog access. citeturn1search0turn1search3
+
+Beatport has an official v4 developer portal, but the current portal requires Beatport login. Jacques therefore does not invent undocumented endpoints or scrape it as a pretend API. A dedicated Beatport adapter can be added once authenticated endpoint details/credentials are available. citeturn1search12
+
+Bandcamp's documented API is primarily for labels/merchandise fulfillment and requires approved OAuth access, so it is not treated as a general public catalog API for Jacques. citeturn0search2
+
+MusicBrainz requests must be rate-aware; Jacques should use a meaningful User-Agent and avoid synchronized bulk polling. citeturn0search1
+
+## Automated quality gate
+
+`.github/workflows/quality.yml` now runs on relevant pushes and manual dispatch. It compiles the codebase, imports the major modules, initializes/checks the SQLite schema, runs `PRAGMA integrity_check`, and executes the existing DB quality checks.
