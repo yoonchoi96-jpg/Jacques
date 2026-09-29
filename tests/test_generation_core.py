@@ -21,6 +21,16 @@ class GenerationCoreTests(unittest.TestCase):
         self.assertEqual(out["tempo_bpm"]["delta"], 10)
         self.assertAlmostEqual(out["silence_ratio"]["delta"], -0.1)
 
+        vector = compare(
+            {"mfcc_mean": [1.0, 2.0, 3.0]},
+            {"mfcc_mean": [2.0, 2.0, 5.0]},
+        )
+        self.assertAlmostEqual(vector["mfcc_mean"]["mean_absolute_delta"], 1.0)
+        self.assertAlmostEqual(
+            vector["mfcc_mean"]["euclidean_distance"],
+            5 ** 0.5,
+        )
+
     def test_audio_fingerprint_cache_identity(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "a.wav"
