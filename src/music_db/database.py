@@ -476,6 +476,139 @@ CREATE INDEX IF NOT EXISTS idx_quality_entity
 
 CREATE INDEX IF NOT EXISTS idx_quality_severity
     ON data_quality_issues(severity);
+
+-- ============================================================
+-- EDITORIAL / MARKET DATA
+-- ============================================================
+CREATE TABLE IF NOT EXISTS chart_entries (
+    chart_entry_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    chart_name TEXT NOT NULL,
+    chart_date TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    previous_rank INTEGER,
+    peak_rank INTEGER,
+    weeks_on_chart INTEGER,
+    title TEXT NOT NULL,
+    artist_name TEXT,
+    album_name TEXT,
+    track_id TEXT,
+    source_url TEXT,
+    raw_data TEXT,
+    observed_at TEXT,
+    UNIQUE (source, chart_name, chart_date, rank),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chart_entries_track ON chart_entries(track_id);
+CREATE INDEX IF NOT EXISTS idx_chart_entries_source_date ON chart_entries(source, chart_name, chart_date);
+CREATE INDEX IF NOT EXISTS idx_chart_entries_title_artist ON chart_entries(title, artist_name);
+
+CREATE TABLE IF NOT EXISTS review_entries (
+    review_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    external_id TEXT,
+    title TEXT,
+    artist_name TEXT,
+    album_name TEXT,
+    score REAL,
+    review_date TEXT,
+    author TEXT,
+    headline TEXT,
+    url TEXT NOT NULL,
+    track_id TEXT,
+    raw_data TEXT,
+    observed_at TEXT,
+    UNIQUE (source, url),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_review_entries_track ON review_entries(track_id);
+CREATE INDEX IF NOT EXISTS idx_review_entries_source_date ON review_entries(source, review_date);
+
+CREATE TABLE IF NOT EXISTS source_records (
+    source_record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    track_id TEXT,
+    artist_name TEXT,
+    album_name TEXT,
+    title TEXT,
+    url TEXT,
+    data_json TEXT,
+    observed_at TEXT,
+    UNIQUE (source, entity_type, external_id),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_source_records_track ON source_records(track_id);
+CREATE INDEX IF NOT EXISTS idx_source_records_source ON source_records(source);
+
+-- ============================================================
+-- GENERATION LAYER
+-- ============================================================
+CREATE TABLE IF NOT EXISTS generation_jobs (
+    job_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    model TEXT,
+    status TEXT NOT NULL DEFAULT 'queued',
+    prompt TEXT,
+    lyrics TEXT,
+    bpm REAL,
+    key_scale TEXT,
+    time_signature TEXT,
+    duration_seconds REAL,
+    vocal_language TEXT,
+    reference_track_id TEXT,
+    parent_job_id INTEGER,
+    provider_task_id TEXT,
+    request_json TEXT,
+    response_json TEXT,
+    error TEXT,
+    created_at TEXT NOT NULL,
+    started_at TEXT,
+    completed_at TEXT,
+    FOREIGN KEY (reference_track_id) REFERENCES tracks(track_id) ON DELETE SET NULL,
+    FOREIGN KEY (parent_job_id) REFERENCES generation_jobs(job_id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS generation_outputs (
+    output_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL,
+    output_index INTEGER DEFAULT 0,
+    audio_path TEXT,
+    audio_url TEXT,
+    duration_seconds REAL,
+    bpm REAL,
+    key_scale TEXT,
+    sample_rate INTEGER,
+    format TEXT,
+    analysis_json TEXT,
+    created_at TEXT,
+    FOREIGN KEY (job_id) REFERENCES generation_jobs(job_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS generation_analysis (
+    analysis_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    output_id INTEGER NOT NULL,
+    analysis_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT,
+    FOREIGN KEY (output_id) REFERENCES generation_outputs(output_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS generation_relations (
+    relation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_output_id INTEGER NOT NULL,
+    to_output_id INTEGER NOT NULL,
+    relation_type TEXT NOT NULL,
+    confidence REAL,
+    note TEXT,
+    created_at TEXT,
+    UNIQUE (from_output_id, to_output_id, relation_type),
+    FOREIGN KEY (from_output_id) REFERENCES generation_outputs(output_id) ON DELETE CASCADE,
+    FOREIGN KEY (to_output_id) REFERENCES generation_outputs(output_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_generation_jobs_provider_status ON generation_jobs(provider, status);
+CREATE INDEX IF NOT EXISTS idx_generation_jobs_reference ON generation_jobs(reference_track_id);
+CREATE INDEX IF NOT EXISTS idx_generation_outputs_job ON generation_outputs(job_id);
+
 """
 
 SOURCE_SEED = """
@@ -497,7 +630,17 @@ VALUES
     ('pitchfork', 'web', 70, 0, 'review_metadata',
      'Planned review source; disabled until adapter is implemented', CURRENT_TIMESTAMP),
     ('rhythmer', 'web', 80, 0, 'production_metadata',
-     'Planned production metadata source; disabled until adapter is implemented', CURRENT_TIMESTAMP)
+     'Planned production metadata source; disabled until adapter is implemented', CURRENT_TIMESTAMP),
+    ('apple_music', 'api', 55, 1, 'catalog_chart_metadata',
+     'Apple Music catalog/search/charts adapter', CURRENT_TIMESTAMP),
+    ('discogs', 'api', 75, 0, 'release_credit_metadata',
+     'Optional release/label/credit metadata adapter', CURRENT_TIMESTAMP),
+    ('acoustid', 'api', 90, 0, 'audio_identity',
+     'Optional audio fingerprint identification', CURRENT_TIMESTAMP),
+    ('mureka', 'api', 200, 0, 'generation',
+     'Cloud music generation provider adapter', CURRENT_TIMESTAMP),
+    ('ace_step', 'api', 210, 0, 'generation',
+     'ACE-Step 1.5 local/self-hosted generation adapter', CURRENT_TIMESTAMP)
 ON CONFLICT(source) DO UPDATE SET
     source_type = excluded.source_type,
     priority = excluded.priority,
