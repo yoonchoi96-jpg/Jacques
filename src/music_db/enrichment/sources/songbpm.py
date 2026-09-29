@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 
 import requests
 
+from music_db.enrichment.merge import refresh_canonical_audio_features
+
 from music_db.enrichment.sources.songbpm_core import (
     HEADERS,
     songbpm_search,
@@ -253,6 +255,7 @@ def enrich_one(conn, track, dry_run=False):
     }
 
     save_match(conn, item)
+    refresh_canonical_audio_features(conn, track_id)
 
     _set_status(
         conn,
