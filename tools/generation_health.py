@@ -24,6 +24,21 @@ def main():
     analyzed = conn.execute("""
         SELECT COUNT(DISTINCT output_id) FROM generation_analysis
     """).fetchone()[0]
+    cache_entries = conn.execute(
+        "SELECT COUNT(*) FROM audio_analysis_cache"
+    ).fetchone()[0]
+    relations = conn.execute(
+        "SELECT COUNT(*) FROM generation_relations"
+    ).fetchone()[0]
+    duplicate_groups = conn.execute("""
+        SELECT COUNT(*) FROM (
+            SELECT fingerprint_sha256
+            FROM generation_outputs
+            WHERE fingerprint_sha256 IS NOT NULL AND fingerprint_sha256 != ''
+            GROUP BY fingerprint_sha256
+            HAVING COUNT(*) > 1
+        )
+    """).fetchone()[0]
     fingerprinted = conn.execute("""
         SELECT COUNT(*) FROM generation_outputs
         WHERE fingerprint_sha256 IS NOT NULL AND fingerprint_sha256 != ''
@@ -38,6 +53,9 @@ def main():
         "outputs": outputs,
         "analyzed_outputs": analyzed,
         "fingerprinted_outputs": fingerprinted,
+        "analysis_cache_entries": cache_entries,
+        "relations": relations,
+        "duplicate_fingerprint_groups": duplicate_groups,
         "missing_local_files": missing_files,
     }
     conn.close()
@@ -49,6 +67,9 @@ def main():
         print(f"outputs             : {outputs}")
         print(f"analyzed_outputs    : {analyzed}")
         print(f"fingerprinted       : {fingerprinted}")
+        print(f"analysis_cache      : {cache_entries}")
+        print(f"relations           : {relations}")
+        print(f"duplicate_groups    : {duplicate_groups}")
         print(f"missing_local_files : {missing_files}")
         for row in jobs:
             print(f"{row['provider']:14} {row['status']:12} {row['count']}")
