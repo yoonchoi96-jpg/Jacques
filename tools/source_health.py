@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
+from datetime import datetime, timezone
 
 
 def main():
@@ -12,7 +13,7 @@ def main():
     conn = sqlite3.connect(args.db)
     conn.row_factory = sqlite3.Row
 
-    report = {"sources": [], "generation": [], "runs": []}
+    report = {"sources": [], "generation": [], "runs": [], "records": []}
     rows = conn.execute("""
         SELECT sr.source, sr.enabled, sr.priority, sr.role,
                COUNT(es.track_id) AS status_rows,
@@ -43,6 +44,15 @@ def main():
     """):
         report["runs"].append(dict(r))
 
+    for r in conn.execute("""
+        SELECT source, COUNT(*) AS records,
+               MAX(observed_at) AS last_observed_at
+        FROM source_records
+        GROUP BY source
+        ORDER BY source
+    """):
+        report["records"].append(dict(r))
+
     if args.json:
         import json
         print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -53,6 +63,9 @@ def main():
         print("\n=== ENRICHMENT RUNS ===")
         for r in report["runs"]:
             print(f"{r['source']:14} {r['status']:12} {r['count']} last={r['last_finished_at'] or '-'}")
+        print("\n=== SOURCE RECORDS ===")
+        for r in report["records"]:
+            print(f"{r['source']:14} records={r['records']} last={r['last_observed_at'] or '-'}")
         print("\n=== GENERATION ===")
         for r in report["generation"]:
             print(f"{r['provider']:14} {r['status']:12} {r['n']}")
