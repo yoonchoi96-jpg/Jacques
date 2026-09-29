@@ -9,7 +9,6 @@ from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
 from music_db.generation.outputs import create_output, link_outputs
 from music_db.generation.prompt_builder import build_prompt
-from music_db.external.acoustid import fingerprint_file
 
 
 class GenerationCoreTests(unittest.TestCase):
