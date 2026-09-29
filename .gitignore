@@ -29,3 +29,6 @@ db/*.db-shm
 
 # Local archive
 /archive/
+
+# Generated audio artifacts (local provenance)
+generated_audio/
