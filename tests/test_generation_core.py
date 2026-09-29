@@ -9,6 +9,7 @@ from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
 from music_db.generation.outputs import create_output, link_outputs
 from music_db.generation.prompt_builder import build_prompt
+from music_db.external.acoustid import fingerprint_file
 
 
 class GenerationCoreTests(unittest.TestCase):
@@ -18,6 +19,13 @@ class GenerationCoreTests(unittest.TestCase):
         out = compare(a, b)
         self.assertEqual(out["tempo_bpm"]["delta"], 10)
         self.assertAlmostEqual(out["silence_ratio"]["delta"], -0.1)
+
+    def test_audio_fingerprint_cache_identity(self):
+        # Fingerprint helper must be deterministic for identical bytes.
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "a.wav"
+            p.write_bytes(b"same-audio")
+            self.assertEqual(sha256_file(str(p)), sha256_file(str(p)))
 
     def test_prompt_uses_v3_features(self):
         prompt = build_prompt({
