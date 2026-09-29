@@ -82,12 +82,39 @@ def _record_enrichment_run(conn, source, started_at, finished_at, candidate_coun
     conn.commit()
 
 
+def _source_registry_key(name):
+    return name.lower().replace(".", "").replace("-", "_").replace(" ", "_")
+
+
+def _source_enabled(conn, name):
+    key = _source_registry_key(name)
+    row = conn.execute(
+        "SELECT enabled FROM source_registry WHERE source = ? LIMIT 1",
+        (key,),
+    ).fetchone()
+    # Unknown sources remain runnable for backwards compatibility; the
+    # registry only gates sources that are explicitly registered.
+    return row is None or bool(row["enabled"])
+
+
 def run_source(name, worker, candidates, dry_run):
+    conn = open_worker_connection()
+
+    if not _source_enabled(conn, name):
+        print(f"[{name}] SKIP | source disabled in registry")
+        conn.close()
+        return {
+            "name": name,
+            "stats": {"skipped_disabled": len(candidates)},
+            "error": None,
+            "elapsed_seconds": 0.0,
+            "skipped": True,
+        }
+
     print(f"[{name}] START")
 
     started = time.perf_counter()
     started_at = datetime.now(timezone.utc).isoformat()
-    conn = open_worker_connection()
 
     try:
         stats = worker(
@@ -147,6 +174,7 @@ def run_source(name, worker, candidates, dry_run):
             "stats": {},
             "error": exc,
             "elapsed_seconds": elapsed,
+            "skipped": False,
         }
 
     finally:
