@@ -14,6 +14,7 @@ MODULES = [  # core import smoke test
     "music_db.external.acoustid",
     "music_db.generation.base",
     "music_db.generation.outputs",
+    "music_db.generation.fingerprint",
     "music_db.generation.audio_analysis",
     "music_db.generation.compare",
     "music_db.generation.prompt_builder",
