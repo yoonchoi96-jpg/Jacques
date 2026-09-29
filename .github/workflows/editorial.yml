@@ -31,6 +31,7 @@ jobs:
         env:
           APPLE_MUSIC_DEVELOPER_TOKEN: ${{ secrets.APPLE_MUSIC_DEVELOPER_TOKEN }}
           APPLE_MUSIC_STOREFRONTS: "kr,us,jp,gb,fr"
+          DISCOGS_TOKEN: ${{ secrets.DISCOGS_TOKEN }}
           BILLBOARD_CHARTS: "hot-100,billboard-200"
         run: |
           python -m compileall -q src tools
