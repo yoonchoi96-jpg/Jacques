@@ -279,7 +279,7 @@ def export_generation(conn, root):
     rows = conn.execute(
         """SELECT j.*, o.output_id, o.output_index, o.audio_path, o.audio_url,
                   o.duration_seconds AS output_duration, o.bpm AS output_bpm,
-                  o.key_scale AS output_key, o.analysis_json
+                  o.key_scale AS output_key, o.analysis_json, o.fingerprint_sha256
            FROM generation_jobs j
            LEFT JOIN generation_outputs o ON o.job_id = j.job_id
            ORDER BY j.created_at DESC, o.output_index"""
@@ -296,8 +296,25 @@ def export_generation(conn, root):
             f"- BPM: {r['output_bpm'] or r['bpm'] or ''}",
             f"- Key: {r['output_key'] or r['key_scale'] or ''}",
             f"- Output: {r['audio_path'] or r['audio_url'] or 'None'}",
+            f"- SHA-256: {r['fingerprint_sha256'] or ''}",
             "",
         ]
+        relations = conn.execute(
+            """SELECT relation_type, from_output_id, to_output_id, confidence, note
+               FROM generation_relations
+               WHERE from_output_id=? OR to_output_id=?
+               ORDER BY created_at""",
+            (r["output_id"], r["output_id"]),
+        ).fetchall() if r["output_id"] else []
+        if relations:
+            lines += ["### Output Relations", ""]
+            lines += [
+                f"- {x['from_output_id']} --{x['relation_type']}--> {x['to_output_id']}"
+                + (f" (confidence {x['confidence']})" if x["confidence"] is not None else "")
+                + (f" — {x['note']}" if x["note"] else "")
+                for x in relations
+            ]
+            lines.append("")
     (out / "Generation Lineage.md").write_text("\n".join(lines), encoding="utf-8")
     return len(rows)
 
