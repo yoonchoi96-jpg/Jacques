@@ -22,7 +22,12 @@ def main():
     """)]
     outputs = conn.execute("SELECT COUNT(*) FROM generation_outputs").fetchone()[0]
     analyzed = conn.execute("""
-        SELECT COUNT(DISTINCT output_id) FROM generation_analysis
+        SELECT COUNT(*) FROM generation_outputs
+        WHERE analysis_json IS NOT NULL AND analysis_json != ''
+           OR output_id IN (
+               SELECT DISTINCT output_id
+               FROM generation_analysis
+           )
     """).fetchone()[0]
     cache_entries = conn.execute(
         "SELECT COUNT(*) FROM audio_analysis_cache"
