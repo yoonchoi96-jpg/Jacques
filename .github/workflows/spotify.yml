@@ -25,6 +25,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -51,7 +52,7 @@ jobs:
       - name: Validate SQLite
         run: |
           sqlite3 db/music.db "PRAGMA integrity_check;" | grep -qx "ok"
-          python tools/db_quality.py
+          python tools/db_quality.py --fail-on-error
 
       - name: Commit database changes
         run: |
