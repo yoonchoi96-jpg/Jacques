@@ -31,6 +31,17 @@ class GenerationCoreTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_compare_ignores_non_finite_values_and_matches_enharmonic_keys(self):
+        out = __import__(
+            "music_db.generation.compare",
+            fromlist=["compare"],
+        ).compare(
+            {"tempo_bpm": float("nan"), "estimated_key": "F#"},
+            {"tempo_bpm": 120, "estimated_key": "Gb"},
+        )
+        self.assertNotIn("tempo_bpm", out)
+        self.assertTrue(out["estimated_key"]["same"])
+
     def test_compare_extended_metrics(self):
         a = {"tempo_bpm": 120, "spectral_flatness": 0.1, "silence_ratio": 0.2}
         b = {"tempo_bpm": 130, "spectral_flatness": 0.2, "silence_ratio": 0.1}
