@@ -4,6 +4,7 @@ import os
 import time
 import requests
 from .base import update_generation_job
+from .http import post_json
 
 def _base():
     return os.getenv("ACESTEP_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
@@ -16,7 +17,7 @@ def submit(conn, job_id, *, prompt=None, lyrics=None, model="acestep-v15-turbo",
     payload = {"prompt": prompt or "", "lyrics": lyrics or "", "model": model, "thinking": thinking, "audio_format": audio_format}
     payload.update(extra)
     update_generation_job(conn, job_id, status="running", started=True)
-    r = requests.post(f"{_base()}/release_task", json=payload, headers=_headers(), timeout=60)
+    r = post_json(f"{_base()}/release_task", json_body=payload, headers=_headers(), timeout=60)
     try:
         r.raise_for_status()
         data = r.json()
@@ -31,7 +32,7 @@ def submit(conn, job_id, *, prompt=None, lyrics=None, model="acestep-v15-turbo",
 def poll(task_id, timeout_seconds=1800, interval_seconds=5):
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
-        r = requests.post(f"{_base()}/query_result", json={"task_id": task_id}, headers=_headers(), timeout=30)
+        r = post_json(f"{_base()}/query_result", json_body={"task_id": task_id}, headers=_headers(), timeout=30)
         r.raise_for_status()
         data = r.json()
         body = data.get("data") or data
