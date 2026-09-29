@@ -44,6 +44,13 @@ def lookup_file(path, *, meta="recordings,recordingids,releases,releaseids,track
 
 
 def identify_track(conn, track_id, path):
+    enabled = conn.execute(
+        "SELECT enabled FROM source_registry WHERE source=? LIMIT 1",
+        (SOURCE,),
+    ).fetchone()
+    if enabled is not None and not bool(enabled[0]):
+        return {"status": "disabled", "source": SOURCE, "track_id": track_id}
+
     path = str(Path(path).expanduser().resolve())
     sha256 = sha256_file(path)
     cached = conn.execute(
