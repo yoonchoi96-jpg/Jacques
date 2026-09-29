@@ -118,6 +118,34 @@ def enrich_one(conn, track, dry_run=False):
     """
 
     track_id = track["track_id"]
+
+    # Defensive guard: SongBPM is a fallback only. Even if a caller
+    # invokes enrich_one() directly, never query it when FreqBlog has
+    # not reached a terminal not_found state.
+    if _has_source(conn, track_id):
+        return {
+            "status": "skipped_existing",
+            "track_id": track_id,
+        }
+
+    freqblog_status = conn.execute(
+        """
+        SELECT status
+        FROM enrichment_status
+        WHERE track_id = ?
+          AND source = 'freqblog'
+          AND entity_type = 'audio_features'
+        LIMIT 1
+        """,
+        (track_id,),
+    ).fetchone()
+
+    if not freqblog_status or freqblog_status["status"] != "not_found":
+        return {
+            "status": "skipped_freqblog",
+            "track_id": track_id,
+        }
+
     title = track["title"]
     artists = _artist_string(conn, track_id)
     clean_artists = artists.replace("|||", " ")
