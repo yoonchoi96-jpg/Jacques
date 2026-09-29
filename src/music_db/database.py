@@ -584,7 +584,8 @@ CREATE TABLE IF NOT EXISTS generation_jobs (
     started_at TEXT,
     completed_at TEXT,
     FOREIGN KEY (reference_track_id) REFERENCES tracks(track_id) ON DELETE SET NULL,
-    FOREIGN KEY (parent_job_id) REFERENCES generation_jobs(job_id) ON DELETE SET NULL
+    FOREIGN KEY (parent_job_id) REFERENCES generation_jobs(job_id) ON DELETE SET NULL,
+    FOREIGN KEY (project_id) REFERENCES generation_projects(project_id) ON DELETE SET NULL
 );
 CREATE TABLE IF NOT EXISTS generation_outputs (
     output_id INTEGER PRIMARY KEY AUTOINCREMENT,
