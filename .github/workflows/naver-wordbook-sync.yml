@@ -2,18 +2,35 @@ name: NAVER Wordbook Sync
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "sync or probe"
+        required: true
+        default: "sync"
+        type: choice
+        options:
+          - sync
+          - probe
   schedule:
-    - cron: "0 10 * * *"
+    # 07:00 KST and 19:00 KST
     - cron: "0 22 * * *"
+    - cron: "0 10 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: naver-wordbook-sync
+  cancel-in-progress: false
 
 jobs:
   sync:
-    # IMPORTANT: this must be a runner on the user's own Mac.
-    # Never use a GitHub-hosted runner for the personal NAVER session.
     runs-on: [self-hosted, macOS, naver-wordbook]
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,6 +43,25 @@ jobs:
           pip install playwright
           python -m playwright install chromium
 
-      - name: Sync NAVER wordbook
+      - name: Check NAVER session and sync
+        env:
+          NAVER_WORDBOOK_EXPORT: data/naver_wordbook.json
         run: |
-          python scripts/naver_wordbook_sync.py --sync
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "${{ inputs.mode }}" = "probe" ]; then
+            python scripts/naver_wordbook_sync.py --probe
+          else
+            python scripts/naver_wordbook_sync.py --sync
+          fi
+
+      - name: Commit changed wordbook export
+        if: "${{ inputs.mode || 'sync' }}" != "probe"
+        run: |
+          git config user.name "Jacques NAVER Wordbook Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/naver_wordbook.json
+          if git diff --cached --quiet; then
+            echo "No wordbook changes."
+            exit 0
+          fi
+          git commit -m "chore: sync NAVER wordbook"
+          git push
