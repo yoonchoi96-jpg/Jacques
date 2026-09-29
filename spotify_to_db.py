@@ -296,16 +296,24 @@ def upsert_track(track, saved=False, saved_at=None):
     # Pending enrichment payload
     # -----------------------------------------------------
 
+    # A track can appear in Saved, Recently Played, and Top Tracks
+    # during the same run. Preserve the strongest saved state when the
+    # later Spotify pass encounters the same track again.
+    existing_pending = pending_tracks.get(track_id, {})
+
     pending_tracks[track_id] = {
         "track_id": track_id,
         "title": track.get("name"),
         "album": track.get("album", {}).get("name"),
         "release_date": track.get("album", {}).get("release_date"),
         "spotify_url": track.get("external_urls", {}).get("spotify"),
-        "saved": int(saved),
-        "saved_at": saved_at,
+        "saved": max(
+            int(saved),
+            int(existing_pending.get("saved", 0)),
+        ),
+        "saved_at": saved_at or existing_pending.get("saved_at"),
         "duration_ms": track.get("duration_ms"),
-        "isrc": isrc,
+        "isrc": isrc or existing_pending.get("isrc"),
     }
 
 
@@ -315,9 +323,19 @@ def upsert_track(track, saved=False, saved_at=None):
 
 print("=== 1. Saved Tracks ===")
 
-saved_total = sp.current_user_saved_tracks(limit=50)
+saved_items = []
+saved_page = sp.current_user_saved_tracks(limit=50)
 
-saved_items = saved_total.get("items", [])
+# Spotify returns paginated saved-track results. Walk every page so
+# Jacques does not silently stop at the first 50 liked tracks.
+while saved_page:
+    page_items = saved_page.get("items", [])
+    saved_items.extend(page_items)
+
+    if not saved_page.get("next"):
+        break
+
+    saved_page = sp.next(saved_page)
 
 print(f"Spotify 좋아요 전체: {len(saved_items)}")
 
