@@ -655,6 +655,21 @@ ON CONFLICT(source) DO UPDATE SET
 def run_migrations(conn):
     conn.executescript(MIGRATION_SCHEMA)
     conn.executescript(SOURCE_SEED)
+
+    # Lightweight additive migrations for existing databases.
+    columns = {
+        row[1] for row in conn.execute(
+            "PRAGMA table_info(generation_outputs)"
+        ).fetchall()
+    }
+    if "fingerprint_sha256" not in columns:
+        conn.execute(
+            "ALTER TABLE generation_outputs ADD COLUMN fingerprint_sha256 TEXT"
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_generation_outputs_fingerprint "
+        "ON generation_outputs(fingerprint_sha256)"
+    )
     conn.commit()
 
 def initialize_database():
