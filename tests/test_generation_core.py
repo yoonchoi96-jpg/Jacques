@@ -8,7 +8,7 @@ from pathlib import Path
 from music_db.database import initialize_database, get_connection
 from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
-from music_db.generation.outputs import create_output, link_outputs
+from music_db.generation.outputs import create_output, link_outputs, extract_audio_refs
 from music_db.generation.prompt_builder import build_prompt
 from music_db.generation.http import post_json
 
@@ -66,6 +66,19 @@ class GenerationCoreTests(unittest.TestCase):
         self.assertIs(response, responses[-1])
         self.assertEqual(post.call_count, 3)
         self.assertEqual(sleep.call_count, 2)
+
+
+    def test_extract_audio_refs_ignores_generic_image_urls(self):
+        response = {
+            "audio_url": "https://cdn.test/song.mp3",
+            "cover_url": "https://cdn.test/cover.jpg",
+            "url": "https://cdn.test/page",
+            "nested": {"output": "https://cdn.test/result.wav"},
+        }
+        self.assertEqual(
+            extract_audio_refs(response),
+            ["https://cdn.test/song.mp3", "https://cdn.test/result.wav"],
+        )
 
     def test_sha256(self):
         with tempfile.TemporaryDirectory() as td:
