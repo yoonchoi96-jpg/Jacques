@@ -57,13 +57,14 @@ def run_checks(conn):
         "missing_track_artist_link",
         """
         SELECT 'track', t.track_id,
-               'Track has Spotify artists but no track_artists relation'
+               'Track has no normalized track_artists relation; Spotify repair may be unavailable'
         FROM tracks t
         WHERE NOT EXISTS (
             SELECT 1 FROM track_artists ta
             WHERE ta.track_id = t.track_id
         )
         """,
+        severity="warning",
     )
 
     check(
