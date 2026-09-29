@@ -2,6 +2,7 @@ import hashlib
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch, Mock
 from pathlib import Path
 
 from music_db.database import initialize_database, get_connection
@@ -9,6 +10,7 @@ from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
 from music_db.generation.outputs import create_output, link_outputs
 from music_db.generation.prompt_builder import build_prompt
+from music_db.generation.http import post_json
 
 
 class GenerationCoreTests(unittest.TestCase):
@@ -20,13 +22,12 @@ class GenerationCoreTests(unittest.TestCase):
         self.assertAlmostEqual(out["silence_ratio"]["delta"], -0.1)
 
     def test_audio_fingerprint_cache_identity(self):
-        # Fingerprint helper must be deterministic for identical bytes.
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "a.wav"
             p.write_bytes(b"same-audio")
             self.assertEqual(sha256_file(str(p)), sha256_file(str(p)))
 
-    def test_prompt_uses_v3_features(self):
+    def test_prompt_uses_v4_features(self):
         prompt = build_prompt({
             "tempo_bpm": 128,
             "estimated_key": "F#",
@@ -40,6 +41,31 @@ class GenerationCoreTests(unittest.TestCase):
         self.assertIn("tonal/harmonic texture", prompt)
         self.assertIn("noticeable negative space", prompt)
         self.assertIn("ambiguous tonal center", prompt)
+
+    @patch("music_db.generation.http.time.sleep")
+    @patch("music_db.generation.http.requests.post")
+    def test_http_retries_429_and_honors_retry_after(self, post, sleep):
+        first = Mock(status_code=429, headers={"Retry-After": "3"})
+        second = Mock(status_code=200, headers={})
+        post.side_effect = [first, second]
+
+        response = post_json("https://example.test/generate", json_body={"x": 1})
+
+        self.assertIs(response, second)
+        self.assertEqual(post.call_count, 2)
+        sleep.assert_called_once_with(3.0)
+
+    @patch("music_db.generation.http.time.sleep")
+    @patch("music_db.generation.http.requests.post")
+    def test_http_returns_final_retryable_response(self, post, sleep):
+        responses = [Mock(status_code=503, headers={}) for _ in range(3)]
+        post.side_effect = responses
+
+        response = post_json("https://example.test/generate", attempts=3)
+
+        self.assertIs(response, responses[-1])
+        self.assertEqual(post.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
 
     def test_sha256(self):
         with tempfile.TemporaryDirectory() as td:
