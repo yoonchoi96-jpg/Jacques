@@ -51,6 +51,25 @@ def open_worker_connection():
 
 
 def _record_enrichment_run(conn, source, started_at, finished_at, candidate_count, stats, status, error=None):
+    success = int(
+        stats.get("success", stats.get("track_saved", stats.get("matched", 0)))
+    )
+    no_data = int(
+        stats.get("no_data", stats.get("no_match", 0))
+        + stats.get("no_tags", 0)
+        + stats.get("ambiguous", 0)
+    )
+    not_found = int(stats.get("not_found", 0))
+    error_count = int(
+        stats.get("error", 0)
+        + stats.get("errors", 0)
+        + stats.get("network_error", 0)
+        + stats.get("search_failed", 0)
+        + stats.get("retryable", 0)
+        + stats.get("rate_limit", 0)
+        + stats.get("timeout", 0)
+    )
+
     conn.execute(
         """
         INSERT INTO enrichment_runs (
@@ -65,16 +84,10 @@ def _record_enrichment_run(conn, source, started_at, finished_at, candidate_coun
             started_at,
             finished_at,
             candidate_count,
-            int(stats.get("success", 0)),
-            int(stats.get("no_data", stats.get("no_match", 0))),
-            int(stats.get("not_found", 0)),
-            int(
-                stats.get("error", 0)
-                + stats.get("search_failed", 0)
-                + stats.get("retryable", 0)
-                + stats.get("rate_limit", 0)
-                + stats.get("timeout", 0)
-            ),
+            success,
+            no_data,
+            not_found,
+            error_count,
             status,
             error,
         ),
