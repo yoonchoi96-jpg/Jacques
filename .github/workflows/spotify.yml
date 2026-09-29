@@ -64,5 +64,11 @@ jobs:
             echo "No database changes."
           else
             git commit -m "Automated music database sync"
-            git push
+            # The repository may receive a code/config commit while the
+            # scheduled job is enriching. Rebase the generated DB commit
+            # onto the latest main before pushing to avoid non-fast-forward
+            # failures.
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
           fi
