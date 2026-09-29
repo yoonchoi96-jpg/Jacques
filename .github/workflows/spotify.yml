@@ -1,6 +1,11 @@
 name: Spotify Music DB
 
 on:
+  # Temporary runtime verification trigger; removed after validation.
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
 
   schedule:
