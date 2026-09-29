@@ -8,6 +8,7 @@ NUMERIC = [
     "duration_seconds", "tempo_bpm", "rms_db", "peak_db",
     "crest_factor_db", "spectral_centroid_hz", "spectral_rolloff_hz",
     "zero_crossing_rate", "onset_rate_per_second", "beat_count",
+    "spectral_bandwidth_hz", "spectral_flatness", "silence_ratio",
 ]
 
 
