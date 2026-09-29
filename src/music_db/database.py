@@ -385,6 +385,31 @@ CREATE TABLE IF NOT EXISTS track_relations (
 );
 
 -- ============================================================
+-- ENRICHMENT STATUS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS enrichment_status (
+    track_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    last_error TEXT,
+    last_attempted_at TEXT,
+    completed_at TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (track_id, source, entity_type),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrichment_status_source_status
+    ON enrichment_status(source, entity_type, status);
+
+CREATE INDEX IF NOT EXISTS idx_enrichment_status_track
+    ON enrichment_status(track_id);
+
+-- ============================================================
 -- SOURCE REGISTRY / ENRICHMENT RUNS
 -- ============================================================
 
@@ -490,6 +515,57 @@ def initialize_database():
     with get_connection() as conn:
         conn.executescript(SCHEMA)
         run_migrations(conn)
+
+        # Rebuild the canonical audio_features projection from the
+        # source-specific tables. FreqBlog wins field-by-field; SongBPM
+        # fills only fields still missing.
+        conn.execute(
+            """
+            INSERT INTO audio_features (
+                track_id, duration_ms, tempo, key, mode, loudness,
+                energy, danceability, valence, acousticness,
+                instrumentalness, speechiness, source, confidence, updated_at
+            )
+            SELECT
+                t.track_id,
+                t.duration_ms,
+                COALESCE(f.tempo, s.tempo),
+                COALESCE(f.key, s.key),
+                COALESCE(f.mode, s.mode),
+                COALESCE(f.loudness, s.loudness),
+                COALESCE(f.energy, s.energy),
+                COALESCE(f.danceability, s.danceability),
+                COALESCE(f.valence, s.valence),
+                COALESCE(f.acousticness, s.acousticness),
+                COALESCE(f.instrumentalness, s.instrumentalness),
+                COALESCE(f.speechiness, s.speechiness),
+                CASE WHEN f.track_id IS NOT NULL THEN 'freqblog' ELSE 'songbpm' END,
+                COALESCE(f.confidence, s.confidence),
+                CURRENT_TIMESTAMP
+            FROM tracks t
+            LEFT JOIN audio_feature_sources f
+              ON f.track_id = t.track_id AND f.source = 'freqblog'
+            LEFT JOIN audio_feature_sources s
+              ON s.track_id = t.track_id AND s.source = 'songbpm'
+            WHERE f.track_id IS NOT NULL OR s.track_id IS NOT NULL
+            ON CONFLICT(track_id) DO UPDATE SET
+                duration_ms = excluded.duration_ms,
+                tempo = excluded.tempo,
+                key = excluded.key,
+                mode = excluded.mode,
+                loudness = excluded.loudness,
+                energy = excluded.energy,
+                danceability = excluded.danceability,
+                valence = excluded.valence,
+                acousticness = excluded.acousticness,
+                instrumentalness = excluded.instrumentalness,
+                speechiness = excluded.speechiness,
+                source = excluded.source,
+                confidence = excluded.confidence,
+                updated_at = excluded.updated_at
+            """
+        )
+        conn.commit()
 
 
 def database_path():
