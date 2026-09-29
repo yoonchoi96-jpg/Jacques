@@ -16,7 +16,21 @@ def analyze_audio(path):
         ) from exc
 
     path = str(Path(path).expanduser().resolve())
-    y, sr = librosa.load(path, sr=None, mono=True)
+    raw_y, sr = librosa.load(path, sr=None, mono=False)
+    channels = np.asarray(raw_y)
+    if channels.ndim == 1:
+        y = channels
+        stereo_correlation = 1.0
+        stereo_width = 0.0
+    else:
+        y = np.mean(channels, axis=0)
+        if channels.shape[0] >= 2:
+            left, right = channels[0], channels[1]
+            stereo_correlation = float(np.corrcoef(left, right)[0, 1]) if np.std(left) and np.std(right) else 1.0
+            stereo_width = float(np.mean(np.abs(left - right)) / max(np.mean(np.abs(left + right)), 1e-12))
+        else:
+            stereo_correlation = 1.0
+            stereo_width = 0.0
     if len(y) == 0:
         raise ValueError(f"Empty audio file: {path}")
 
@@ -71,6 +85,8 @@ def analyze_audio(path):
         "silence_ratio": silence_ratio,
         "dynamic_range_estimate_db": dynamic_range_estimate_db,
         "key_confidence": key_confidence,
+        "stereo_correlation": stereo_correlation,
+        "stereo_width": stereo_width,
         "mfcc_mean": [float(x) for x in np.mean(mfcc, axis=1)],
         "mfcc_std": [float(x) for x in np.std(mfcc, axis=1)],
         "spectral_contrast_mean_db": [float(x) for x in np.mean(spectral_contrast, axis=1)],
