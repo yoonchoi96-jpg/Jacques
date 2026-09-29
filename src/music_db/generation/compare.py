@@ -10,6 +10,7 @@ NUMERIC = [
     "zero_crossing_rate", "onset_rate_per_second", "beat_count",
     "spectral_bandwidth_hz", "spectral_flatness", "silence_ratio",
     "dynamic_range_estimate_db", "key_confidence",
+    "stereo_correlation", "stereo_width",
 ]
 
 
