@@ -6,6 +6,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from music_db.database import initialize_database
 from music_db.enrichment.filter import (
     classify_track,
     get_enrichment_candidates,
@@ -243,6 +244,8 @@ def main():
 
     args = parser.parse_args()
 
+    initialize_database()
+
     # Candidate selection은 main thread에서 한 번만 한다.
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -303,7 +306,7 @@ def main():
     print(f"Candidates            : {len(candidates)}")
     print(f"Dry run               : {args.dry_run}")
     print(f"Sources                : 4")
-    print(f"Parallel workers       : 4")
+    print(f"Parallel secondary workers: 2")
     print(f"FreqBlog primary       : {merge_stats['freqblog_primary']}")
     print(f"SongBPM fallback       : {merge_stats['songbpm_primary']}")
     print(f"No audio feature       : {merge_stats['no_audio']}")
