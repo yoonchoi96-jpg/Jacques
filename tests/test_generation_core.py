@@ -101,6 +101,21 @@ class GenerationCoreTests(unittest.TestCase):
         )
         self.assertTrue(out["estimated_key"]["same"])
 
+    def test_acoustid_respects_disabled_source_registry(self):
+        from music_db.external.acoustid import identify_track
+
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "CREATE TABLE source_registry (source TEXT PRIMARY KEY, enabled INTEGER)"
+        )
+        conn.execute(
+            "INSERT INTO source_registry(source, enabled) VALUES ('acoustid', 0)"
+        )
+        result = identify_track(conn, "t1", "/tmp/nonexistent.wav")
+        self.assertEqual(result["status"], "disabled")
+        conn.close()
+
     def test_compare_extended_metrics(self):
         a = {"tempo_bpm": 120, "spectral_flatness": 0.1, "silence_ratio": 0.2}
         b = {"tempo_bpm": 130, "spectral_flatness": 0.2, "silence_ratio": 0.1}
