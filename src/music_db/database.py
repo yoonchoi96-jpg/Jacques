@@ -644,6 +644,7 @@ VALUES
 ON CONFLICT(source) DO UPDATE SET
     source_type = excluded.source_type,
     priority = excluded.priority,
+    enabled = excluded.enabled,
     role = excluded.role,
     notes = excluded.notes,
     updated_at = excluded.updated_at;
