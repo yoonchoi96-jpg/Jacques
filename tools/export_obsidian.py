@@ -74,6 +74,7 @@ def export_tracks(conn, root, limit=None):
             f"- Duration: {row['duration_ms'] or ''} ms",
             f"- ISRC: {row['isrc'] or ''}",
             f"- Spotify: {row['spotify_url'] or ''}",
+        ]
             "",
             "## Relations",
             "",
@@ -89,6 +90,69 @@ def export_tracks(conn, root, limit=None):
             (row["track_id"],),
         ).fetchall()
         lines += [f"- {r[0]} → {wiki(r[1])}" for r in relations] or ["- None"]
+
+        incoming = conn.execute(
+            """
+            SELECT r.relation_type, t.title
+            FROM track_relations r
+            JOIN tracks t ON t.track_id = r.track_id
+            WHERE r.related_track_id = ?
+            ORDER BY r.relation_type, t.title
+            """,
+            (row["track_id"],),
+        ).fetchall()
+        lines += [
+            "",
+            "## Incoming Relations",
+            "",
+        ]
+        lines += [f"- {r[0]} ← {wiki(r[1])}" for r in incoming] or ["- None"]
+
+        features = conn.execute(
+            """
+            SELECT tempo, key, mode, loudness, energy, danceability,
+                   valence, acousticness, instrumentalness, speechiness, source
+            FROM audio_features
+            WHERE track_id = ?
+            """,
+            (row["track_id"],),
+        ).fetchone()
+        lines += [
+            "",
+            "## Audio Features",
+            "",
+        ]
+        if features:
+            labels = [
+                ("BPM", "tempo"), ("Key", "key"), ("Mode", "mode"),
+                ("Loudness", "loudness"), ("Energy", "energy"),
+                ("Danceability", "danceability"), ("Valence", "valence"),
+                ("Acousticness", "acousticness"),
+                ("Instrumentalness", "instrumentalness"),
+                ("Speechiness", "speechiness"), ("Source", "source"),
+            ]
+            lines += [
+                f"- {label}: {features[field] if features[field] is not None else ''}"
+                for label, field in labels
+            ]
+        else:
+            lines.append("- None")
+
+        credits = conn.execute(
+            """
+            SELECT person_name, role, source, confidence
+            FROM track_credits
+            WHERE track_id = ?
+            ORDER BY role, person_name
+            """,
+            (row["track_id"],),
+        ).fetchall()
+        lines += ["", "## Credits", ""]
+        lines += [
+            f"- {c[0]} — {c[1]} ({c[2]})"
+            for c in credits
+        ] or ["- None"]
+
         (out / f"{safe_filename(row['title'])}__{row['track_id'][:8]}.md").write_text(
             "\n".join(lines) + "\n",
             encoding="utf-8",
