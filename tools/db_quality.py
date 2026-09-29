@@ -130,6 +130,18 @@ def run_checks(conn):
     )
 
     check(
+        "invalid_audio_numeric",
+        """
+        SELECT 'audio', af.track_id,
+               'audio feature contains NaN/Inf or non-finite numeric data'
+        FROM audio_features af
+        WHERE (typeof(tempo) = 'real' AND (tempo > 1e308 OR tempo < -1e308))
+           OR (typeof(loudness) = 'real' AND (loudness > 1e308 OR loudness < -1e308))
+           OR (typeof(confidence) = 'real' AND (confidence > 1e308 OR confidence < -1e308))
+        """,
+    )
+
+    check(
         "invalid_audio_range",
         """
         SELECT 'audio', af.track_id,
