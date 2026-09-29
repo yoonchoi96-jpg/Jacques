@@ -116,6 +116,52 @@ def run_checks(conn):
     )
 
     check(
+        "generation_relation_self_link",
+        """
+        SELECT 'generation_relation', relation_id,
+               'Generation relation points to the same output'
+        FROM generation_relations
+        WHERE from_output_id = to_output_id
+        """,
+    )
+
+    check(
+        "generation_orphan_output",
+        """
+        SELECT 'generation_output', o.output_id,
+               'Generation output references a missing job'
+        FROM generation_outputs o
+        LEFT JOIN generation_jobs j ON j.job_id = o.job_id
+        WHERE j.job_id IS NULL
+        """,
+    )
+
+    check(
+        "generation_orphan_analysis",
+        """
+        SELECT 'generation_analysis', a.analysis_id,
+               'Generation analysis references a missing output'
+        FROM generation_analysis a
+        LEFT JOIN generation_outputs o ON o.output_id = a.output_id
+        WHERE o.output_id IS NULL
+        """,
+    )
+
+    check(
+        "generation_duplicate_fingerprint",
+        """
+        SELECT 'generation_output', MIN(output_id),
+               'Multiple generation outputs share the same audio fingerprint'
+        FROM generation_outputs
+        WHERE fingerprint_sha256 IS NOT NULL
+          AND fingerprint_sha256 != ''
+        GROUP BY fingerprint_sha256
+        HAVING COUNT(*) > 1
+        """,
+        severity="warning",
+    )
+
+    check(
         "relation_self_link",
         """
         SELECT 'track_relation', track_id,
