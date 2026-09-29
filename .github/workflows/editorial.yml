@@ -1,0 +1,54 @@
+name: Jacques Editorial Sources
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * 0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jacques-editorial
+  cancel-in-progress: false
+
+jobs:
+  editorial:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Initialize and sync editorial sources
+        env:
+          APPLE_MUSIC_DEVELOPER_TOKEN: ${{ secrets.APPLE_MUSIC_DEVELOPER_TOKEN }}
+          APPLE_MUSIC_STOREFRONTS: "kr,us,jp,gb,fr"
+          BILLBOARD_CHARTS: "hot-100,billboard-200"
+        run: |
+          python -m compileall -q src tools
+          python tools/sync_editorial_sources.py
+      - name: Validate database
+        run: |
+          sqlite3 db/music.db "PRAGMA integrity_check;" | grep -qx "ok"
+          python tools/db_quality.py --fail-on-error
+      - name: Commit database changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add db/music.db
+          if git diff --cached --quiet; then
+            echo "No editorial database changes."
+          else
+            git commit -m "Automated editorial source sync"
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+          fi
