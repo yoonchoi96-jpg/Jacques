@@ -546,6 +546,21 @@ CREATE INDEX IF NOT EXISTS idx_source_records_source ON source_records(source);
 -- ============================================================
 -- GENERATION LAYER
 -- ============================================================
+CREATE TABLE IF NOT EXISTS generation_projects (
+    project_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_key TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    root_path TEXT NOT NULL,
+    reference_track_id TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (reference_track_id) REFERENCES tracks(track_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_projects_reference
+    ON generation_projects(reference_track_id);
+
 CREATE TABLE IF NOT EXISTS generation_jobs (
     job_id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
@@ -560,6 +575,7 @@ CREATE TABLE IF NOT EXISTS generation_jobs (
     vocal_language TEXT,
     reference_track_id TEXT,
     parent_job_id INTEGER,
+    project_id INTEGER,
     provider_task_id TEXT,
     request_json TEXT,
     response_json TEXT,
@@ -583,8 +599,11 @@ CREATE TABLE IF NOT EXISTS generation_outputs (
     format TEXT,
     analysis_json TEXT,
     fingerprint_sha256 TEXT,
+    project_id INTEGER,
+    stage TEXT NOT NULL DEFAULT 'generation',
     created_at TEXT,
-    FOREIGN KEY (job_id) REFERENCES generation_jobs(job_id) ON DELETE CASCADE
+    FOREIGN KEY (job_id) REFERENCES generation_jobs(job_id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES generation_projects(project_id) ON DELETE SET NULL
 );
 CREATE TABLE IF NOT EXISTS generation_analysis (
     analysis_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -671,6 +690,16 @@ def run_migrations(conn):
     conn.executescript(SOURCE_SEED)
 
     # Lightweight additive migrations for existing databases.
+    job_columns = {
+        row[1] for row in conn.execute(
+            "PRAGMA table_info(generation_jobs)"
+        ).fetchall()
+    }
+    if "project_id" not in job_columns:
+        conn.execute(
+            "ALTER TABLE generation_jobs ADD COLUMN project_id INTEGER"
+        )
+
     columns = {
         row[1] for row in conn.execute(
             "PRAGMA table_info(generation_outputs)"
@@ -680,6 +709,18 @@ def run_migrations(conn):
         conn.execute(
             "ALTER TABLE generation_outputs ADD COLUMN fingerprint_sha256 TEXT"
         )
+    if "project_id" not in columns:
+        conn.execute(
+            "ALTER TABLE generation_outputs ADD COLUMN project_id INTEGER"
+        )
+    if "stage" not in columns:
+        conn.execute(
+            "ALTER TABLE generation_outputs ADD COLUMN stage TEXT NOT NULL DEFAULT 'generation'"
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_generation_outputs_project "
+        "ON generation_outputs(project_id, stage)"
+    )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_generation_outputs_fingerprint "
         "ON generation_outputs(fingerprint_sha256)"
