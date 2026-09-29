@@ -582,6 +582,7 @@ CREATE TABLE IF NOT EXISTS generation_outputs (
     sample_rate INTEGER,
     format TEXT,
     analysis_json TEXT,
+    fingerprint_sha256 TEXT,
     created_at TEXT,
     FOREIGN KEY (job_id) REFERENCES generation_jobs(job_id) ON DELETE CASCADE
 );
@@ -608,6 +609,7 @@ CREATE TABLE IF NOT EXISTS generation_relations (
 CREATE INDEX IF NOT EXISTS idx_generation_jobs_provider_status ON generation_jobs(provider, status);
 CREATE INDEX IF NOT EXISTS idx_generation_jobs_reference ON generation_jobs(reference_track_id);
 CREATE INDEX IF NOT EXISTS idx_generation_outputs_job ON generation_outputs(job_id);
+CREATE INDEX IF NOT EXISTS idx_generation_outputs_fingerprint ON generation_outputs(fingerprint_sha256);
 
 """
 
