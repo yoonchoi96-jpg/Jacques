@@ -12,7 +12,7 @@ if str(SRC) not in sys.path:
 
 from music_db.database import initialize_database, get_connection
 from music_db.generation.base import create_generation_job, update_generation_job
-from music_db.generation.outputs import create_output, extract_audio_refs, find_local_audio_refs
+from music_db.generation.outputs import create_output, extract_audio_refs, download_audio_ref
 from music_db.generation.audio_analysis import analyze_and_store
 
 
@@ -27,6 +27,8 @@ def main():
     p.add_argument("--audio", action="append", default=[],
                    help="Existing local audio to attach/analyze after generation")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--download-dir", default=str(ROOT / "generated_audio"))
+    p.add_argument("--timeout", type=int, default=1800)
     args = p.parse_args()
 
     initialize_database()
@@ -45,39 +47,53 @@ def main():
         conn.close()
         return
 
-    if args.provider == "mureka":
-        from music_db.generation.mureka import submit
-        response = submit(
-            conn, job_id, lyrics=args.lyrics, prompt=args.prompt,
-            model=args.model or "auto",
-        )
-    else:
-        from music_db.generation.ace_step import submit, poll
-        response = submit(
-            conn, job_id, prompt=args.prompt, lyrics=args.lyrics,
-            model=args.model or "acestep-v15-turbo",
-        )
-        task_id = (response.get("data") or response).get("task_id")
-        if task_id:
-            result = poll(task_id)
+    try:
+        if args.provider == "mureka":
+            from music_db.generation.mureka import submit
+            response = submit(
+                conn, job_id, lyrics=args.lyrics, prompt=args.prompt,
+                model=args.model or "auto",
+            )
+            update_generation_job(conn, job_id, status="succeeded",
+                                  response=response, completed=True)
+        else:
+            from music_db.generation.ace_step import submit, poll
+            response = submit(
+                conn, job_id, prompt=args.prompt, lyrics=args.lyrics,
+                model=args.model or "acestep-v15-turbo",
+            )
+            task_id = (response.get("data") or response).get("task_id")
+            if not task_id:
+                raise RuntimeError("ACE-Step response had no task_id")
+            result = poll(task_id, timeout_seconds=args.timeout)
             update_generation_job(
                 conn, job_id, status="succeeded",
                 response=result, completed=True,
             )
             response = result
-        else:
-            update_generation_job(conn, job_id, status="failed",
-                                  error="ACE-Step response had no task_id",
-                                  completed=True)
+    except Exception as exc:
+        update_generation_job(conn, job_id, status="failed",
+                              error=exc, completed=True)
+        raise
 
     refs = extract_audio_refs(response)
     for i, ref in enumerate(refs):
-        local = ref.replace("file://", "")
-        create_output(
-            conn, job_id, output_index=i,
-            audio_path=local if Path(local).exists() else None,
-            audio_url=None if Path(local).exists() else ref,
+        local = download_audio_ref(
+            ref, Path(args.download_dir),
+            filename=f"job_{job_id:06d}_output_{i:02d}",
         )
+        output_id = create_output(
+            conn, job_id, output_index=i,
+            audio_path=local,
+            audio_url=None if local else ref,
+        )
+        if local:
+            try:
+                analysis = analyze_and_store(conn, output_id, local)
+                print(json.dumps({"output_id": output_id, "analysis": analysis},
+                                 ensure_ascii=False, indent=2))
+            except Exception as exc:
+                print(f"analysis_failed output_id={output_id}: {exc}", file=sys.stderr)
 
     for i, audio in enumerate(args.audio):
         output_id = create_output(conn, job_id, output_index=len(refs) + i,
