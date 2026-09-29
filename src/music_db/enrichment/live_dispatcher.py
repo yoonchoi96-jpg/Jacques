@@ -17,6 +17,14 @@ COALESCE_SECONDS = 0.75
 RETRY_COOLDOWN_SECONDS = 6 * 60 * 60
 
 
+def _source_enabled(conn, source):
+    row = conn.execute(
+        "SELECT enabled FROM source_registry WHERE source=?",
+        (source,),
+    ).fetchone()
+    return bool(row and row[0])
+
+
 def _open_connection():
     conn = sqlite3.connect(
         DB_PATH,
@@ -200,11 +208,15 @@ class LiveEnrichmentDispatcher:
             # FREQBLOG PRIMARY
             # -------------------------------------------------
 
-            result = freqblog.enrich_bulk(
-                conn,
-                tracks,
-                dry_run=self.dry_run,
-            )
+            if _source_enabled(conn, "freqblog"):
+                result = freqblog.enrich_bulk(
+                    conn,
+                    tracks,
+                    dry_run=self.dry_run,
+                )
+            else:
+                print("[LIVE DISPATCH] FreqBlog disabled in source registry")
+                result = {"disabled": len(tracks)}
 
             # -------------------------------------------------
             # SONG B P M FALLBACK
@@ -239,7 +251,7 @@ class LiveEnrichmentDispatcher:
                 if status["status"] == "not_found":
                     fallback.append(track)
 
-            if fallback:
+            if fallback and _source_enabled(conn, "songbpm"):
 
                 print(
                     "[LIVE SONGBPM] "
