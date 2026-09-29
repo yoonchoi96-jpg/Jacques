@@ -90,7 +90,7 @@ def analyze_audio(path):
         "mfcc_mean": [float(x) for x in np.mean(mfcc, axis=1)],
         "mfcc_std": [float(x) for x in np.std(mfcc, axis=1)],
         "spectral_contrast_mean_db": [float(x) for x in np.mean(spectral_contrast, axis=1)],
-        "analysis_version": "audio_features_v3",
+        "analysis_version": "audio_features_v4",
     }
 
 
