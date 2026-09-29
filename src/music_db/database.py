@@ -619,6 +619,12 @@ CREATE INDEX IF NOT EXISTS idx_generation_jobs_provider_status ON generation_job
 CREATE INDEX IF NOT EXISTS idx_generation_jobs_reference ON generation_jobs(reference_track_id);
 CREATE INDEX IF NOT EXISTS idx_generation_outputs_job ON generation_outputs(job_id);
 CREATE INDEX IF NOT EXISTS idx_generation_outputs_fingerprint ON generation_outputs(fingerprint_sha256);
+CREATE INDEX IF NOT EXISTS idx_generation_analysis_output_type
+    ON generation_analysis(output_id, analysis_type);
+CREATE INDEX IF NOT EXISTS idx_audio_analysis_cache_type
+    ON audio_analysis_cache(analysis_type);
+CREATE INDEX IF NOT EXISTS idx_audio_analysis_cache_updated
+    ON audio_analysis_cache(updated_at);
 
 """
 
