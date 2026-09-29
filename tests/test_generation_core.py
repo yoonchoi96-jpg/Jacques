@@ -50,6 +50,23 @@ class GenerationCoreTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_bulk_engine_respects_disabled_source_registry(self):
+        from music_db.enrichment.engine import _source_enabled
+
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "CREATE TABLE source_registry (source TEXT PRIMARY KEY, enabled INTEGER)"
+        )
+        conn.executemany(
+            "INSERT INTO source_registry(source, enabled) VALUES (?, ?)",
+            [("freqblog", 0), ("songbpm", 1)],
+        )
+        self.assertFalse(_source_enabled(conn, "FREQBLOG"))
+        self.assertTrue(_source_enabled(conn, "SONGBPM"))
+        self.assertTrue(_source_enabled(conn, "LAST.FM"))
+        conn.close()
+
     def test_source_registry_enabled_state_survives_seed_refresh(self):
         from music_db.database import SOURCE_SEED, run_migrations
 
