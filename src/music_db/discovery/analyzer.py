@@ -139,6 +139,9 @@ def analyze_track(conn, chart_item: dict) -> dict:
     payload = {
         "track_id": track_id,
         "title": chart_item["title"],
+        "personal_rank": chart_item.get("personal_rank"),
+        "play_count": chart_item.get("play_count"),
+        "last_played": chart_item.get("last_played"),
         "artist": chart_item["artist"],
         "rank": chart_item["rank"],
         "streams": chart_item.get("streams"),
@@ -207,22 +210,29 @@ def upsert_chart(conn, chart: dict, limit: int = 200) -> None:
 
 
 def render_report(chart: dict, analyses: list[dict]) -> str:
+    if chart["source"] == "spotify_play_history":
+        title = f"# Jacques — 개인 청취 Top {len(analyses)}"
+        source_line = "Source: Spotify play_history in Jacques SQLite"
+    else:
+        title = f"# Jacques Global Top {len(analyses)} — {chart['chart_date']}"
+        source_line = f"Source: Spotify Global Daily Chart ({chart['chart_date']})"
+
     lines = [
-        f"# Jacques Global Top {len(analyses)} — {chart['chart_date']}",
+        title,
         "",
-        f"Source: Spotify Global Daily Chart ({chart['chart_date']})",
+        source_line,
         "",
     ]
 
     for item in analyses:
         lines.extend(
             [
-                f"## #{item['rank']} — {item['title']} — {item['artist']}",
+                f"## #{item.get('personal_rank', item.get('rank'))} — {item['title']} — {item['artist']}",
                 "",
-                f"- Streams: {item.get('streams'):,}" if item.get("streams") is not None else "- Streams: unavailable",
-                f"- Previous rank: {item.get('previous_rank')}",
-                f"- Peak rank: {item.get('peak_rank')}",
-                f"- Days on chart: {item.get('days_on_chart')}",
+                f"- Plays: {item.get('play_count')}" if item.get('play_count') is not None else "- Plays: unavailable",
+                f"- Last played: {item.get('last_played')}" if item.get('last_played') else "- Last played: unavailable",
+                "",
+                "",
             ]
         )
 
