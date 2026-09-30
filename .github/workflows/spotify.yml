@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: spotify-music-db
+  group: jacques-database-writer
   cancel-in-progress: false
 
 jobs:
