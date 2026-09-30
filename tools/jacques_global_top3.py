@@ -105,25 +105,34 @@ def _ensure_track(conn, sp, item):
             artist_id = artist.get("id")
             if not name:
                 continue
-            conn.execute(
-                """
-                INSERT INTO artists(name, spotify_id, spotify_url, updated_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(name) DO UPDATE SET
-                  spotify_id=COALESCE(excluded.spotify_id, artists.spotify_id),
-                  spotify_url=COALESCE(excluded.spotify_url, artists.spotify_url),
-                  updated_at=CURRENT_TIMESTAMP
-                """,
-                (
-                    name,
-                    artist_id,
-                    (artist.get("external_urls") or {}).get("spotify"),
-                ),
-            )
+            artist_url = (artist.get("external_urls") or {}).get("spotify")
             row = conn.execute(
-                "SELECT artist_id FROM artists WHERE name=?",
+                "SELECT artist_id FROM artists WHERE name=? ORDER BY artist_id LIMIT 1",
                 (name,),
             ).fetchone()
+            if row:
+                conn.execute(
+                    """
+                    UPDATE artists
+                    SET spotify_id=COALESCE(?, spotify_id),
+                        spotify_url=COALESCE(?, spotify_url),
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE artist_id=?
+                    """,
+                    (artist_id, artist_url, row[0]),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO artists(name, spotify_id, spotify_url, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (name, artist_id, artist_url),
+                )
+                row = conn.execute(
+                    "SELECT artist_id FROM artists WHERE name=? ORDER BY artist_id DESC LIMIT 1",
+                    (name,),
+                ).fetchone()
             conn.execute(
                 """
                 INSERT OR IGNORE INTO track_artists(track_id, artist_id, artist_order)
