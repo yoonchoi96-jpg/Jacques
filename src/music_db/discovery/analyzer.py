@@ -129,7 +129,7 @@ def analyze_track(conn, chart_item: dict) -> dict:
         "streams": chart_item.get("streams"),
         "previous_rank": chart_item.get("previous_rank"),
         "peak_rank": chart_item.get("peak_rank"),
-        "weeks_on_chart": chart_item.get("weeks_on_chart"),
+        "days_on_chart": chart_item.get("days_on_chart"),
         "spotify_uri": chart_item.get("spotify_uri"),
         "audio": dict(features) if features else None,
         "genres": genres,
@@ -159,8 +159,8 @@ def upsert_chart(conn, chart: dict, limit: int = 200) -> None:
             """
             INSERT INTO chart_entries
               (source, chart_name, chart_date, rank, previous_rank, peak_rank,
-               weeks_on_chart, title, artist_name, track_id, source_url, raw_data, observed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+               weeks_on_chart, days_on_chart, title, artist_name, track_id, source_url, raw_data, observed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(source, chart_name, chart_date, rank) DO UPDATE SET
               previous_rank=excluded.previous_rank,
               peak_rank=excluded.peak_rank,
@@ -180,6 +180,7 @@ def upsert_chart(conn, chart: dict, limit: int = 200) -> None:
                 item.get("previous_rank"),
                 item.get("peak_rank"),
                 item.get("weeks_on_chart"),
+                item.get("days_on_chart"),
                 item["title"],
                 item["artist"],
                 item["track_id"],
@@ -205,7 +206,7 @@ def render_report(chart: dict, analyses: list[dict]) -> str:
                 f"- Streams: {item.get('streams'):,}" if item.get("streams") is not None else "- Streams: unavailable",
                 f"- Previous rank: {item.get('previous_rank')}",
                 f"- Peak rank: {item.get('peak_rank')}",
-                f"- Days/weeks on chart field: {item.get('weeks_on_chart')}",
+                f"- Days on chart: {item.get('days_on_chart')}",
             ]
         )
 
