@@ -11,7 +11,7 @@ def create_generation_job(conn: sqlite3.Connection, provider: str, *, model=None
     cur = conn.execute("""
       INSERT INTO generation_jobs
       (provider,model,status,prompt,lyrics,bpm,key_scale,duration_seconds,reference_track_id,parent_job_id,project_id,request_json,created_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (provider,model,"queued",prompt,lyrics,bpm,key_scale,duration_seconds,reference_track_id,parent_job_id,project_id,json.dumps(request or {},ensure_ascii=False),now()))
     conn.commit()
     return cur.lastrowid
