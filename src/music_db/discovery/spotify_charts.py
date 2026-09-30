@@ -55,7 +55,7 @@ def _parse_legacy_latest(response: requests.Response) -> dict:
         rank_i, title_i, artist_i, streams_i, uri_i = 0, 1, 2, 3, 4
 
     filename = response.headers.get("Content-Disposition", "")
-    match = re.search(r"(\\d{4}-\\d{2}-\\d{2})", filename)
+    match = re.search(r"(\d{4}-\d{2}-\d{2})", filename)
     chart_date = match.group(1) if match else date.today().isoformat()
 
     items = []
@@ -117,7 +117,7 @@ def _fetch_mirror_latest(session: requests.Session) -> dict:
         string=re.compile(r"Spotify Daily Top Songs", re.I)
     )
     page_text = soup.get_text(" ", strip=True)
-    match = re.search(r"Chart date\\s+(\\d{4}-\\d{2}-\\d{2})", page_text)
+    match = re.search(r"Chart date\s+(\d{4}-\d{2}-\d{2})", page_text)
     chart_date = match.group(1) if match else date.today().isoformat()
 
     items = []
@@ -145,11 +145,11 @@ def _fetch_mirror_latest(session: requests.Session) -> dict:
             artists = [""]
 
         stream_text = cells[3].get_text(" ", strip=True).replace(",", "")
-        stream_match = re.search(r"\d[\\d,]*", stream_text)
+        stream_match = re.search(r"\d[\d,]*", stream_text)
         streams = int(stream_match.group().replace(",", "")) if stream_match else None
 
         rank_change = cells[1].get_text(" ", strip=True)
-        change_match = re.search(r"([+-]?)\\d+", rank_change)
+        change_match = re.search(r"([+-]?)\d+", rank_change)
         previous_rank = None
         if change_match and change_match.group(1) in {"+", "-"}:
             delta = int(change_match.group().replace("+", "").replace("-", ""))
