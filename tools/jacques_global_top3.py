@@ -271,7 +271,16 @@ def main():
         report = write_report(ROOT, {"source": "spotify_play_history", "chart_name": "personal_top", "chart_date": datetime.now(timezone.utc).date().isoformat()}, analyses)
         print(f"[Jacques] personal listening top={len(analyses)}")
         for item in analyses:
-            print(f"#{item['personal_rank']} {item['title']} — {item['artist']} | plays={item['play_count']}")
+            audio = item.get("audio") or {}
+            dna = item.get("production_dna") or {}
+            print(
+                f"#{item['personal_rank']} {item['title']} — {item['artist']} | "
+                f"plays={item['play_count']} | BPM={audio.get('tempo')} | "
+                f"Key={audio.get('key')} | Energy={audio.get('energy')} | "
+                f"Dance={audio.get('danceability')} | Loudness={audio.get('loudness')} | "
+                f"DNA={dna.get('archetype')}"
+            )
+            print(f"  signals={', '.join(dna.get('tags', []))}")
         print(f"[Jacques] report={report}")
     finally:
         conn.close()
