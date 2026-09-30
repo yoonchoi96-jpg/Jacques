@@ -12,7 +12,7 @@ if str(SRC) not in sys.path:
 
 from music_db.database import initialize_database, get_connection
 from music_db.generation.base import create_generation_job, update_generation_job
-from music_db.generation.outputs import create_output, extract_audio_refs, download_audio_ref
+from music_db.generation.outputs import create_output, extract_audio_refs, download_audio_ref, link_outputs
 from music_db.generation.projects import create_project, stage_dir, STAGES
 from music_db.generation.audio_analysis import analyze_and_store
 
@@ -104,6 +104,17 @@ def main():
             project_id=project_id,
             stage=args.stage,
         )
+        if args.parent_job_id:
+            parent = conn.execute(
+                "SELECT output_id FROM generation_outputs WHERE job_id=? ORDER BY output_index LIMIT 1",
+                (args.parent_job_id,),
+            ).fetchone()
+            if parent:
+                link_outputs(
+                    conn, output_id, parent["output_id"], "generated_from",
+                    note=f"parent_job_id={args.parent_job_id}",
+                )
+
         if local:
             try:
                 analysis = analyze_and_store(conn, output_id, local)
