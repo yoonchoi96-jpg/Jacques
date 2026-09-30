@@ -579,6 +579,18 @@ CREATE INDEX IF NOT EXISTS idx_generation_assets_project
 CREATE INDEX IF NOT EXISTS idx_generation_assets_fingerprint
     ON generation_assets(fingerprint_sha256);
 
+CREATE TABLE IF NOT EXISTS generation_project_notes (
+    note_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    note_type TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES generation_projects(project_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_project_notes_project
+    ON generation_project_notes(project_id, note_type);
+
 CREATE TABLE IF NOT EXISTS generation_jobs (
     job_id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
@@ -709,6 +721,21 @@ def run_migrations(conn):
     conn.executescript(SOURCE_SEED)
 
     # Lightweight additive migrations for existing databases.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS generation_project_notes (
+            note_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            note_type TEXT NOT NULL,
+            body TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES generation_projects(project_id) ON DELETE CASCADE
+        )"""
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_generation_project_notes_project "
+        "ON generation_project_notes(project_id, note_type)"
+    )
+
     conn.execute(
         """CREATE TABLE IF NOT EXISTS generation_assets (
             asset_id INTEGER PRIMARY KEY AUTOINCREMENT,
