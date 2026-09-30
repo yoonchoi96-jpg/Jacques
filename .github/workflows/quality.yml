@@ -55,6 +55,15 @@ jobs:
       - name: Database quality
         run: PYTHONPATH=src python tools/db_quality.py --fail-on-error
 
+      - name: Jacques personal listening Top 3
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+          FREQBLOG_API_KEY: ${{ secrets.FREQBLOG_API_KEY }}
+        run: |
+          python tools/jacques_global_top3.py --limit 3
+
       - name: Schema smoke test
         run: |
           python - <<'PY'
