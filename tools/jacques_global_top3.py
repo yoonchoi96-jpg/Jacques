@@ -231,7 +231,7 @@ def main():
             raise RuntimeError("No play history is available in Jacques.")
 
         items = []
-        for row in rows:
+        for personal_rank, row in enumerate(rows, 1):
             track = conn.execute(
                 "SELECT track_id, title, album, release_date, spotify_url, isrc FROM tracks WHERE track_id=?",
                 (row["track_id"],),
@@ -251,6 +251,7 @@ def main():
                 ).fetchall()
             ]
             items.append({
+                "personal_rank": personal_rank,
                 "track_id": row["track_id"],
                 "title": track["title"],
                 "artist": ", ".join(artists),
