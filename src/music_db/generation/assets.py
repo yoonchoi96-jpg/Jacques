@@ -32,6 +32,12 @@ def import_audio_asset(
 
     destination_dir = stage_dir(conn, project_id, asset_type)
     destination = destination_dir / src.name
+    if destination.exists() and destination.resolve() != src:
+        stem, suffix = destination.stem, destination.suffix
+        index = 2
+        while destination.exists():
+            destination = destination_dir / f"{stem}__{index}{suffix}"
+            index += 1
     if src != destination:
         if move:
             shutil.move(str(src), str(destination))
