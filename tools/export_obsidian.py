@@ -273,6 +273,20 @@ def export_editorial(conn, root):
     return len(rows), len(reviews)
 
 
+def export_generation_assets(conn, root):
+    out = root / "Generation" / "Projects"
+    out.mkdir(parents=True, exist_ok=True)
+    projects = conn.execute("SELECT * FROM generation_projects ORDER BY title").fetchall()
+    for p in projects:
+        assets = conn.execute("SELECT asset_id, asset_type, title, audio_path, fingerprint_sha256, created_at FROM generation_assets WHERE project_id=? ORDER BY asset_type, created_at", (p["project_id"],)).fetchall()
+        lines = ["---", f'project_id: "{p["project_id"]}"', f'project_key: "{p["project_key"]}"', f'title: "{p["title"].replace(chr(34), chr(92)+chr(34))}"', f'root_path: "{p["root_path"].replace(chr(34), chr(92)+chr(34))}"', "---", "", f"# {p['title']}", "", "## Assets", ""]
+        lines += [f"- **{a['asset_type']}** — {a['title'] or ''} — `{a['audio_path']}` — `{a['fingerprint_sha256'] or ''}`" for a in assets] or ["- None"]
+        lines += ["", "## Generation Outputs", ""]
+        outputs = conn.execute("SELECT output_id, stage, audio_path, fingerprint_sha256, created_at FROM generation_outputs WHERE project_id=? ORDER BY created_at", (p["project_id"],)).fetchall()
+        lines += [f"- **{o['stage']}** — output #{o['output_id']} — `{o['audio_path'] or ''}` — `{o['fingerprint_sha256'] or ''}`" for o in outputs] or ["- None"]
+        (out / f"{safe_filename(p['title'])}__{p['project_id']}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return len(projects)
+
 def export_generation(conn, root):
     out = root / "Generation"
     out.mkdir(parents=True, exist_ok=True)
@@ -346,6 +360,7 @@ def main():
         "chart_rows": chart_rows,
         "review_rows": review_rows,
         "generation_rows": export_generation(conn, root),
+        "generation_projects": export_generation_assets(conn, root),
     }
 
     conn.close()
