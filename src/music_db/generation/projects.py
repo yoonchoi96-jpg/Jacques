@@ -51,7 +51,7 @@ def create_project(
     )
     conn.commit()
     row = conn.execute(
-        "SELECT project_id, root_path FROM generation_projects WHERE project_key=?",
+        "SELECT project_id, root_path, reference_track_id FROM generation_projects WHERE project_key=?",
         (project_key,),
     ).fetchone()
     project_path = Path(row["root_path"] if isinstance(row, sqlite3.Row) else row[1])
@@ -61,10 +61,7 @@ def create_project(
         "project_id": int(row["project_id"] if isinstance(row, sqlite3.Row) else row[0]),
         "project_key": project_key,
         "title": title,
-        "reference_track_id": row["reference_track_id"] if isinstance(row, sqlite3.Row) else conn.execute(
-            "SELECT reference_track_id FROM generation_projects WHERE project_id=?",
-            (row[0],),
-        ).fetchone()[0],
+        "reference_track_id": row["reference_track_id"] if isinstance(row, sqlite3.Row) else row[2],
         "stages": list(STAGES),
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return int(row["project_id"] if isinstance(row, sqlite3.Row) else row[0]), project_path
