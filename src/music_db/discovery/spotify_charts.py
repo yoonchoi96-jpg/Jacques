@@ -145,7 +145,7 @@ def _fetch_mirror_latest(session: requests.Session) -> dict:
             artists = [""]
 
         stream_text = cells[3].get_text(" ", strip=True).replace(",", "")
-        stream_match = re.search(r"\\d[\\d,]*", stream_text)
+        stream_match = re.search(r"\d[\\d,]*", stream_text)
         streams = int(stream_match.group().replace(",", "")) if stream_match else None
 
         rank_change = cells[1].get_text(" ", strip=True)
@@ -156,11 +156,11 @@ def _fetch_mirror_latest(session: requests.Session) -> dict:
             previous_rank = rank - delta if change_match.group(1) == "+" else rank + delta
 
         peak_text = cells[5].get_text(" ", strip=True) if len(cells) > 5 else ""
-        peak_match = re.search(r"\\d+", peak_text)
+        peak_match = re.search(r"\d+", peak_text)
         peak_rank = int(peak_match.group()) if peak_match else None
 
         days_text = cells[6].get_text(" ", strip=True) if len(cells) > 6 else ""
-        days_match = re.search(r"\\d+", days_text)
+        days_match = re.search(r"\d+", days_text)
         days_on_chart = int(days_match.group()) if days_match else None
 
         items.append(
