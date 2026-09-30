@@ -105,3 +105,23 @@ MusicBrainz requests must be rate-aware; Jacques should use a meaningful User-Ag
 `source_registry.enabled` is persistent operator state. Database initialization refreshes source metadata without overwriting an existing enabled/disabled choice.
 
 The live enrichment dispatcher, bulk enrichment engine, editorial sync, and AcoustID identification honor this flag. SongBPM remains eligible only after a terminal FreqBlog `not_found`; transient FreqBlog errors do not trigger fallback. Disabled sources are skipped without creating API calls.
+
+
+## Production Projects
+
+Jacques keeps generated audio outside Git in project directories:
+
+`projects/<project_key>/{reference,generations,edits,final}/`
+
+The SQLite `generation_projects` table is the project registry. `generation_jobs` and `generation_outputs` reference a project and outputs carry a stage. Non-generation local audio such as reference masters or edited files is tracked by `generation_assets` with a SHA-256 fingerprint.
+
+Useful commands:
+
+```bash
+python tools/create_project.py "My Track"
+python tools/import_audio.py <project_id> /path/to/reference.wav --type reference
+python tools/generate.py --provider mureka --project "My Track" --stage generations --prompt "..."
+python tools/promote_output.py <output_id> --stage final
+```
+
+The production files remain local; GitHub stores the application code and database schema, not the audio project directory.
