@@ -128,18 +128,26 @@ def _enrich_top3(conn, items):
     for item in items:
         row = conn.execute(
             """
-            SELECT track_id, title, isrc,
-                   (SELECT group_concat(a.name, ' & ')
-                      FROM track_artists ta
-                      JOIN artists a ON a.artist_id=ta.artist_id
-                     WHERE ta.track_id=t.track_id) AS artists
-            FROM tracks t
+            SELECT track_id, title, isrc
+            FROM tracks
             WHERE track_id=?
             """,
             (item["track_id"],),
         ).fetchone()
         if row:
-            tracks.append(dict(row))
+            artist_rows = conn.execute(
+                """
+                SELECT a.name
+                FROM track_artists ta
+                JOIN artists a ON a.artist_id=ta.artist_id
+                WHERE ta.track_id=?
+                ORDER BY ta.artist_order
+                """,
+                (item["track_id"],),
+            ).fetchall()
+            data = dict(row)
+            data["artists"] = [r[0] for r in artist_rows]
+            tracks.append(data)
 
     if tracks:
         print(f"[Jacques] FreqBlog enrichment: {len(tracks)} tracks")
