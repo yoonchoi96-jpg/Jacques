@@ -143,7 +143,7 @@ def analyze_track(conn, chart_item: dict) -> dict:
         "play_count": chart_item.get("play_count"),
         "last_played": chart_item.get("last_played"),
         "artist": chart_item["artist"],
-        "rank": chart_item["rank"],
+        "rank": chart_item.get("rank", chart_item.get("personal_rank")),
         "streams": chart_item.get("streams"),
         "previous_rank": chart_item.get("previous_rank"),
         "peak_rank": chart_item.get("peak_rank"),
