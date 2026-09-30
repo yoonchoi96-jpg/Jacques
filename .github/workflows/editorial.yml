@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: jacques-editorial
+  group: jacques-database-writer
   cancel-in-progress: false
 
 jobs:
