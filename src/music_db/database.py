@@ -561,6 +561,24 @@ CREATE TABLE IF NOT EXISTS generation_projects (
 CREATE INDEX IF NOT EXISTS idx_generation_projects_reference
     ON generation_projects(reference_track_id);
 
+CREATE TABLE IF NOT EXISTS generation_assets (
+    asset_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    asset_type TEXT NOT NULL,
+    title TEXT,
+    audio_path TEXT NOT NULL,
+    fingerprint_sha256 TEXT,
+    metadata_json TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES generation_projects(project_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_assets_project
+    ON generation_assets(project_id, asset_type);
+
+CREATE INDEX IF NOT EXISTS idx_generation_assets_fingerprint
+    ON generation_assets(fingerprint_sha256);
+
 CREATE TABLE IF NOT EXISTS generation_jobs (
     job_id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
@@ -691,6 +709,28 @@ def run_migrations(conn):
     conn.executescript(SOURCE_SEED)
 
     # Lightweight additive migrations for existing databases.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS generation_assets (
+            asset_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            asset_type TEXT NOT NULL,
+            title TEXT,
+            audio_path TEXT NOT NULL,
+            fingerprint_sha256 TEXT,
+            metadata_json TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES generation_projects(project_id) ON DELETE CASCADE
+        )"""
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_generation_assets_project "
+        "ON generation_assets(project_id, asset_type)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_generation_assets_fingerprint "
+        "ON generation_assets(fingerprint_sha256)"
+    )
+
     job_columns = {
         row[1] for row in conn.execute(
             "PRAGMA table_info(generation_jobs)"
