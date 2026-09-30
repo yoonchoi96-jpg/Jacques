@@ -429,6 +429,48 @@ class GenerationCoreTests(unittest.TestCase):
             ).fetchone()
             self.assertIsNone(row[0])
 
+
+    def test_edited_derivative_creates_new_output_and_lineage(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = sqlite3.connect(":memory:")
+            db.row_factory = sqlite3.Row
+            db.executescript(SCHEMA)
+            run_migrations(db)
+            project_id, _ = create_project(db, "Edit Test", root_dir=td)
+            from music_db.generation.base import create_generation_job
+            job_id = create_generation_job(db, "mureka", project_id=project_id)
+            source_path = Path(td) / "source.wav"
+            edit_path = Path(td) / "edit.wav"
+            source_path.write_bytes(b"source")
+            edit_path.write_bytes(b"edited")
+            source_id = create_output(
+                db, job_id, audio_path=str(source_path),
+                project_id=project_id, stage="generations"
+            )
+            from music_db.generation.outputs import create_derivative_output
+            edited_id = create_derivative_output(
+                db, source_id, str(edit_path), title="Edited take", note="less reverb"
+            )
+            self.assertNotEqual(source_id, edited_id)
+            row = db.execute(
+                """SELECT o.project_id, o.stage, j.provider
+                   FROM generation_outputs o
+                   JOIN generation_jobs j ON j.job_id=o.job_id
+                   WHERE o.output_id=?""",
+                (edited_id,),
+            ).fetchone()
+            self.assertEqual(row["project_id"], project_id)
+            self.assertEqual(row["stage"], "edits")
+            self.assertEqual(row["provider"], "local_edit")
+            rel = db.execute(
+                """SELECT relation_type, note FROM generation_relations
+                   WHERE from_output_id=? AND to_output_id=?""",
+                (edited_id, source_id),
+            ).fetchone()
+            self.assertEqual(rel["relation_type"], "edited_from")
+            self.assertEqual(rel["note"], "less reverb")
+            db.close()
+
     def test_relation_upsert(self):
         initialize_database()
         with get_connection() as conn:
