@@ -260,6 +260,9 @@ def main():
                 "spotify_uri": f"spotify:track:{row['track_id']}",
             })
 
+        print("[Jacques] PERSONAL LISTENING TOP 3")
+        for item in items:
+            print(f"#{item['personal_rank']} {item['title']} — {item['artist']} | plays={item['play_count']} | last={item['last_played']}")
         _enrich_top3(conn, items)
         analyses = [analyze_track(conn, item) for item in items]
         store_analysis(conn, {"source": "spotify_play_history", "chart_name": "personal_top", "chart_date": datetime.now(timezone.utc).date().isoformat()}, analyses)
