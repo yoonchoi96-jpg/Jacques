@@ -165,6 +165,7 @@ def upsert_chart(conn, chart: dict, limit: int = 200) -> None:
               previous_rank=excluded.previous_rank,
               peak_rank=excluded.peak_rank,
               weeks_on_chart=excluded.weeks_on_chart,
+              days_on_chart=excluded.days_on_chart,
               title=excluded.title,
               artist_name=excluded.artist_name,
               track_id=excluded.track_id,
