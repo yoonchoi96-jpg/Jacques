@@ -40,6 +40,17 @@ def main():
         if not source.exists():
             raise SystemExit(f"Audio file does not exist: {source}")
 
+        if args.stage == "final":
+            sibling = conn.execute(
+                "SELECT output_id FROM generation_outputs WHERE project_id=? AND stage=? AND output_id<>?",
+                (row["project_id"], "final", args.output_id),
+            ).fetchone()
+            if sibling:
+                raise SystemExit(
+                    f"Project already has final output_id={sibling['output_id']}; "
+                    "promote only one final output"
+                )
+
         destination_dir = stage_dir(conn, row["project_id"], args.stage)
         destination = destination_dir / source.name
         if source != destination:
