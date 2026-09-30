@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import requests
 
@@ -118,7 +118,20 @@ def _fetch_mirror_latest(session: requests.Session) -> dict:
     )
     page_text = soup.get_text(" ", strip=True)
     match = re.search(r"Chart date\s+(\d{4}-\d{2}-\d{2})", page_text)
-    chart_date = match.group(1) if match else date.today().isoformat()
+    if match:
+        chart_date = match.group(1)
+    else:
+        natural = re.search(
+            r"Chart date\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})",
+            page_text,
+        )
+        if natural:
+            chart_date = datetime.strptime(
+                f"{natural.group(1)} {natural.group(2)} {natural.group(3)}",
+                "%d %B %Y",
+            ).date().isoformat()
+        else:
+            chart_date = date.today().isoformat()
 
     items = []
     for row in soup.select("tr"):
