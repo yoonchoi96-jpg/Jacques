@@ -61,7 +61,10 @@ def create_project(
         "project_id": int(row["project_id"] if isinstance(row, sqlite3.Row) else row[0]),
         "project_key": project_key,
         "title": title,
-        "reference_track_id": reference_track_id,
+        "reference_track_id": row["reference_track_id"] if isinstance(row, sqlite3.Row) else conn.execute(
+            "SELECT reference_track_id FROM generation_projects WHERE project_id=?",
+            (row[0],),
+        ).fetchone()[0],
         "stages": list(STAGES),
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return int(row["project_id"] if isinstance(row, sqlite3.Row) else row[0]), project_path
@@ -77,10 +80,13 @@ def update_project_status(conn: sqlite3.Connection, project_id: int, status: str
     allowed = {"active", "paused", "completed", "archived"}
     if status not in allowed:
         raise ValueError(f"Unknown project status: {status}")
-    conn.execute(
+    cur = conn.execute(
         "UPDATE generation_projects SET status=?, updated_at=? WHERE project_id=?",
         (status, now(), project_id),
     )
+    if cur.rowcount != 1:
+        conn.rollback()
+        raise ValueError(f"Unknown generation project: {project_id}")
     conn.commit()
 
 
