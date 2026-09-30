@@ -74,6 +74,17 @@ def get_project(conn: sqlite3.Connection, project_id: int):
     ).fetchone()
 
 
+def update_project_status(conn: sqlite3.Connection, project_id: int, status: str) -> None:
+    allowed = {"active", "paused", "completed", "archived"}
+    if status not in allowed:
+        raise ValueError(f"Unknown project status: {status}")
+    conn.execute(
+        "UPDATE generation_projects SET status=?, updated_at=? WHERE project_id=?",
+        (status, now(), project_id),
+    )
+    conn.commit()
+
+
 def stage_dir(conn: sqlite3.Connection, project_id: int, stage: str) -> Path:
     if stage not in STAGES:
         raise ValueError(f"Unknown project stage: {stage}")
