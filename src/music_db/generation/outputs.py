@@ -77,6 +77,61 @@ def create_output(conn: sqlite3.Connection, job_id, *, output_index=0,
     return output_id
 
 
+def create_derivative_output(
+    conn: sqlite3.Connection,
+    source_output_id: int,
+    audio_path: str,
+    *,
+    stage: str = "edits",
+    title: str | None = None,
+    note: str | None = None,
+):
+    """Register a locally edited derivative and link it to its source output."""
+    source = conn.execute(
+        """SELECT o.*, j.project_id AS job_project_id
+           FROM generation_outputs o
+           JOIN generation_jobs j ON j.job_id=o.job_id
+           WHERE o.output_id=?""",
+        (source_output_id,),
+    ).fetchone()
+    if source is None:
+        raise ValueError(f"Unknown source output: {source_output_id}")
+    if not Path(audio_path).expanduser().is_file():
+        raise FileNotFoundError(audio_path)
+
+    from .base import create_generation_job
+    project_id = source["project_id"] or source["job_project_id"]
+    job_id = create_generation_job(
+        conn,
+        "local_edit",
+        model="local",
+        prompt=title or "Local edited derivative",
+        parent_job_id=source["job_id"],
+        project_id=project_id,
+        request={"source_output_id": source_output_id, "note": note},
+    )
+    update = conn.execute(
+        "UPDATE generation_jobs SET status='succeeded', completed_at=? WHERE job_id=?",
+        (now(), job_id),
+    )
+    conn.commit()
+    output_id = create_output(
+        conn,
+        job_id,
+        output_index=0,
+        audio_path=str(Path(audio_path).expanduser().resolve()),
+        project_id=project_id,
+        stage=stage,
+    )
+    link_outputs(
+        conn,
+        output_id,
+        source_output_id,
+        "edited_from",
+        note=note or f"source_output_id={source_output_id}",
+    )
+    return output_id
+
 def add_analysis(conn, output_id, analysis_type, payload):
     conn.execute(
         """INSERT INTO generation_analysis
