@@ -74,7 +74,22 @@ def _production_dna(features: dict, genres: list[str]) -> dict:
     tags = _profile(features)
     genre_text = " / ".join(genres[:5])
 
-    if "high energy" in tags and "strong rhythmic drive" in tags:
+    bpm = _num(features.get("tempo"))
+    energy = _num(features.get("energy"))
+    dance = _num(features.get("danceability"))
+
+    if bpm is not None and energy is not None and dance is not None:
+        if 85 <= bpm <= 105 and energy >= 0.85 and dance >= 0.65:
+            archetype = "mid-tempo pop impact / contrast-driven"
+        elif 105 <= bpm <= 130 and dance >= 0.72 and energy < 0.72:
+            archetype = "groove-led / rhythm-forward hybrid"
+        elif bpm >= 135 and energy >= 0.75 and dance >= 0.68:
+            archetype = "high-tempo / impact-driven"
+        elif energy >= 0.72 and dance >= 0.65:
+            archetype = "rhythm-first / impact-driven"
+        else:
+            archetype = "hybrid / context-dependent"
+    elif "high energy" in tags and "strong rhythmic drive" in tags:
         archetype = "rhythm-first / impact-driven"
     elif "dark affect" in tags and "controlled energy" in tags:
         archetype = "dark / tension-led"
