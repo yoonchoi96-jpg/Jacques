@@ -42,6 +42,19 @@ def _spotify_client():
     return spotipy.Spotify(auth=token["access_token"])
 
 
+def _resolve_track_id(sp, item):
+    if item.get("track_id"):
+        return item["track_id"]
+    if not sp:
+        return None
+    query = f"track:{item['title']} artist:{item['artist'].split(',')[0]}"
+    result = sp.search(q=query, type="track", limit=1)
+    tracks = (result.get("tracks") or {}).get("items") or []
+    if not tracks:
+        return None
+    return tracks[0].get("id")
+
+
 def _ensure_track(conn, sp, item):
     track_id = item["track_id"]
     existing = conn.execute(
@@ -171,6 +184,15 @@ def main():
         raise RuntimeError("Spotify Global chart returned no tracks.")
 
     sp = _spotify_client()
+
+    for item in items:
+        resolved = _resolve_track_id(sp, item)
+        if resolved:
+            item["track_id"] = resolved
+        elif not item.get("track_id"):
+            raise RuntimeError(
+                f"Could not resolve Spotify track ID: {item['title']} — {item['artist']}"
+            )
 
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
