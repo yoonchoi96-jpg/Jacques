@@ -54,7 +54,18 @@ def create_project(
         "SELECT project_id, root_path FROM generation_projects WHERE project_key=?",
         (project_key,),
     ).fetchone()
-    return int(row["project_id"] if isinstance(row, sqlite3.Row) else row[0]), Path(row["root_path"] if isinstance(row, sqlite3.Row) else row[1])
+    project_path = Path(row["root_path"] if isinstance(row, sqlite3.Row) else row[1])
+    manifest = project_path / "project.json"
+    if not manifest.exists():
+        import json
+        manifest.write_text(json.dumps({
+            "project_id": int(row["project_id"] if isinstance(row, sqlite3.Row) else row[0]),
+            "project_key": project_key,
+            "title": title,
+            "reference_track_id": reference_track_id,
+            "stages": list(STAGES),
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return int(row["project_id"] if isinstance(row, sqlite3.Row) else row[0]), project_path
 
 
 def get_project(conn: sqlite3.Connection, project_id: int):
