@@ -1,12 +1,6 @@
 name: Jacques Global Discovery
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "src/music_db/discovery/**"
-      - "tools/jacques_global_top3.py"
-      - ".github/workflows/discovery.yml"
   workflow_dispatch:
     inputs:
       limit:
