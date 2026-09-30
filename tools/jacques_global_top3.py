@@ -133,6 +133,29 @@ def _ensure_track(conn, sp, item):
                     "SELECT artist_id FROM artists WHERE name=? ORDER BY artist_id DESC LIMIT 1",
                     (name,),
                 ).fetchone()
+
+            if sp and artist_id:
+                try:
+                    artist_meta = sp.artist(artist_id)
+                    for genre in artist_meta.get("genres") or []:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO genres(name) VALUES (?)",
+                            (genre,),
+                        )
+                        genre_row = conn.execute(
+                            "SELECT genre_id FROM genres WHERE name=?",
+                            (genre,),
+                        ).fetchone()
+                        conn.execute(
+                            """
+                            INSERT OR IGNORE INTO track_genres(track_id, genre_id)
+                            VALUES (?, ?)
+                            """,
+                            (track_id, genre_row[0]),
+                        )
+                except Exception as exc:
+                    print(f"[Jacques] artist genre enrichment skipped: {name}: {exc}")
+
             conn.execute(
                 """
                 INSERT OR IGNORE INTO track_artists(track_id, artist_id, artist_order)
