@@ -10,6 +10,7 @@ from music_db.generation.compare import compare
 from music_db.generation.fingerprint import sha256_file
 from music_db.generation.outputs import create_output, link_outputs, extract_audio_refs
 from music_db.generation.projects import create_project, stage_dir
+from music_db.generation.assets import import_audio_asset
 from music_db.generation.prompt_builder import build_prompt
 from music_db.generation.http import post_json
 
@@ -395,6 +396,23 @@ class GenerationCoreTests(unittest.TestCase):
             self.assertEqual(row[1], project_id)
             self.assertEqual(row[2], "generations")
             self.assertEqual(stage_dir(db, project_id, "final"), root / "final")
+            db.close()
+
+    def test_generation_project_imports_reference_asset_with_fingerprint(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = sqlite3.connect(":memory:")
+            db.row_factory = sqlite3.Row
+            db.executescript(SCHEMA)
+            run_migrations(db)
+            project_id, root = create_project(db, "Asset Test", root_dir=td)
+            source = Path(td) / "reference.wav"
+            source.write_bytes(b"reference-audio")
+            asset_id, destination = import_audio_asset(db, project_id, source)
+            row = db.execute("SELECT asset_type, audio_path, fingerprint_sha256 FROM generation_assets WHERE asset_id=?", (asset_id,)).fetchone()
+            self.assertEqual(row[0], "reference")
+            self.assertEqual(Path(row[1]), destination)
+            self.assertEqual(row[2], sha256_file(str(destination)))
+            self.assertTrue(destination.parent.name == "reference")
             db.close()
 
     def test_output_fingerprint_column(self):
