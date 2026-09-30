@@ -44,7 +44,7 @@ def fetch_daily_chart(day: date, session: requests.Session | None = None) -> dic
                 "streams": int(raw["streams"]) if raw.get("streams") else None,
                 "previous_rank": int(raw["previous_rank"]) if raw.get("previous_rank") else None,
                 "peak_rank": int(raw["peak_rank"]) if raw.get("peak_rank") else None,
-                "weeks_on_chart": int(raw["weeks_on_chart"]) if raw.get("weeks_on_chart") else None,
+                "days_on_chart": int(raw["days_on_chart"]) if raw.get("days_on_chart") else None,
             }
         )
 
