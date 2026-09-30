@@ -130,20 +130,18 @@ def _fetch_mirror_latest(session: requests.Session) -> dict:
         except (TypeError, ValueError, IndexError):
             continue
 
-        song_links = [
-            a for a in cells[2].find_all("a", href=True)
-            if "/song/" in a.get("href", "")
-        ]
+        links = cells[2].find_all("a", href=True)
+        song_links = [a for a in links if "/song/" in a.get("href", "")]
         if not song_links:
             continue
 
         title = song_links[0].get_text(" ", strip=True)
         artists = [
             a.get_text(" ", strip=True)
-            for a in song_links[1:]
-            if a.get_text(" ", strip=True)
+            for a in links
+            if "/artist/" in a.get("href", "") and a.get_text(" ", strip=True)
         ]
-        if not artists and len(song_links) == 1:
+        if not artists:
             artists = [""]
 
         stream_text = cells[3].get_text(" ", strip=True).replace(",", "")
