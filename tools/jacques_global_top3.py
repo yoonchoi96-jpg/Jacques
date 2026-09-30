@@ -47,8 +47,9 @@ def _resolve_track_id(sp, item):
         return item["track_id"]
     if not sp:
         return None
-    query = f"track:{item['title']} artist:{item['artist'].split(',')[0]}"
-    result = sp.search(q=query, type="track", limit=1)
+    artist = (item.get("artist") or "").split(",")[0].strip()
+    query = f"track:{item['title']}" + (f" artist:{artist}" if artist else "")
+    result = sp.search(q=query, type="track", limit=5)
     tracks = (result.get("tracks") or {}).get("items") or []
     if not tracks:
         return None
