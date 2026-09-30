@@ -489,6 +489,7 @@ CREATE TABLE IF NOT EXISTS chart_entries (
     previous_rank INTEGER,
     peak_rank INTEGER,
     weeks_on_chart INTEGER,
+    days_on_chart INTEGER,
     title TEXT NOT NULL,
     artist_name TEXT,
     album_name TEXT,
@@ -793,6 +794,15 @@ def run_migrations(conn):
         "CREATE INDEX IF NOT EXISTS idx_generation_outputs_fingerprint "
         "ON generation_outputs(fingerprint_sha256)"
     )
+    chart_columns = {
+        row[1] for row in conn.execute(
+            "PRAGMA table_info(chart_entries)"
+        ).fetchall()
+    }
+    if "days_on_chart" not in chart_columns:
+        conn.execute(
+            "ALTER TABLE chart_entries ADD COLUMN days_on_chart INTEGER"
+        )
     conn.commit()
 
 def initialize_database():
