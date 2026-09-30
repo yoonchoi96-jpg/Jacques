@@ -9,6 +9,7 @@ import requests
 
 BASE = "https://charts.spotify.com/api/charts/regional/global/daily"
 LEGACY_LATEST = "https://spotifycharts.com/regional/global/daily/latest/download"
+MIRROR_LATEST = "https://spotify-top.com/"
 SOURCE = "spotify_global"
 
 
@@ -100,6 +101,92 @@ def _parse_legacy_latest(response: requests.Response) -> dict:
         "items": items,
     }
 
+
+def _fetch_mirror_latest(session: requests.Session) -> dict:
+    from bs4 import BeautifulSoup
+
+    response = session.get(
+        MIRROR_LATEST,
+        headers={"User-Agent": "Jacques/1.0 (+music database)"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    heading = soup.find(
+        string=re.compile(r"Spotify Daily Top Songs", re.I)
+    )
+    page_text = soup.get_text(" ", strip=True)
+    match = re.search(r"Chart date\\s+(\\d{4}-\\d{2}-\\d{2})", page_text)
+    chart_date = match.group(1) if match else date.today().isoformat()
+
+    items = []
+    for row in soup.select("tr"):
+        cells = row.find_all(["th", "td"])
+        if len(cells) < 4:
+            continue
+        try:
+            rank = int(cells[0].get_text(" ", strip=True).split()[0])
+        except (TypeError, ValueError, IndexError):
+            continue
+
+        song_links = [
+            a for a in cells[2].find_all("a", href=True)
+            if "/song/" in a.get("href", "")
+        ]
+        if not song_links:
+            continue
+
+        title = song_links[0].get_text(" ", strip=True)
+        artists = [
+            a.get_text(" ", strip=True)
+            for a in song_links[1:]
+            if a.get_text(" ", strip=True)
+        ]
+        if not artists and len(song_links) == 1:
+            artists = [""]
+
+        stream_text = cells[3].get_text(" ", strip=True).replace(",", "")
+        stream_match = re.search(r"\\d[\\d,]*", stream_text)
+        streams = int(stream_match.group().replace(",", "")) if stream_match else None
+
+        rank_change = cells[1].get_text(" ", strip=True)
+        change_match = re.search(r"([+-]?)\\d+", rank_change)
+        previous_rank = None
+        if change_match and change_match.group(1) in {"+", "-"}:
+            delta = int(change_match.group().replace("+", "").replace("-", ""))
+            previous_rank = rank - delta if change_match.group(1) == "+" else rank + delta
+
+        peak_text = cells[5].get_text(" ", strip=True) if len(cells) > 5 else ""
+        peak_match = re.search(r"\\d+", peak_text)
+        peak_rank = int(peak_match.group()) if peak_match else None
+
+        days_text = cells[6].get_text(" ", strip=True) if len(cells) > 6 else ""
+        days_match = re.search(r"\\d+", days_text)
+        days_on_chart = int(days_match.group()) if days_match else None
+
+        items.append(
+            {
+                "rank": rank,
+                "title": title,
+                "artist": ", ".join(artists),
+                "track_id": None,
+                "spotify_uri": None,
+                "streams": streams,
+                "previous_rank": previous_rank,
+                "peak_rank": peak_rank,
+                "days_on_chart": days_on_chart,
+            }
+        )
+
+    return {
+        "source": SOURCE,
+        "chart_name": "global_daily",
+        "chart_date": chart_date,
+        "url": MIRROR_LATEST,
+        "items": items,
+    }
+
 def fetch_daily_chart(day: date, session: requests.Session | None = None) -> dict:
     session = session or requests.Session()
     url = f"{BASE}/{day.isoformat()}"
@@ -170,7 +257,14 @@ def fetch_latest_chart(
         data = _parse_legacy_latest(response)
         if data["items"]:
             return data
-    except requests.RequestException as exc:
+    except (requests.RequestException, RuntimeError) as exc:
+        last_error = exc
+
+    try:
+        data = _fetch_mirror_latest(session)
+        if data["items"]:
+            return data
+    except (requests.RequestException, RuntimeError) as exc:
         last_error = exc
 
     raise RuntimeError(
