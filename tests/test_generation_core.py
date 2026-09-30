@@ -398,6 +398,39 @@ class GenerationCoreTests(unittest.TestCase):
             self.assertEqual(stage_dir(db, project_id, "final"), root / "final")
             db.close()
 
+
+    def test_generation_project_does_not_overwrite_same_named_asset(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = sqlite3.connect(":memory:")
+            db.row_factory = sqlite3.Row
+            db.executescript(SCHEMA)
+            run_migrations(db)
+            project_id, root = create_project(db, "Collision Test", root_dir=td)
+            source_a = Path(td) / "track.wav"
+            source_b = Path(td) / "track2.wav"
+            source_a.write_bytes(b"first")
+            source_b.write_bytes(b"second")
+            first_id, first_path = import_audio_asset(db, project_id, source_a)
+            source_b.rename(Path(td) / "track.wav")
+            second_id, second_path = import_audio_asset(
+                db, project_id, Path(td) / "track.wav"
+            )
+            self.assertNotEqual(first_id, second_id)
+            self.assertNotEqual(first_path, second_path)
+            self.assertEqual(first_path.read_bytes(), b"first")
+            self.assertEqual(second_path.read_bytes(), b"second")
+            db.close()
+
+    def test_generation_project_status_rejects_unknown_project(self):
+        db = sqlite3.connect(":memory:")
+        db.row_factory = sqlite3.Row
+        db.executescript(SCHEMA)
+        run_migrations(db)
+        from music_db.generation.projects import update_project_status
+        with self.assertRaises(ValueError):
+            update_project_status(db, 999999, "completed")
+        db.close()
+
     def test_generation_project_imports_reference_asset_with_fingerprint(self):
         with tempfile.TemporaryDirectory() as td:
             db = sqlite3.connect(":memory:")
