@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sqlite3
+from datetime import datetime, timezone
 import sys
 from pathlib import Path
 
@@ -201,54 +202,72 @@ def _enrich_top3(conn, items):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Jacques global Top-N discovery analysis")
+    parser = argparse.ArgumentParser(description="Jacques personal listening Top-N analysis")
     parser.add_argument("--limit", type=int, default=3)
-    parser.add_argument("--lookback-days", type=int, default=7)
     args = parser.parse_args()
 
     if args.limit < 1:
         raise SystemExit("--limit must be >= 1")
 
     initialize_database()
-    chart = fetch_latest_chart(lookback_days=args.lookback_days)
-    items = chart["items"][: args.limit]
-
-    if not items:
-        raise RuntimeError("Spotify Global chart returned no tracks.")
-
-    sp = _spotify_client()
-
-    for item in items:
-        resolved = _resolve_track_id(sp, item)
-        if resolved:
-            item["track_id"] = resolved
-        elif not item.get("track_id"):
-            raise RuntimeError(
-                f"Could not resolve Spotify track ID: {item['title']} — {item['artist']}"
-            )
-
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     try:
-        for item in items:
-            _ensure_track(conn, sp, item)
-        upsert_chart(conn, chart)
-        conn.commit()
+        rows = conn.execute(
+            """
+            SELECT
+                ph.track_id,
+                COUNT(*) AS play_count,
+                MAX(ph.played_at) AS last_played
+            FROM play_history ph
+            GROUP BY ph.track_id
+            ORDER BY play_count DESC, last_played DESC, ph.track_id
+            LIMIT ?
+            """,
+            (args.limit,),
+        ).fetchall()
+
+        if not rows:
+            raise RuntimeError("No play history is available in Jacques.")
+
+        items = []
+        for row in rows:
+            track = conn.execute(
+                "SELECT track_id, title, album, release_date, spotify_url, isrc FROM tracks WHERE track_id=?",
+                (row["track_id"],),
+            ).fetchone()
+            if not track:
+                continue
+            artists = [
+                r[0] for r in conn.execute(
+                    """
+                    SELECT a.name
+                    FROM track_artists ta
+                    JOIN artists a ON a.artist_id=ta.artist_id
+                    WHERE ta.track_id=?
+                    ORDER BY ta.artist_order
+                    """,
+                    (row["track_id"],),
+                ).fetchall()
+            ]
+            items.append({
+                "track_id": row["track_id"],
+                "title": track["title"],
+                "artist": ", ".join(artists),
+                "play_count": row["play_count"],
+                "last_played": row["last_played"],
+                "spotify_uri": f"spotify:track:{row['track_id']}",
+            })
 
         _enrich_top3(conn, items)
-
         analyses = [analyze_track(conn, item) for item in items]
-        store_analysis(conn, chart, analyses)
+        store_analysis(conn, {"source": "spotify_play_history", "chart_name": "personal_top", "chart_date": datetime.now(timezone.utc).date().isoformat()}, analyses)
         conn.commit()
 
-        report = write_report(ROOT, chart, analyses)
-        print(f"[Jacques] chart={chart['chart_date']} top={len(analyses)}")
+        report = write_report(ROOT, {"source": "spotify_play_history", "chart_name": "personal_top", "chart_date": datetime.now(timezone.utc).date().isoformat()}, analyses)
+        print(f"[Jacques] personal listening top={len(analyses)}")
         for item in analyses:
-            dna = item["production_dna"]
-            print(
-                f"#{item['rank']} {item['title']} — {item['artist']} | "
-                f"{dna['archetype']} | {', '.join(dna['tags'])}"
-            )
+            print(f"#{item['personal_rank']} {item['title']} — {item['artist']} | plays={item['play_count']}")
         print(f"[Jacques] report={report}")
     finally:
         conn.close()
