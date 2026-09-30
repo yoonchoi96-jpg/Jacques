@@ -281,6 +281,12 @@ def export_generation_assets(conn, root):
         assets = conn.execute("SELECT asset_id, asset_type, title, audio_path, fingerprint_sha256, created_at FROM generation_assets WHERE project_id=? ORDER BY asset_type, created_at", (p["project_id"],)).fetchall()
         lines = ["---", f'project_id: "{p["project_id"]}"', f'project_key: "{p["project_key"]}"', f'title: "{p["title"].replace(chr(34), chr(92)+chr(34))}"', f'root_path: "{p["root_path"].replace(chr(34), chr(92)+chr(34))}"', "---", "", f"# {p['title']}", "", "## Assets", ""]
         lines += [f"- **{a['asset_type']}** — {a['title'] or ''} — `{a['audio_path']}` — `{a['fingerprint_sha256'] or ''}`" for a in assets] or ["- None"]
+        notes = conn.execute(
+            "SELECT note_type, body, created_at FROM generation_project_notes WHERE project_id=? ORDER BY created_at",
+            (p["project_id"],),
+        ).fetchall()
+        lines += ["", "## Production Notes", ""]
+        lines += [f"- **{n['note_type']}** — {n['body']}" for n in notes] or ["- None"]
         lines += ["", "## Generation Outputs", ""]
         outputs = conn.execute("SELECT output_id, stage, audio_path, fingerprint_sha256, created_at FROM generation_outputs WHERE project_id=? ORDER BY created_at", (p["project_id"],)).fetchall()
         lines += [f"- **{o['stage']}** — output #{o['output_id']} — `{o['audio_path'] or ''}` — `{o['fingerprint_sha256'] or ''}`" for o in outputs] or ["- None"]
