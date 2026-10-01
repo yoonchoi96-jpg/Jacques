@@ -55,7 +55,7 @@ jobs:
       - name: Database quality
         run: PYTHONPATH=src python tools/db_quality.py --fail-on-error
 
-      - name: Jacques personal listening Top 3
+      - name: Jacques personal listening Top 3 (current DB)
         env:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
