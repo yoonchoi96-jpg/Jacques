@@ -45,7 +45,7 @@ def safe_name(value: str) -> str:
 
 
 def extract_visible_text(page) -> str:
-    return page.locator("body").inner_text(timeout=15)
+    return page.locator("body").inner_text(timeout=15_000)
 
 
 def run_provider(page, provider: str) -> dict:
