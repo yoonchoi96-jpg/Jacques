@@ -109,6 +109,24 @@ def _production_dna(features: dict, genres: list[str]) -> dict:
     }
 
 
+def _harmony_profile(conn, track_id: str):
+    row = conn.execute(
+        "SELECT * FROM harmony_profiles WHERE track_id=?",
+        (track_id,),
+    ).fetchone()
+    if not row:
+        return None
+    payload = dict(row)
+    for field in ("progression_json", "sections_json", "extensions_json", "bass_motion_json", "analysis_json"):
+        value = payload.get(field)
+        if value:
+            try:
+                payload[field[:-6] if field.endswith("_json") else field] = json.loads(value)
+            except (TypeError, ValueError):
+                pass
+    return payload
+
+
 def analyze_track(conn, chart_item: dict) -> dict:
     track_id = chart_item["track_id"]
 
@@ -153,8 +171,19 @@ def analyze_track(conn, chart_item: dict) -> dict:
         "genres": genres,
     }
 
+    harmony = _harmony_profile(conn, track_id)
+    payload["harmony"] = harmony
+
     if features:
         payload["production_dna"] = _production_dna(dict(features), genres)
+        if harmony:
+            payload["production_dna"]["harmony"] = {
+                "progression": harmony.get("progression") or harmony.get("progression_json"),
+                "harmonic_rhythm_sec": harmony.get("harmonic_rhythm"),
+                "chord_change_rate_per_sec": harmony.get("chord_change_rate"),
+                "extensions": harmony.get("extensions") or harmony.get("extensions_json"),
+                "confidence": harmony.get("consensus_confidence"),
+            }
     else:
         payload["production_dna"] = {
             "archetype": "insufficient audio-feature data",
