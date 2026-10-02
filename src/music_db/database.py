@@ -263,6 +263,94 @@ CREATE TABLE IF NOT EXISTS tag_normalization_runs (
 );
 
 -- ============================================================
+-- HARMONY ANALYSIS
+-- External chord sources + audio-derived analysis + fused result
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS harmony_sources (
+    harmony_source_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_url TEXT,
+    section_name TEXT,
+    start_sec REAL,
+    end_sec REAL,
+    chord TEXT,
+    key TEXT,
+    confidence REAL,
+    raw_data TEXT,
+    observed_at TEXT,
+    UNIQUE (track_id, source, section_name, start_sec, end_sec, chord),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS harmony_segments (
+    segment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    section_name TEXT,
+    start_sec REAL NOT NULL,
+    end_sec REAL NOT NULL,
+    chord TEXT,
+    root TEXT,
+    quality TEXT,
+    bass_note TEXT,
+    confidence REAL,
+    method TEXT,
+    raw_data TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    UNIQUE (track_id, source, start_sec, end_sec),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS harmony_consensus (
+    consensus_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    section_name TEXT,
+    start_sec REAL NOT NULL,
+    end_sec REAL NOT NULL,
+    chord TEXT,
+    chord_family TEXT,
+    confidence REAL,
+    agreement REAL,
+    source_count INTEGER DEFAULT 0,
+    evidence_json TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    UNIQUE (track_id, section_name, start_sec, end_sec),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS harmony_profiles (
+    track_id TEXT PRIMARY KEY,
+    key TEXT,
+    mode TEXT,
+    harmonic_rhythm REAL,
+    chord_change_rate REAL,
+    loop_bars REAL,
+    progression_json TEXT,
+    sections_json TEXT,
+    extensions_json TEXT,
+    bass_motion_json TEXT,
+    consensus_confidence REAL,
+    analysis_json TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_harmony_sources_track
+    ON harmony_sources(track_id, source);
+
+CREATE INDEX IF NOT EXISTS idx_harmony_segments_track
+    ON harmony_segments(track_id, source, start_sec);
+
+CREATE INDEX IF NOT EXISTS idx_harmony_consensus_track
+    ON harmony_consensus(track_id, start_sec);
+
+-- ============================================================
 -- INDEXES
 -- ============================================================
 
