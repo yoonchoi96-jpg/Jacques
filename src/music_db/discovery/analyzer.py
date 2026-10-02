@@ -282,6 +282,27 @@ def render_report(chart: dict, analyses: list[dict]) -> str:
                 ]
             )
 
+        harmony = item.get("harmony")
+        if harmony:
+            progression = harmony.get("progression") or harmony.get("progression_json") or []
+            if isinstance(progression, str):
+                try:
+                    progression = json.loads(progression)
+                except (TypeError, ValueError):
+                    progression = [progression]
+            lines.extend(
+                [
+                    "",
+                    "### Harmony",
+                    f"- Key: {harmony.get('key') or 'not resolved'}",
+                    f"- Progression: {' → '.join(progression) if progression else 'not resolved'}",
+                    f"- Harmonic rhythm: {harmony.get('harmonic_rhythm')} sec",
+                    f"- Chord-change rate: {harmony.get('chord_change_rate')} / sec",
+                    f"- Extensions: {', '.join(harmony.get('extensions') or []) or 'none resolved'}",
+                    f"- Consensus confidence: {harmony.get('consensus_confidence')}",
+                ]
+            )
+
         dna = item["production_dna"]
         lines.extend(
             [
