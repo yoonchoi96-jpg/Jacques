@@ -272,6 +272,23 @@ def fuse_track_harmony(conn, track_id):
         )
 
     progression = [item["chord"] for item in consensus]
+
+    key_row = conn.execute(
+        "SELECT key FROM harmony_sources WHERE track_id=? AND key IS NOT NULL "
+        "ORDER BY confidence DESC LIMIT 1",
+        (track_id,),
+    ).fetchone()
+    resolved_key = key_row[0] if key_row else None
+    mode = None
+    if resolved_key and " " in resolved_key:
+        resolved_key, mode = resolved_key.rsplit(" ", 1)
+
+    tempo_row = conn.execute(
+        "SELECT tempo FROM audio_features WHERE track_id=? AND tempo IS NOT NULL",
+        (track_id,),
+    ).fetchone()
+    tempo = float(tempo_row[0]) if tempo_row else None
+
     intervals = [
         item["end_sec"] - item["start_sec"]
         for item in consensus
@@ -297,6 +314,11 @@ def fuse_track_harmony(conn, track_id):
         ),
     }
 
+    loop_bars = None
+    if tempo and harmonic_rhythm:
+        beats_per_chord = harmonic_rhythm * tempo / 60.0
+        loop_bars = round((beats_per_chord * len(consensus)) / 4.0, 2)
+
     conn.execute(
         """
         INSERT OR REPLACE INTO harmony_profiles
@@ -306,7 +328,7 @@ def fuse_track_harmony(conn, track_id):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            track_id, None, None, harmonic_rhythm, change_rate, None,
+            track_id, resolved_key, mode, harmonic_rhythm, change_rate, loop_bars,
             json.dumps(progression, ensure_ascii=False),
             json.dumps([], ensure_ascii=False),
             json.dumps(profile["extensions"], ensure_ascii=False),
