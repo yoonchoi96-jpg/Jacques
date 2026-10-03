@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from music_db.harmony.chordidentifier import build_harmony_payload
 
 from playwright.sync_api import sync_playwright
 
@@ -58,6 +62,10 @@ def run_provider(page, provider: str) -> dict:
     text = extract_visible_text(page)
     result["final_url"] = page.url
     result["final_text_excerpt"] = text[:16_000]
+    if provider == "chordidentifier":
+        result["harmony_payload"] = build_harmony_payload(
+            page.content(), source_url=page.url, youtube_url=YOUTUBE_URL
+        )
     lower = text.lower()
 
     if provider == "chordidentifier":
