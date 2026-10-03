@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from music_db.harmony.chordidentifier import build_harmony_payload
 from music_db.database import initialize_database, get_connection
 from music_db.harmony.pipeline import import_external_harmony, fuse_track_harmony
-from magic_chords_provider import MagicChordsTimeout, analyze as analyze_magic_chords
+from magic_chords_provider import MagicChordsResultError, MagicChordsTimeout, analyze as analyze_magic_chords
 
 from playwright.sync_api import sync_playwright
 
@@ -139,12 +139,12 @@ def main() -> None:
                     }
                     result["attempt"] = attempt
                     break
-                except MagicChordsTimeout as exc:
+                except (MagicChordsTimeout, MagicChordsResultError) as exc:
                     magic_job_id = exc.job_id
                     result = {
                         "provider": provider,
                         "youtube_url": YOUTUBE_URL,
-                        "status": "poll_timeout",
+                        "status": "poll_timeout" if isinstance(exc, MagicChordsTimeout) else "result_fetch_error",
                         "attempt": attempt,
                         "error": str(exc),
                         "job_id": magic_job_id,
