@@ -1,7 +1,6 @@
 name: Spotify Music DB
 
 on:
-  push:
   workflow_dispatch:
 
   schedule:
