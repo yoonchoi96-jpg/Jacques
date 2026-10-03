@@ -8,12 +8,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from music_db.harmony.chordidentifier import build_harmony_payload
+from music_db.database import initialize_database, get_connection
+from music_db.harmony.pipeline import import_external_harmony, fuse_track_harmony
 
 from playwright.sync_api import sync_playwright
 
 ARTIFACT_DIR = Path("probe_artifacts")
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 YOUTUBE_URL = os.environ["YOUTUBE_URL"].strip()
+TRACK_ID = os.environ.get("TRACK_ID", "").strip()
 PROVIDERS = [x.strip().lower() for x in os.environ.get("PROVIDERS", "").split(",") if x.strip()]
 
 PROVIDER_CONFIG = {
@@ -128,6 +131,39 @@ def main() -> None:
         browser.close()
 
     payload = {"youtube_url": YOUTUBE_URL, "providers": PROVIDERS, "results": results}
+
+    if TRACK_ID:
+        initialize_database()
+        imported = []
+        with get_connection() as conn:
+            for result in results:
+                harmony_payload = result.get("harmony_payload")
+                if harmony_payload and harmony_payload.get("segments"):
+                    count = import_external_harmony(
+                        conn, TRACK_ID, harmony_payload,
+                        source=harmony_payload.get("source", result["provider"]),
+                    )
+                    imported.append({
+                        "provider": result["provider"],
+                        "harmony_segments": count,
+                    })
+                    conn.execute(
+                        "INSERT INTO music_analysis_evidence "
+                        "(track_id, domain, source, source_type, method, payload_json, confidence, observed_at, created_at) "
+                        "VALUES (?, 'media_analysis', ?, 'web', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                        (
+                            TRACK_ID,
+                            result["provider"],
+                            harmony_payload.get("method", "youtube_browser_analysis"),
+                            json.dumps(harmony_payload, ensure_ascii=False),
+                            harmony_payload.get("confidence"),
+                        ),
+                    )
+            fuse_track_harmony(conn, TRACK_ID)
+            conn.commit()
+        payload["track_id"] = TRACK_ID
+        payload["imported"] = imported
+
     (ARTIFACT_DIR / "result.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
