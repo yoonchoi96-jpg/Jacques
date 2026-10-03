@@ -190,20 +190,20 @@ def run_provider(page, provider: str) -> dict:
             chart_bars = []
 
         result["harmony_payload"] = {
-                "source": "methodic_truth",
-                "source_url": "https://methodictruth.com/song-analyzer",
-                "youtube_url": YOUTUBE_URL,
-                "confidence": None,
-                "tempo": metadata.get("tempo"),
-                "key": metadata.get("key"),
-                "time_signature": metadata.get("time_signature"),
-                "segments": chord_rows,
-                "chart_bars": chart_bars,
-                "segment_count": len(chord_rows),
-                "chart_bar_count": len(chart_bars),
-                "method": "youtube_browser_analysis",
-            }
-            result["status"] = "success"
+            "source": "methodic_truth",
+            "source_url": "https://methodictruth.com/song-analyzer",
+            "youtube_url": YOUTUBE_URL,
+            "confidence": None,
+            "tempo": metadata.get("tempo"),
+            "key": metadata.get("key"),
+            "time_signature": metadata.get("time_signature"),
+            "segments": chord_rows,
+            "chart_bars": chart_bars,
+            "segment_count": len(chord_rows),
+            "chart_bar_count": len(chart_bars),
+            "method": "youtube_browser_analysis",
+        }
+        result["status"] = "success"
         else:
             result["status"] = "accepted_or_processing"
         return result
