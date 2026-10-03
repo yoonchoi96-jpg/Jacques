@@ -18,6 +18,7 @@ ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 YOUTUBE_URL = os.environ["YOUTUBE_URL"].strip()
 TRACK_ID = os.environ.get("TRACK_ID", "").strip()
 PROVIDERS = [x.strip().lower() for x in os.environ.get("PROVIDERS", "").split(",") if x.strip()]
+PROVIDER_RETRIES = max(1, int(os.environ.get("PROVIDER_RETRIES", "2")))
 
 PROVIDER_CONFIG = {
     "chordidentifier": {
@@ -109,17 +110,24 @@ def main() -> None:
         page = context.new_page()
 
         for provider in PROVIDERS:
-            try:
-                result = run_provider(page, provider) if provider in PROVIDER_CONFIG else {
-                    "provider": provider, "status": "unsupported_provider"
-                }
-            except Exception as exc:
-                result = {
-                    "provider": provider,
-                    "youtube_url": YOUTUBE_URL,
-                    "status": "exception",
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
+            result = None
+            for attempt in range(1, PROVIDER_RETRIES + 1):
+                try:
+                    result = run_provider(page, provider) if provider in PROVIDER_CONFIG else {
+                        "provider": provider, "status": "unsupported_provider"
+                    }
+                    result["attempt"] = attempt
+                    break
+                except Exception as exc:
+                    result = {
+                        "provider": provider,
+                        "youtube_url": YOUTUBE_URL,
+                        "status": "exception",
+                        "attempt": attempt,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                    if attempt < PROVIDER_RETRIES:
+                        page.wait_for_timeout(min(10_000, attempt * 2_000))
             results.append(result)
             stem = safe_name(provider)
             try:
@@ -137,6 +145,24 @@ def main() -> None:
         imported = []
         with get_connection() as conn:
             for result in results:
+                conn.execute(
+                    "INSERT INTO music_analysis_evidence "
+                    "(track_id, domain, source, source_type, method, payload_json, confidence, observed_at, created_at) "
+                    "VALUES (?, 'media_analysis_run', ?, 'web', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                    (
+                        TRACK_ID,
+                        result.get("provider", "unknown"),
+                        "youtube_provider_probe",
+                        json.dumps({
+                            "youtube_url": YOUTUBE_URL,
+                            "status": result.get("status"),
+                            "attempt": result.get("attempt"),
+                            "error": result.get("error"),
+                            "provider_url": result.get("provider_url"),
+                        }, ensure_ascii=False),
+                        1.0 if result.get("status") == "accepted_or_processing" else 0.0,
+                    ),
+                )
                 harmony_payload = result.get("harmony_payload")
                 if harmony_payload and harmony_payload.get("segments"):
                     count = import_external_harmony(
