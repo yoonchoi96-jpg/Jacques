@@ -44,6 +44,7 @@ SOURCE_PRIORITY = {
     "magic_chords": 25,
     "essentia": 30,
     "librosa_chroma_template": 40,
+    "methodic_truth": 15,
 }
 
 def _family(chord):
@@ -199,6 +200,12 @@ def import_external_harmony(conn, track_id, payload, source="external"):
         item["end_sec"] = end_sec
         item.setdefault("confidence", payload.get("confidence"))
         item.setdefault("method", "external")
+        if payload.get("key") is not None:
+            item.setdefault("provider_key", payload.get("key"))
+        if payload.get("tempo") is not None:
+            item.setdefault("provider_tempo", payload.get("tempo"))
+        if payload.get("time_signature") is not None:
+            item.setdefault("provider_time_signature", payload.get("time_signature"))
         item.setdefault("section_name", seg.get("section"))
         conn.execute(
             """
@@ -418,6 +425,31 @@ def fuse_track_harmony(conn, track_id):
             for item in same_identity
         )
 
+    fusion_mode = "strict_multi_source_consensus"
+    if not consensus:
+        fallback_source = max(
+            sources,
+            key=lambda source: len(by_source[source]),
+            default=None,
+        )
+        fallback = []
+        if fallback_source:
+            fallback = [
+                {
+                    **item,
+                    "agreement": 1.0,
+                    "source_count": 1,
+                    "evidence": [item],
+                    "competing_evidence": [],
+                    "confidence": min(0.55, float(item.get("confidence") or 0.5)),
+                    "fusion_mode": "provisional_provider_baseline",
+                }
+                for item in by_source[fallback_source]
+                if float(item["end_sec"]) > float(item["start_sec"])
+            ]
+        consensus = fallback
+        fusion_mode = "provisional_provider_baseline" if consensus else "no_usable_harmony"
+
     consensus.sort(key=lambda item: (item["start_sec"], item["end_sec"]))
     progression = [item["chord"] for item in consensus]
 
@@ -457,6 +489,23 @@ def fuse_track_harmony(conn, track_id):
         (track_id,),
     ).fetchone()
     tempo = float(tempo_row[0]) if tempo_row else None
+    if tempo is None:
+        tempo_rows = conn.execute(
+            "SELECT raw_data FROM harmony_sources WHERE track_id=? ORDER BY observed_at DESC",
+            (track_id,),
+        ).fetchall()
+        for row in tempo_rows:
+            try:
+                raw = json.loads(row[0] or "{}")
+            except (TypeError, json.JSONDecodeError):
+                continue
+            candidate = raw.get("provider_tempo")
+            try:
+                if candidate is not None and float(candidate) > 0:
+                    tempo = float(candidate)
+                    break
+            except (TypeError, ValueError):
+                continue
 
     intervals = [
         item["end_sec"] - item["start_sec"]
@@ -493,6 +542,7 @@ def fuse_track_harmony(conn, track_id):
             "minimum_agreeing_sources": MIN_CONSENSUS_SOURCES,
             "identity_rule": "root_pitch_class+quality+bass_pitch_class",
             "pitch_set_equivalents_are_not_merged": True,
+            "fusion_mode": fusion_mode,
         },
     }
 
