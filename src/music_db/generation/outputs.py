@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -70,8 +71,15 @@ def create_output(conn: sqlite3.Connection, job_id, *, output_index=0,
     output_id = cur.lastrowid
     if audio_path:
         try:
-            from .fingerprint import attach_fingerprint
-            attach_fingerprint(conn, output_id, audio_path)
+            digest = hashlib.sha256()
+            with open(audio_path, "rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            conn.execute(
+                "UPDATE generation_outputs SET fingerprint_sha256=? WHERE output_id=?",
+                (digest.hexdigest(), output_id),
+            )
+            conn.commit()
         except (OSError, ValueError):
             pass
     return output_id
