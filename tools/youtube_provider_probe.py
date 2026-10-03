@@ -63,9 +63,9 @@ def run_provider(page, provider: str) -> dict:
         # Mazmazika accepts a YouTube URL and exposes a timestamped chord timeline.
         inputs = page.locator('input')
         target = None
-        for idx in range(await inputs.count()):
+        for idx in range(inputs.count()):
             item = inputs.nth(idx)
-            placeholder = (await item.get_attribute("placeholder") or "").lower()
+            placeholder = (item.get_attribute("placeholder") or "").lower()
             input_type = (await item.get_attribute("type") or "").lower()
             if "youtube" in placeholder or "soundcloud" in placeholder or input_type == "url":
                 target = item
@@ -75,9 +75,9 @@ def run_provider(page, provider: str) -> dict:
         await target.fill(YOUTUBE_URL)
         buttons = page.get_by_role("button")
         clicked = False
-        for idx in range(await buttons.count()):
+        for idx in range(buttons.count()):
             b = buttons.nth(idx)
-            label = (await b.inner_text()).strip().lower()
+            label = (b.inner_text()).strip().lower()
             if "analyze" in label and "chord" in label:
                 await b.click()
                 clicked = True
