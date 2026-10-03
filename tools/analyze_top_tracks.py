@@ -142,9 +142,9 @@ def _candidate_is_strong(
     )
     duration = candidate.get("duration")
     duration_close = (
-        duration_ms is not None
-        and duration is not None
-        and abs(float(duration) - duration_ms / 1000.0) <= 10
+        duration_ms is None
+        or duration is None
+        or abs(float(duration) - duration_ms / 1000.0) <= 10
     )
     return title_exact and artist_exact and duration_close
 
