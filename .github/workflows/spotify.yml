@@ -1,7 +1,6 @@
-name: Spotify Music DB # [run-analysis] mazmazika final
+name: Spotify Music DB
 
 on:
-  push:
   workflow_dispatch:
     inputs:
       analysis_scope:
@@ -15,7 +14,7 @@ on:
       analysis_providers:
         description: "External link-analysis providers"
         required: true
-        default: "chordidentifier,mazmazika,magic_chords"
+        default: "chordidentifier,magic_chords"
         type: string
 
   schedule:
@@ -116,7 +115,7 @@ jobs:
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
           JACQUES_TOP_N: ${{ inputs.analysis_scope || '3' }}
-          JACQUES_PROVIDERS: ${{ inputs.analysis_providers || 'chordidentifier,mazmazika,magic_chords' }}
+          JACQUES_PROVIDERS: ${{ inputs.analysis_providers || 'chordidentifier,magic_chords' }}
           PROVIDER_RETRIES: "2"
         run: |
           python tools/analyze_top_tracks.py
