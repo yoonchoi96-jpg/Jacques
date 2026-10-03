@@ -110,19 +110,19 @@ jobs:
           PY
 
       - name: Analyze Spotify Top tracks via YouTube providers
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         env:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
-          JACQUES_TOP_N: ${{ inputs.analysis_scope }}
-          JACQUES_PROVIDERS: ${{ inputs.analysis_providers }}
+          JACQUES_TOP_N: ${{ inputs.analysis_scope || '3' }}
+          JACQUES_PROVIDERS: ${{ inputs.analysis_providers || 'chordidentifier,magic_chords' }}
           PROVIDER_RETRIES: "2"
         run: |
           python tools/analyze_top_tracks.py
 
       - name: Upload analysis artifacts
-        if: ${{ github.event_name == 'workflow_dispatch' && always() }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && always() }}
         uses: actions/upload-artifact@v4
         with:
           name: jacques-top-track-analysis-${{ github.run_id }}
