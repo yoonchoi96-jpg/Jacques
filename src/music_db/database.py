@@ -1122,7 +1122,7 @@ def run_migrations(conn):
                 "SELECT concept_id FROM music_theory_concepts WHERE concept_key = ?",
                 (parent_key,),
             ).fetchone()
-            parent_id = parent_row["concept_id"] if parent_row else None
+            parent_id = parent_row[0] if parent_row else None
         conn.execute(
             """
             INSERT INTO music_theory_concepts
