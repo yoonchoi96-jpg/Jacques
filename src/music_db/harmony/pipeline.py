@@ -152,12 +152,51 @@ def _store_segment(conn, track_id, source, seg):
         ),
     )
 
+def _coerce_seconds(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    if ":" in text:
+        parts = text.split(":")
+        try:
+            total = 0.0
+            for part in parts:
+                total = total * 60.0 + float(part)
+            return total
+        except ValueError:
+            return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
 def import_external_harmony(conn, track_id, payload, source="external"):
     source = payload.get("source") or source
     source_url = payload.get("source_url")
     segments = payload.get("segments") or payload.get("chords") or []
+    imported_count = 0
+    skipped_count = 0
     for seg in segments:
         item = dict(seg)
+        start_sec = _coerce_seconds(
+            item.get("start_sec", item.get("start", item.get("start_time")))
+        )
+        end_sec = _coerce_seconds(
+            item.get("end_sec", item.get("end", item.get("end_time")))
+        )
+        # Never fabricate timing. Beat/bar normalization requires real timestamps.
+        # Keep malformed provider evidence in the raw provider record, but do not
+        # let it poison the normalized harmony tables.
+        if start_sec is None or end_sec is None or end_sec <= start_sec:
+            skipped_count += 1
+            continue
+        item["start_sec"] = start_sec
+        item["end_sec"] = end_sec
         item.setdefault("confidence", payload.get("confidence"))
         item.setdefault("method", "external")
         item.setdefault("section_name", seg.get("section"))
@@ -170,14 +209,15 @@ def import_external_harmony(conn, track_id, payload, source="external"):
             """,
             (
                 track_id, source, source_url, item.get("section_name"),
-                item.get("start_sec", 0), item.get("end_sec", 0),
+                start_sec, end_sec,
                 item.get("chord"), payload.get("key"), item.get("confidence"),
                 json.dumps(item, ensure_ascii=False), _now(),
             ),
         )
         _store_segment(conn, track_id, source, item)
+        imported_count += 1
     conn.commit()
-    return len(segments)
+    return imported_count
 
 def analyze_track_audio(conn, track_id, audio_path):
     """Deprecated: Jacques is streaming/link-only and never analyzes local released audio."""
