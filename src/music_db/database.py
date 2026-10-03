@@ -987,6 +987,8 @@ INSERT INTO source_registry
 VALUES
     ('spotify', 'api', 10, 1, 'canonical_identity',
      'Spotify track/artist/listening source', CURRENT_TIMESTAMP),
+    ('local_audio_library', 'local', 2, 1, 'audio_primary',
+     'User-owned/local audio files used for direct DSP and music-analysis evidence', CURRENT_TIMESTAMP),
     ('freqblog', 'api', 20, 1, 'audio_primary',
      'Canonical audio-feature source', CURRENT_TIMESTAMP),
     ('songbpm', 'web', 30, 1, 'audio_fallback',
