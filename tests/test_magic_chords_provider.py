@@ -1,6 +1,6 @@
 import unittest
 
-from tools.magic_chords_provider import MagicChordsResultError, MagicChordsTimeout, _segments, analyze
+from tools.magic_chords_provider import MagicChordsJobError, MagicChordsResultError, MagicChordsTimeout, _segments, analyze
 
 
 class FakePage:
@@ -61,6 +61,20 @@ class MagicChordsProviderTests(unittest.TestCase):
         page = FakePage(["processing", "processing"])
         with self.assertRaises(MagicChordsTimeout) as ctx:
             analyze(page, "https://www.youtube.com/watch?v=test", polls=2, wait=1)
+        self.assertEqual(ctx.exception.job_id, "job-123")
+
+    def test_status_poll_error_exposes_job_id(self):
+        class StatusErrorPage(FakePage):
+            def evaluate(self, script, arg=None):
+                if "/result" in script:
+                    return super().evaluate(script, arg)
+                if "/jobs/" in script:
+                    raise RuntimeError("503")
+                return super().evaluate(script, arg)
+
+        page = StatusErrorPage([])
+        with self.assertRaises(MagicChordsJobError) as ctx:
+            analyze(page, "https://www.youtube.com/watch?v=test", polls=1, wait=1)
         self.assertEqual(ctx.exception.job_id, "job-123")
 
     def test_result_fetch_error_exposes_job_id(self):
