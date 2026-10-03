@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -234,7 +235,7 @@ def analyze_track_audio(conn, track_id, audio_path):
         "and import provider evidence instead."
     )
 
-def _build_beat_grid(consensus, tempo, beats_per_bar=4):
+def _build_beat_grid(consensus, tempo, beats_per_bar=4, time_signature="4/4"):
     """Project timestamped consensus chords onto a relative beat/bar grid.
 
     The grid is anchored to the first consensus onset because provider
@@ -246,8 +247,8 @@ def _build_beat_grid(consensus, tempo, beats_per_bar=4):
         return {
             "available": False,
             "reason": "missing_tempo_or_consensus",
-            "time_signature": "4/4",
-            "time_signature_source": "default",
+            "time_signature": time_signature,
+            "time_signature_source": "provider_or_default",
             "anchor_sec": None,
             "beat_duration_sec": None,
             "beats": [],
@@ -297,8 +298,8 @@ def _build_beat_grid(consensus, tempo, beats_per_bar=4):
 
     return {
         "available": True,
-        "time_signature": "4/4",
-        "time_signature_source": "default",
+        "time_signature": time_signature,
+        "time_signature_source": "provider_or_default",
         "anchor_sec": round(anchor, 4),
         "beat_duration_sec": round(beat_duration, 6),
         "beats": beats,
@@ -549,13 +550,40 @@ def fuse_track_harmony(conn, track_id):
         max(1.0, consensus[-1]["end_sec"] - consensus[0]["start_sec"])
     ) if consensus else None
 
-    beat_grid = _build_beat_grid(consensus, tempo)
+    time_signature = "4/4"
+    time_rows = conn.execute(
+        "SELECT raw_data FROM harmony_sources WHERE track_id=? ORDER BY observed_at DESC",
+        (track_id,),
+    ).fetchall()
+    for row in time_rows:
+        try:
+            raw = json.loads(row[0] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        candidate = raw.get("provider_time_signature")
+        if isinstance(candidate, str):
+            parts = candidate.strip().split("/", 1)
+            if len(parts) == 2 and all(part.isdigit() for part in parts):
+                time_signature = candidate.strip()
+                break
+    try:
+        beats_per_bar = int(time_signature.split("/", 1)[0])
+    except (TypeError, ValueError):
+        beats_per_bar = 4
+        time_signature = "4/4"
+
+    beat_grid = _build_beat_grid(
+        consensus,
+        tempo,
+        beats_per_bar=beats_per_bar,
+        time_signature=time_signature,
+    )
     prompt_harmony = _build_prompt_harmony(beat_grid)
 
     profile = {
         "key": resolved_key,
         "tempo": tempo,
-        "time_signature": "4/4",
+        "time_signature": time_signature,
         "progression": progression,
         "roman_progression": [item["roman_numeral"] for item in consensus],
         "segments": consensus,
