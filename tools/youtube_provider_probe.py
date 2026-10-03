@@ -50,6 +50,21 @@ def safe_name(value: str) -> str:
 def extract_visible_text(page) -> str:
     return page.locator("body").inner_text(timeout=15_000)
 
+
+
+def extract_methodic_metadata(text: str) -> dict:
+    """Extract song-level BPM/key/meter from Methodic Truth's result header."""
+    head = text[:2_500]
+    bpm_match = re.search(r"\bBPM\s+(\d+(?:\.\d+)?)\b", head)
+    key_match = re.search(r"\bKEY\s+([A-G](?:#|b)?\s+(?:Major|Minor))\b", head)
+    meter_match = re.search(r"\b(\d+)/(\d+)\s+feel\b", head)
+    return {
+        "tempo": float(bpm_match.group(1)) if bpm_match else None,
+        "key": key_match.group(1) if key_match else None,
+        "time_signature": f"{meter_match.group(1)}/{meter_match.group(2)}" if meter_match else None,
+    }
+
+
 def run_provider(page, provider: str) -> dict:
     if provider == "magic_chords":
         payload = analyze_magic_chords(page, YOUTUBE_URL)
@@ -107,6 +122,7 @@ def run_provider(page, provider: str) -> dict:
 
         result["final_url"] = page.url
         result["final_text_excerpt"] = text[:16_000]
+        metadata = extract_methodic_metadata(text)
 
         # The UI renders chord and timestamp on adjacent lines in Play Along:
         #   Esus4
@@ -154,6 +170,9 @@ def run_provider(page, provider: str) -> dict:
                 "source_url": "https://methodictruth.com/song-analyzer",
                 "youtube_url": YOUTUBE_URL,
                 "confidence": None,
+                "tempo": metadata.get("tempo"),
+                "key": metadata.get("key"),
+                "time_signature": metadata.get("time_signature"),
                 "segments": chord_rows,
                 "segment_count": len(chord_rows),
                 "method": "youtube_browser_analysis",
