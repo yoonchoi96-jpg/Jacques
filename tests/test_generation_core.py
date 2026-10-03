@@ -8,7 +8,7 @@ from music_db.database import initialize_database, get_connection, SCHEMA, run_m
 from music_db.generation.compare import compare
 from music_db.generation.outputs import create_output, link_outputs, extract_audio_refs
 from music_db.generation.projects import create_project, stage_dir
-from music_db.generation.assets import import_audio_asset
+from music_db.generation.assets import import_audio_asset, sha256_file
 from music_db.generation.prompt_builder import build_prompt
 from music_db.generation.http import post_json
 
@@ -174,6 +174,7 @@ class GenerationCoreTests(unittest.TestCase):
 
 
 
+    @patch("requests.get")
     def test_download_audio_ref_infers_extension_from_content_type(self, get):
         from music_db.generation.outputs import download_audio_ref
 
