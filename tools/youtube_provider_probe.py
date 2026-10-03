@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from music_db.harmony.chordidentifier import build_harmony_payload
 from music_db.database import initialize_database, get_connection
 from music_db.harmony.pipeline import import_external_harmony, fuse_track_harmony
-from magic_chords_provider import analyze as analyze_magic_chords
+from magic_chords_provider import MagicChordsTimeout, analyze as analyze_magic_chords
 
 from playwright.sync_api import sync_playwright
 
@@ -121,13 +121,36 @@ def main() -> None:
 
         for provider in PROVIDERS:
             result = None
+            magic_job_id = None
             for attempt in range(1, PROVIDER_RETRIES + 1):
                 try:
-                    result = run_provider(page, provider) if provider in PROVIDER_CONFIG else {
+                    if provider == "magic_chords" and magic_job_id:
+                        payload = analyze_magic_chords(page, YOUTUBE_URL, job_id=magic_job_id)
+                        result = {
+                            "provider": "magic_chords",
+                            "youtube_url": YOUTUBE_URL,
+                            "provider_url": PROVIDER_CONFIG["magic_chords"]["url"],
+                            "status": "accepted_or_processing",
+                            "harmony_payload": payload,
+                        }
+                    else:
+                        result = run_provider(page, provider) if provider in PROVIDER_CONFIG else {
                         "provider": provider, "status": "unsupported_provider"
                     }
                     result["attempt"] = attempt
                     break
+                except MagicChordsTimeout as exc:
+                    magic_job_id = exc.job_id
+                    result = {
+                        "provider": provider,
+                        "youtube_url": YOUTUBE_URL,
+                        "status": "poll_timeout",
+                        "attempt": attempt,
+                        "error": str(exc),
+                        "job_id": magic_job_id,
+                    }
+                    if attempt < PROVIDER_RETRIES:
+                        page.wait_for_timeout(min(10_000, attempt * 2_000))
                 except Exception as exc:
                     result = {
                         "provider": provider,
