@@ -72,14 +72,14 @@ def run_provider(page, provider: str) -> dict:
                 break
         if target is None:
             raise RuntimeError("Mazmazika YouTube URL input not found")
-        await target.fill(YOUTUBE_URL)
+        target.fill(YOUTUBE_URL)
         buttons = page.get_by_role("button")
         clicked = False
         for idx in range(buttons.count()):
             b = buttons.nth(idx)
             label = (b.inner_text()).strip().lower()
             if "analyze" in label and "chord" in label:
-                await b.click()
+                b.click()
                 clicked = True
                 break
         if not clicked:
