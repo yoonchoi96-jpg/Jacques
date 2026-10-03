@@ -1,6 +1,6 @@
 import unittest
 
-from tools.magic_chords_provider import MagicChordsTimeout, _segments, analyze
+from tools.magic_chords_provider import MagicChordsResultError, MagicChordsTimeout, _segments, analyze
 
 
 class FakePage:
@@ -62,6 +62,32 @@ class MagicChordsProviderTests(unittest.TestCase):
         with self.assertRaises(MagicChordsTimeout) as ctx:
             analyze(page, "https://www.youtube.com/watch?v=test", polls=2, wait=1)
         self.assertEqual(ctx.exception.job_id, "job-123")
+
+    def test_result_fetch_error_exposes_job_id(self):
+        class ResultErrorPage(FakePage):
+            def evaluate(self, script, arg=None):
+                if "/result" in script:
+                    raise RuntimeError("503")
+                return super().evaluate(script, arg)
+
+        page = ResultErrorPage(["completed"])
+        with self.assertRaises(MagicChordsResultError) as ctx:
+            analyze(page, "https://www.youtube.com/watch?v=test", polls=1, wait=1)
+        self.assertEqual(ctx.exception.job_id, "job-123")
+
+    def test_reusing_job_skips_submit(self):
+        class ReusePage(FakePage):
+            def evaluate(self, script, arg=None):
+                if "analyze/url" in script:
+                    raise AssertionError("must not submit a second job")
+                return super().evaluate(script, arg)
+
+        page = ReusePage(["completed"])
+        result = analyze(
+            page, "https://www.youtube.com/watch?v=test",
+            polls=1, wait=1, job_id="job-existing"
+        )
+        self.assertEqual(result["job_id"], "job-existing")
 
 
 if __name__ == "__main__":
