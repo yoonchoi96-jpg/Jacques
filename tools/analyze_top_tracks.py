@@ -113,7 +113,9 @@ YOUTUBE_MIN_MATCH_MARGIN = float(os.environ.get("JACQUES_YOUTUBE_MIN_MATCH_MARGI
 def _candidate_is_strong(title: str, artists: list[str], duration_ms: int | None, candidate: dict) -> bool:
     normalized_title = _norm_text(title)
     candidate_title = _norm_text(candidate.get("title") or "")
-    candidate_blob = _norm_text(f"{candidate.get("title") or ""} {candidate.get("channel") or ""}")
+    candidate_blob = _norm_text(
+        f'{candidate.get("title") or ""} {candidate.get("channel") or ""}'
+    )
     title_exact = bool(normalized_title and normalized_title == candidate_title)
     artist_exact = any(
         _norm_text(artist) and _norm_text(artist) in candidate_blob
