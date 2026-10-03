@@ -64,50 +64,83 @@ def run_provider(page, provider: str) -> dict:
     result["initial_text_excerpt"] = extract_visible_text(page)[:4_000]
 
     if provider == "methodic_truth":
-        # Methodic Truth accepts a public YouTube URL and renders a timestamped chord chart.
-        inputs = page.locator("input")
-        target = None
-        for idx in range(inputs.count()):
-            item = inputs.nth(idx)
-            placeholder = (item.get_attribute("placeholder") or "").lower()
-            input_type = (item.get_attribute("type") or "").lower()
-            if "youtube" in placeholder or input_type == "url":
-                target = item
-                break
-        if target is None:
-            raise RuntimeError("Methodic Truth YouTube URL input not found")
-        target.fill(YOUTUBE_URL)
-
-        buttons = page.get_by_role("button")
-        clicked = False
-        for idx in range(buttons.count()):
-            b = buttons.nth(idx)
-            label = (b.inner_text()).strip().lower()
-            if "analyze" in label:
-                b.click()
-                clicked = True
-                break
-        if not clicked:
-            raise RuntimeError("Methodic Truth analyze button not found")
-
-        page.wait_for_timeout(cfg["wait_seconds"] * 1_000)
+        # Methodic Truth accepts public YouTube URLs and renders chord/timestamp pairs.
+        # Re-open the result URL first so cached analyses do not submit repeatedly.
+        import re
+        video_match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", YOUTUBE_URL)
+        result_url = (
+            f"https://methodictruth.com/song-analyzer?v={video_match.group(1)}"
+            if video_match
+            else "https://methodictruth.com/song-analyzer"
+        )
+        page.goto(result_url)
+        page.wait_for_timeout(4_000)
         text = extract_visible_text(page)
+
+        if "② CHORD CHART" not in text:
+            inputs = page.locator("input")
+            target = None
+            for idx in range(inputs.count()):
+                item = inputs.nth(idx)
+                placeholder = (item.get_attribute("placeholder") or "").lower()
+                input_type = (item.get_attribute("type") or "").lower()
+                if "youtube" in placeholder or input_type == "url":
+                    target = item
+                    break
+            if target is None:
+                raise RuntimeError("Methodic Truth YouTube URL input not found")
+            target.fill(YOUTUBE_URL)
+
+            buttons = page.get_by_role("button")
+            clicked = False
+            for idx in range(buttons.count()):
+                b = buttons.nth(idx)
+                label = (b.inner_text()).strip().lower()
+                if "analyze" in label:
+                    b.click()
+                    clicked = True
+                    break
+            if not clicked:
+                raise RuntimeError("Methodic Truth analyze button not found")
+            page.wait_for_timeout(cfg["wait_seconds"] * 1_000)
+            text = extract_visible_text(page)
+
         result["final_url"] = page.url
         result["final_text_excerpt"] = text[:16_000]
 
-        import re
+        # The UI renders chord and timestamp on adjacent lines in Play Along:
+        #   Esus4
+        #   0:00
+        #   F#sus4
+        #   0:06
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        try:
+            play_start = next(i for i, line in enumerate(lines) if "③ PLAY ALONG" in line)
+            play_end = next(i for i in range(play_start + 1, len(lines)) if "④ LYRICS" in lines[i])
+            play_lines = lines[play_start + 1:play_end]
+        except StopIteration:
+            play_lines = []
+
+        timestamp_re = re.compile(r"^\d{1,2}:\d{2}(?::\d{2})?$")
+        chord_re = re.compile(
+            r"^[A-G](?:#|b)?(?:maj7|maj|min7|min|m7|m|dim7|dim|aug|sus2|sus4|sus|7|6|9|11|13|add9)?$"
+        )
         chord_rows = []
-        for line in text.splitlines():
-            line = line.strip()
-            match = re.search(
-                r"(\d{1,2}:\d{2}(?::\d{2})?)\s+([A-G](?:#|b)?(?:maj7|maj|min7|min|m7|m|dim7|dim|aug|sus2|sus4|sus|7|6|9|11|13|add9)?)\b",
-                line,
-            )
-            if match:
-                timestamp = match.group(1)
-                parts = [int(x) for x in timestamp.split(":")]
-                start_sec = parts[0] * 60 + parts[1] if len(parts) == 2 else parts[0] * 3600 + parts[1] * 60 + parts[2]
-                chord_rows.append({"start_sec": float(start_sec), "chord": match.group(2)})
+        pending_chord = None
+        for line in play_lines:
+            if chord_re.fullmatch(line):
+                pending_chord = line
+                continue
+            if pending_chord and timestamp_re.fullmatch(line):
+                parts = [int(x) for x in line.split(":")]
+                start_sec = (
+                    parts[0] * 60 + parts[1]
+                    if len(parts) == 2
+                    else parts[0] * 3600 + parts[1] * 60 + parts[2]
+                )
+                chord_rows.append({"start_sec": float(start_sec), "chord": pending_chord})
+                pending_chord = None
+
         if chord_rows:
             for idx, row in enumerate(chord_rows):
                 row["end_sec"] = (
