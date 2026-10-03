@@ -34,6 +34,10 @@ PROVIDER_CONFIG = {
         "url": "https://magic-chords.dev/api/v1",
         "wait_seconds": 5,
     },
+    "mazmazika": {
+        "url": "https://www.mazmazika.com/chordanalyzer",
+        "wait_seconds": 60,
+    },
 }
 
 def safe_name(value: str) -> str:
@@ -54,6 +58,40 @@ def run_provider(page, provider: str) -> dict:
     page.goto(cfg["url"], wait_until="domcontentloaded", timeout=30_000)
     page.wait_for_timeout(3_000)
     result["initial_text_excerpt"] = extract_visible_text(page)[:4_000]
+
+    if provider == "mazmazika":
+        # Mazmazika accepts a YouTube URL and exposes a timestamped chord timeline.
+        inputs = page.locator('input')
+        target = None
+        for idx in range(await inputs.count()):
+            item = inputs.nth(idx)
+            placeholder = (await item.get_attribute("placeholder") or "").lower()
+            input_type = (await item.get_attribute("type") or "").lower()
+            if "youtube" in placeholder or "soundcloud" in placeholder or input_type == "url":
+                target = item
+                break
+        if target is None:
+            raise RuntimeError("Mazmazika YouTube URL input not found")
+        await target.fill(YOUTUBE_URL)
+        buttons = page.get_by_role("button")
+        clicked = False
+        for idx in range(await buttons.count()):
+            b = buttons.nth(idx)
+            label = (await b.inner_text()).strip().lower()
+            if "analyze" in label and "chord" in label:
+                await b.click()
+                clicked = True
+                break
+        if not clicked:
+            raise RuntimeError("Mazmazika analyze button not found")
+        page.wait_for_timeout(cfg["wait_seconds"] * 1_000)
+        text = extract_visible_text(page)
+        result["final_url"] = page.url
+        result["final_text_excerpt"] = text[:16_000]
+        result["status"] = "accepted_or_processing" if any(
+            x in text.lower() for x in ("chord progression", "ai chord detection", "analyzing", "analysis")
+        ) else "submitted_unknown_result"
+        return result
 
     if provider == "chordidentifier":
         # ChordIdentifier keeps the YouTube input inside a modal.
