@@ -149,11 +149,15 @@ def run_provider(page, provider: str) -> dict:
                     else None
                 )
             result["harmony"] = chord_rows
-            result["harmony_payload"] = build_harmony_payload(
-                chord_rows,
-                source="methodic_truth",
-                method="youtube_browser_analysis",
-            )
+            result["harmony_payload"] = {
+                "source": "methodic_truth",
+                "source_url": "https://methodictruth.com/song-analyzer",
+                "youtube_url": YOUTUBE_URL,
+                "confidence": None,
+                "segments": chord_rows,
+                "segment_count": len(chord_rows),
+                "method": "youtube_browser_analysis",
+            }
             result["status"] = "success"
         else:
             result["status"] = "accepted_or_processing"
