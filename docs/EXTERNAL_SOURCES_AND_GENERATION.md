@@ -125,3 +125,16 @@ python tools/promote_output.py <output_id> --stage final
 ```
 
 The production files remain local; GitHub stores the application code and database schema, not the audio project directory.
+
+
+## Harmony consensus policy
+
+Harmony progression data is treated as analytical evidence, not official ground truth.
+
+For each track Jacques can retain up to five independent harmony observations. The fusion layer promotes a chord to consensus only when at least two distinct sources agree on the same harmonic identity. Agreement is based on root + quality + bass, not on pitch-class membership alone.
+
+This distinction is intentional: enharmonic/pitch-set equivalents such as **Am7** and **C6** contain the same four pitch classes but can represent different roots and harmonic functions. Jacques therefore preserves the reported chord label, records pitch-set-equivalent alternatives as ambiguity metadata, and keeps competing source evidence visible.
+
+The consensus profile also records source count, agreement, confidence, Roman-numeral candidates when a resolved key is available, and the exact evidence used. A single-source chord is not promoted into the final consensus progression.
+
+Future harmony enrichment can add further independent sources and a richer music-theory knowledge layer without changing this evidence-first boundary.
