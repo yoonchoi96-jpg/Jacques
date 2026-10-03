@@ -437,74 +437,104 @@ def fuse_track_harmony(conn, track_id):
             continue
         candidates.append(item)
 
-    consensus = []
-    used = set()
-    for anchor_idx, anchor in enumerate(candidates):
-        anchor_key = (anchor["source"], float(anchor["start_sec"]), float(anchor["end_sec"]), anchor["chord"])
-        if anchor_key in used:
+    # Build atomic time windows first, then vote across providers inside each window.
+    # This avoids anchor-order bias and makes disagreement/coverage measurable.
+    boundaries = sorted({
+        float(item["start_sec"]) for item in candidates
+    } | {
+        float(item["end_sec"]) for item in candidates
+    })
+    raw_consensus = []
+    for left, right in zip(boundaries, boundaries[1:]):
+        if right <= left:
             continue
-        cluster = []
-        source_names = set()
-        for item in candidates:
-            if item["source"] in source_names:
+        active = []
+        for source in sources:
+            overlaps = [
+                item for item in by_source[source]
+                if float(item["end_sec"]) > left and float(item["start_sec"]) < right
+            ]
+            if not overlaps:
                 continue
-            if _overlap_ratio(anchor, item) >= 0.5:
-                cluster.append(item)
-                source_names.add(item["source"])
-        if len(source_names) < MIN_CONSENSUS_SOURCES:
+            # One vote per provider. Prefer the segment covering the largest
+            # portion of this atomic window, then the highest source confidence.
+            chosen = max(
+                overlaps,
+                key=lambda item: (
+                    max(0.0, min(right, float(item["end_sec"])) - max(left, float(item["start_sec"]))),
+                    float(item.get("confidence") or 0.5),
+                ),
+            )
+            active.append(chosen)
+        if len(active) < MIN_CONSENSUS_SOURCES:
             continue
 
+        groups = defaultdict(list)
+        for item in active:
+            identity_key = _chord_identity_key(item["chord"])
+            if identity_key is not None:
+                groups[identity_key].append(item)
+        if not groups:
+            continue
+
+        winner_key, winner_items = max(
+            groups.items(),
+            key=lambda pair: (
+                len({item["source"] for item in pair[1]}),
+                sum(float(item.get("confidence") or 0.5) for item in pair[1]),
+            ),
+        )
+        supporting_sources = {item["source"] for item in winner_items}
+        active_sources = {item["source"] for item in active}
+        if len(supporting_sources) < MIN_CONSENSUS_SOURCES:
+            continue
+
+        anchor = winner_items[0]
         identity = _chord_identity(anchor["chord"])
-        if not identity:
-            continue
-        same_identity = [
-            item for item in cluster
-            if _chord_identity_key(item["chord"]) == _chord_identity_key(anchor["chord"])
-        ]
-        if len({item["source"] for item in same_identity}) < MIN_CONSENSUS_SOURCES:
-            continue
-
-        source_count = len({item["source"] for item in same_identity})
-        confidence_values = [float(item["confidence"] or 0.5) for item in same_identity]
-        agreement = source_count / max(1, len(source_names))
-        confidence = min(1.0, 0.5 * agreement + 0.5 * (sum(confidence_values) / len(confidence_values)))
-
-        start_sec = max(float(item["start_sec"]) for item in same_identity)
-        end_sec = min(float(item["end_sec"]) for item in same_identity)
-        if end_sec <= start_sec:
-            start_sec = min(float(item["start_sec"]) for item in same_identity)
-            end_sec = max(float(item["end_sec"]) for item in same_identity)
-
-        ambiguity = sorted({
-            alt
-            for item in cluster
-            for alt in _chord_ambiguity(item["chord"])
-            if alt != anchor["chord"]
-        })
-
-        consensus_item = {
-            "start_sec": start_sec,
-            "end_sec": end_sec,
+        confidence_values = [float(item.get("confidence") or 0.5) for item in winner_items]
+        agreement = len(supporting_sources) / max(1, len(active_sources))
+        confidence = min(
+            1.0,
+            0.5 * agreement + 0.5 * (sum(confidence_values) / len(confidence_values)),
+        )
+        competing = [item for item in active if item not in winner_items]
+        raw_consensus.append({
+            "start_sec": left,
+            "end_sec": right,
             "chord": anchor["chord"],
             "chord_family": anchor["chord"],
             "root": identity["root"],
             "quality": identity["quality"],
             "bass": identity["bass"],
             "pitch_classes": identity["pitch_classes"],
-            "pitch_set_equivalents": ambiguity,
+            "pitch_set_equivalents": sorted({
+                alt
+                for item in active
+                for alt in _chord_ambiguity(item["chord"])
+                if alt != anchor["chord"]
+            }),
             "confidence": confidence,
             "agreement": agreement,
-            "source_count": source_count,
-            "evidence": same_identity,
-            "competing_evidence": [
-                item for item in cluster if item not in same_identity
-            ],
-        }
-        consensus.append(consensus_item)
-        used.update(
-            (item["source"], float(item["start_sec"]), float(item["end_sec"]), item["chord"])
-            for item in same_identity
-        )
+            "source_count": len(supporting_sources),
+            "active_source_count": len(active_sources),
+            "evidence": winner_items,
+            "competing_evidence": competing,
+        })
+
+    # Merge adjacent windows with identical winning harmonic identity.
+    consensus = []
+    for item in raw_consensus:
+        if consensus and consensus[-1]["end_sec"] == item["start_sec"] and _chord_identity_key(consensus[-1]["chord"]) == _chord_identity_key(item["chord"]):
+            prev = consensus[-1]
+            prev["end_sec"] = item["end_sec"]
+            prev["confidence"] = (prev["confidence"] + item["confidence"]) / 2.0
+            prev["agreement"] = min(prev["agreement"], item["agreement"])
+            prev["source_count"] = max(prev["source_count"], item["source_count"])
+            prev["active_source_count"] = max(prev.get("active_source_count", 1), item.get("active_source_count", 1))
+            prev["evidence"].extend(item["evidence"])
+            prev["competing_evidence"].extend(item["competing_evidence"])
+        else:
+            consensus.append(item)
 
     strict_consensus = list(consensus)
     evidence_start = min(
