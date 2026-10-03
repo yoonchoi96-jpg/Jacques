@@ -1063,6 +1063,11 @@ ON CONFLICT(source) DO UPDATE SET
     updated_at = excluded.updated_at;
 """
 
+-- Remove the deprecated local released-track audio path.
+DROP TABLE IF EXISTS audio_library_assets;
+DELETE FROM music_analysis_evidence WHERE domain = 'audio_file';
+DELETE FROM source_registry WHERE source IN ('local_audio_library', 'acoustid');
+
 def run_migrations(conn):
     conn.executescript(MIGRATION_SCHEMA)
     conn.executescript(SOURCE_SEED)
