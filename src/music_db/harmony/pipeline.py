@@ -236,13 +236,7 @@ def analyze_track_audio(conn, track_id, audio_path):
     )
 
 def _build_beat_grid(consensus, tempo, beats_per_bar=4, time_signature="4/4"):
-    """Project timestamped consensus chords onto a relative beat/bar grid.
-
-    The grid is anchored to the first consensus onset because provider
-    evidence does not currently guarantee a song-level downbeat. We preserve
-    timestamps and explicitly mark the grid as relative rather than pretending
-    to know the absolute musical bar 1.
-    """
+    """Project timestamped chords onto a beat/bar grid without erasing intra-beat changes."""
     if not consensus or not tempo or tempo <= 0:
         return {
             "available": False,
@@ -259,35 +253,59 @@ def _build_beat_grid(consensus, tempo, beats_per_bar=4, time_signature="4/4"):
     anchor = float(consensus[0]["start_sec"])
     last_end = max(float(item["end_sec"]) for item in consensus)
     beat_count = max(1, int((last_end - anchor) / beat_duration + 0.999999))
+
     beats = []
     for index in range(beat_count):
         start = anchor + index * beat_duration
         end = start + beat_duration
-        midpoint = (start + end) / 2.0
-        active = next(
-            (
-                item for item in consensus
-                if float(item["start_sec"]) <= midpoint < float(item["end_sec"])
-            ),
-            None,
-        )
+        overlapping = [
+            item for item in consensus
+            if float(item["end_sec"]) > start and float(item["start_sec"]) < end
+        ]
+        overlapping.sort(key=lambda item: float(item["start_sec"]))
+        chords = []
+        for item in overlapping:
+            chord = item.get("chord")
+            if chord and chord not in chords:
+                chords.append(chord)
+
         beat_number = (index % beats_per_bar) + 1
         bar_number = (index // beats_per_bar) + 1
+        snapped = []
+        for item in overlapping:
+            snapped_beat_index = round(
+                (float(item["start_sec"]) - anchor) / beat_duration
+            )
+            snapped_beat = (snapped_beat_index % beats_per_bar) + 1
+            snapped_bar = (snapped_beat_index // beats_per_bar) + 1
+            snapped.append({
+                "chord": item.get("chord"),
+                "source_start_sec": round(float(item["start_sec"]), 4),
+                "snapped_bar": snapped_bar,
+                "snapped_beat": snapped_beat,
+            })
+
         beats.append({
             "bar": bar_number,
             "beat": beat_number,
             "start_sec": round(start, 4),
             "end_sec": round(end, 4),
-            "chord": active["chord"] if active else None,
-            "roman_numeral": active.get("roman_numeral") if active else None,
-            "confidence": active.get("confidence") if active else None,
+            "chord": chords[0] if len(chords) == 1 else (" → ".join(chords) if chords else None),
+            "chords": chords,
+            "changes": snapped,
+            "roman_numerals": [
+                item.get("roman_numeral") for item in overlapping
+                if item.get("roman_numeral")
+            ],
+            "confidence": (
+                sum(float(item.get("confidence") or 0.0) for item in overlapping) / len(overlapping)
+                if overlapping else None
+            ),
         })
 
     bars = []
-    for bar_number in range(1, (len(beats) // beats_per_bar) + 1):
-        bar_beats = [
-            beat for beat in beats if beat["bar"] == bar_number
-        ]
+    for bar_number in range(1, max((beat["bar"] for beat in beats), default=0) + 1):
+        bar_beats = [beat for beat in beats if beat["bar"] == bar_number]
         bars.append({
             "bar": bar_number,
             "beats": bar_beats,
@@ -304,7 +322,7 @@ def _build_beat_grid(consensus, tempo, beats_per_bar=4, time_signature="4/4"):
         "beat_duration_sec": round(beat_duration, 6),
         "beats": beats,
         "bars": bars,
-        "grid_semantics": "relative_to_first_consensus_onset",
+        "grid_semantics": "relative_to_first_consensus_onset_with_onset_snapping",
     }
 
 
