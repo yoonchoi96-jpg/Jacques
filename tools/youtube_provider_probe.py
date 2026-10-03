@@ -165,7 +165,31 @@ def run_provider(page, provider: str) -> dict:
                     else None
                 )
             result["harmony"] = chord_rows
-            result["harmony_payload"] = {
+            # Parse Methodic Truth's numbered CHORD CHART so bar-level structure
+        # survives independently from the finer PLAY ALONG timestamps.
+        chart_bars = []
+        try:
+            chart_start = next(i for i, line in enumerate(lines) if "② CHORD CHART" in line)
+            chart_end = next(i for i in range(chart_start + 1, len(lines)) if "③ PLAY ALONG" in lines[i])
+            chart_lines = lines[chart_start + 1:chart_end]
+            idx = 0
+            while idx < len(chart_lines):
+                if re.fullmatch(r"\d+", chart_lines[idx]):
+                    bar = int(chart_lines[idx])
+                    idx += 1
+                    tokens = []
+                    while idx < len(chart_lines) and not re.fullmatch(r"\d+", chart_lines[idx]):
+                        if re.fullmatch(r"[A-G](?:#|b)?(?:maj7|maj|min7|m7|min|m|dim7|dim|aug|sus2|sus4|sus|7|6|9|11|13|add9)?", chart_lines[idx]):
+                            tokens.extend(chart_lines[idx].split())
+                        idx += 1
+                    if tokens:
+                        chart_bars.append({"bar": bar, "chords": tokens})
+                else:
+                    idx += 1
+        except StopIteration:
+            chart_bars = []
+
+        result["harmony_payload"] = {
                 "source": "methodic_truth",
                 "source_url": "https://methodictruth.com/song-analyzer",
                 "youtube_url": YOUTUBE_URL,
@@ -174,7 +198,9 @@ def run_provider(page, provider: str) -> dict:
                 "key": metadata.get("key"),
                 "time_signature": metadata.get("time_signature"),
                 "segments": chord_rows,
+                "chart_bars": chart_bars,
                 "segment_count": len(chord_rows),
+                "chart_bar_count": len(chart_bars),
                 "method": "youtube_browser_analysis",
             }
             result["status"] = "success"
