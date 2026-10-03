@@ -1,4 +1,4 @@
-name: Spotify Music DB # [run-analysis] mazmazika retry
+name: Spotify Music DB # [run-analysis] mazmazika fixed
 
 on:
   push:
