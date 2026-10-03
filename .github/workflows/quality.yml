@@ -9,7 +9,6 @@ on:
       - "tools/**"
       - "tests/**"
       - "requirements.txt"
-      - "requirements-audio.txt"
       - "spotify_to_db.py"
       - ".github/workflows/**"
 
@@ -74,148 +73,15 @@ jobs:
               "chart_entries", "review_entries", "source_records",
               "generation_jobs", "generation_outputs",
               "generation_analysis", "generation_relations",
-              "audio_analysis_cache",
+              "audio_analysis_cache", "track_media_links",
           }
           actual = {r[0] for r in c.execute(
               "select name from sqlite_master where type='table'"
           )}
           missing = sorted(required - actual)
           assert not missing, f"Missing tables: {missing}"
+          assert "audio_library_assets" not in actual, "Local audio table must not exist"
+          print("Streaming-only media input schema OK")
           print("Required tables:", len(required))
           PY
 
-
-  audio-analysis:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.11"
-          cache: "pip"
-      - name: Install audio stack
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-audio.txt
-      - name: Analyze synthetic audio and verify cache
-        run: |
-          python - <<'PY'
-          import math
-          import soundfile as sf
-          import numpy as np
-          from pathlib import Path
-          p = Path("/tmp/jacques_test.wav")
-          sr = 22050
-          t = np.arange(sr * 5) / sr
-          y = 0.2 * np.sin(2 * math.pi * 440 * t)
-          sf.write(p, y, sr)
-          PY
-
-          PYTHONPATH=src python - <<'PY'
-          import sqlite3
-          from pathlib import Path
-          from music_db.database import initialize_database, get_connection
-          from music_db.production import analyze_and_store_production
-          from music_db.analysis_audio import analyze_and_store_scale_melody
-
-          initialize_database()
-          with get_connection() as conn:
-              conn.execute(
-                  "INSERT OR IGNORE INTO tracks(track_id, title) VALUES (?, ?)",
-                  ("synthetic-test", "Synthetic Test"),
-              )
-              conn.commit()
-
-          production = analyze_and_store_production(
-              "synthetic-test", "/tmp/jacques_test.wav", stage="test"
-          )
-          scale_melody = analyze_and_store_scale_melody(
-              "synthetic-test", "/tmp/jacques_test.wav"
-          )
-
-          with get_connection() as conn:
-              production_count = conn.execute(
-                  "SELECT COUNT(*) FROM production_analysis WHERE track_id=?",
-                  ("synthetic-test",),
-              ).fetchone()[0]
-              observation_count = conn.execute(
-                  "SELECT COUNT(*) FROM production_observations WHERE track_id=?",
-                  ("synthetic-test",),
-              ).fetchone()[0]
-              scale_count = conn.execute(
-                  "SELECT COUNT(*) FROM scale_mode_analysis WHERE track_id=?",
-                  ("synthetic-test",),
-              ).fetchone()[0]
-              melody_count = conn.execute(
-                  "SELECT COUNT(*) FROM melody_analysis WHERE track_id=?",
-                  ("synthetic-test",),
-              ).fetchone()[0]
-
-          assert production["evidence_id"] > 0
-          assert scale_melody["evidence_id"] > 0
-          assert production_count == 1
-          assert observation_count >= 1
-          assert scale_count == 1
-          assert melody_count == 1
-          print("Jacques production/scale/melody persistence OK")
-          PY
-
-          PYTHONPATH=src python - <<'PY'
-          import sqlite3
-          from pathlib import Path
-          from tempfile import TemporaryDirectory
-          from unittest.mock import patch
-          from music_db.generation.audio_analysis import analyze_and_store, analyze_audio
-
-          audio = "/tmp/jacques_test.wav"
-          result = analyze_audio(audio)
-          assert result["analysis_version"] == "audio_features_v4"
-          assert result["sample_rate"] == 22050
-          assert result["duration_seconds"] > 4.9
-          assert "mfcc_mean" in result
-          assert "spectral_contrast_mean_db" in result
-          print("Audio analysis v4 OK")
-
-          with TemporaryDirectory() as td:
-              db = sqlite3.connect(Path(td) / "cache.db")
-              db.row_factory = sqlite3.Row
-              db.executescript("""
-              CREATE TABLE generation_outputs (
-                  output_id INTEGER PRIMARY KEY,
-                  duration_seconds REAL,
-                  bpm REAL,
-                  sample_rate INTEGER,
-                  format TEXT,
-                  analysis_json TEXT
-              );
-              CREATE TABLE generation_analysis (
-                  output_id INTEGER,
-                  analysis_type TEXT,
-                  payload_json TEXT,
-                  created_at TEXT
-              );
-              CREATE TABLE audio_analysis_cache (
-                  fingerprint_sha256 TEXT NOT NULL,
-                  analysis_type TEXT NOT NULL,
-                  payload_json TEXT NOT NULL,
-                  created_at TEXT,
-                  updated_at TEXT,
-                  PRIMARY KEY (fingerprint_sha256, analysis_type)
-              );
-              """)
-              db.execute("INSERT INTO generation_outputs(output_id) VALUES (1)")
-              db.commit()
-
-              analyze_and_store(db, 1, audio)
-              assert db.execute("SELECT COUNT(*) FROM audio_analysis_cache").fetchone()[0] == 1
-
-              with patch("music_db.generation.audio_analysis.analyze_audio",
-                         side_effect=AssertionError("DSP recomputed despite cache")):
-                  analyze_and_store(db, 1, audio)
-
-              assert db.execute("SELECT COUNT(*) FROM audio_analysis_cache").fetchone()[0] == 1
-              print("DSP fingerprint cache OK")
-              db.close()
-          PY
