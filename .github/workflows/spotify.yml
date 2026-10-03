@@ -68,6 +68,10 @@ jobs:
         run: |
           python spotify_to_db.py
 
+      - name: Sync editorial and catalog sources
+        run: |
+          python tools/sync_editorial_sources.py
+
       - name: Validate SQLite
         run: |
           sqlite3 db/music.db "PRAGMA integrity_check;" | grep -qx "ok"
