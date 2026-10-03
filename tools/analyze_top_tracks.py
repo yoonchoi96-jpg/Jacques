@@ -127,7 +127,15 @@ def _candidate_is_strong(
     candidate_blob = _norm_text(
         f'{candidate.get("title") or ""} {candidate.get("channel") or ""}'
     )
-    title_exact = bool(target_core and target_core == candidate_core)
+    title_exact = bool(
+        target_core
+        and candidate_core
+        and (
+            target_core == candidate_core
+            or target_core in candidate_core
+            or candidate_core in target_core
+        )
+    )
     artist_exact = any(
         _norm_text(artist) and _norm_text(artist) in candidate_blob
         for artist in artists
