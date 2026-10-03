@@ -9,6 +9,14 @@ class MagicChordsTimeout(TimeoutError):
         self.job_id = job_id
 
 
+class MagicChordsResultError(RuntimeError):
+    """The job exists, but fetching its completed result failed."""
+
+    def __init__(self, job_id: str, message: str):
+        super().__init__(f"Magic Chords result fetch failed for {job_id}: {message}")
+        self.job_id = job_id
+
+
 def _segments(result):
     raw = result.get("chords") or result.get("segments") or result.get("timeline") or []
     if isinstance(raw, dict):
@@ -33,6 +41,7 @@ def _poll(page, job_id, polls, wait):
     for _ in range(polls):
         state = page.evaluate("""async (id) => {
             const r = await fetch("%s/jobs/" + id);
+            if (!r.ok) throw new Error("status " + r.status);
             return await r.json();
         }""" % BASE_URL, job_id)
         status = str(state.get("status") or state.get("state") or "").lower()
@@ -61,11 +70,15 @@ def analyze(page, youtube_url, polls=24, wait=5, job_id=None):
             raise RuntimeError("Magic Chords returned no job id")
 
     _poll(page, job_id, polls, wait)
-    result = page.evaluate("""async (id) => {
-        const r = await fetch("%s/jobs/" + id + "/result");
-        if (!r.ok) throw new Error("result " + r.status);
-        return await r.json();
-    }""" % BASE_URL, job_id)
+    try:
+        result = page.evaluate("""async (id) => {
+            const r = await fetch("%s/jobs/" + id + "/result");
+            if (!r.ok) throw new Error("result " + r.status);
+            return await r.json();
+        }""" % BASE_URL, job_id)
+    except Exception as exc:
+        raise MagicChordsResultError(job_id, str(exc)) from exc
+
     return {
         "source": "magic_chords",
         "source_url": BASE_URL + "/jobs/" + job_id + "/result",
