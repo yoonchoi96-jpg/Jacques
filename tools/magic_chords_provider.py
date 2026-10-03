@@ -3,19 +3,24 @@ from __future__ import annotations
 BASE_URL = "https://magic-chords.dev/api/v1"
 
 
+class MagicChordsJobError(RuntimeError):
+    """A submitted job failed during status/result retrieval."""
+
+    def __init__(self, job_id: str, stage: str, message: str):
+        super().__init__(f"Magic Chords {stage} failed for {job_id}: {message}")
+        self.job_id = job_id
+        self.stage = stage
+
+
 class MagicChordsTimeout(TimeoutError):
     def __init__(self, job_id: str):
         super().__init__(f"Magic Chords job timed out: {job_id}")
         self.job_id = job_id
 
 
-class MagicChordsResultError(RuntimeError):
-    """The job exists, but fetching its completed result failed."""
-
+class MagicChordsResultError(MagicChordsJobError):
     def __init__(self, job_id: str, message: str):
-        super().__init__(f"Magic Chords result fetch failed for {job_id}: {message}")
-        self.job_id = job_id
-
+        super().__init__(job_id, "result fetch", message)
 
 def _segments(result):
     raw = result.get("chords") or result.get("segments") or result.get("timeline") or []
@@ -39,11 +44,14 @@ def _segments(result):
 
 def _poll(page, job_id, polls, wait):
     for _ in range(polls):
-        state = page.evaluate("""async (id) => {
-            const r = await fetch("%s/jobs/" + id);
-            if (!r.ok) throw new Error("status " + r.status);
-            return await r.json();
-        }""" % BASE_URL, job_id)
+        try:
+            state = page.evaluate("""async (id) => {
+                const r = await fetch("%s/jobs/" + id);
+                if (!r.ok) throw new Error("status " + r.status);
+                return await r.json();
+            }""" % BASE_URL, job_id)
+        except Exception as exc:
+            raise MagicChordsJobError(job_id, "status poll", str(exc)) from exc
         status = str(state.get("status") or state.get("state") or "").lower()
         if status in {"completed", "complete", "done", "success"}:
             return
@@ -51,7 +59,6 @@ def _poll(page, job_id, polls, wait):
             raise RuntimeError("Magic Chords job failed: " + status)
         page.wait_for_timeout(wait * 1000)
     raise MagicChordsTimeout(job_id)
-
 
 def analyze(page, youtube_url, polls=24, wait=5, job_id=None):
     page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
