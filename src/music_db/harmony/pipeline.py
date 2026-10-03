@@ -38,6 +38,7 @@ QUALITY_INTERVALS = {
 }
 MAX_HARMONY_SOURCES = 5
 MIN_CONSENSUS_SOURCES = 2
+MIN_CONSENSUS_COVERAGE = 0.20
 SOURCE_PRIORITY = {
     "chordidentifier": 10,
     "chordino": 20,
@@ -425,11 +426,41 @@ def fuse_track_harmony(conn, track_id):
             for item in same_identity
         )
 
+    strict_consensus = list(consensus)
+    evidence_start = min(
+        float(item["start_sec"]) for item in candidates
+    ) if candidates else None
+    evidence_end = max(
+        float(item["end_sec"]) for item in candidates
+    ) if candidates else None
+    strict_duration = (
+        max(float(item["end_sec"]) for item in strict_consensus)
+        - min(float(item["start_sec"]) for item in strict_consensus)
+    ) if strict_consensus else 0.0
+    evidence_duration = (
+        evidence_end - evidence_start
+        if evidence_start is not None and evidence_end is not None
+        else 0.0
+    )
+    strict_coverage = (
+        strict_duration / evidence_duration
+        if evidence_duration > 0 else 0.0
+    )
+
     fusion_mode = "strict_multi_source_consensus"
-    if not consensus:
+    if not consensus or strict_coverage < MIN_CONSENSUS_COVERAGE:
         fallback_source = max(
             sources,
-            key=lambda source: len(by_source[source]),
+            key=lambda source: (
+                max(
+                    (float(item["end_sec"]) for item in by_source[source]),
+                    default=0.0,
+                ) - min(
+                    (float(item["start_sec"]) for item in by_source[source]),
+                    default=0.0
+                ),
+                len(by_source[source]),
+            ),
             default=None,
         )
         fallback = []
@@ -546,6 +577,9 @@ def fuse_track_harmony(conn, track_id):
             "identity_rule": "root_pitch_class+quality+bass_pitch_class",
             "pitch_set_equivalents_are_not_merged": True,
             "fusion_mode": fusion_mode,
+            "strict_consensus_segment_count": len(strict_consensus),
+            "strict_consensus_coverage": round(strict_coverage, 4),
+            "minimum_consensus_coverage": MIN_CONSENSUS_COVERAGE,
         },
     }
 
