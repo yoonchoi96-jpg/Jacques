@@ -186,6 +186,94 @@ def analyze_track_audio(conn, track_id, audio_path):
         "and import provider evidence instead."
     )
 
+def _build_beat_grid(consensus, tempo, beats_per_bar=4):
+    """Project timestamped consensus chords onto a relative beat/bar grid.
+
+    The grid is anchored to the first consensus onset because provider
+    evidence does not currently guarantee a song-level downbeat. We preserve
+    timestamps and explicitly mark the grid as relative rather than pretending
+    to know the absolute musical bar 1.
+    """
+    if not consensus or not tempo or tempo <= 0:
+        return {
+            "available": False,
+            "reason": "missing_tempo_or_consensus",
+            "time_signature": "4/4",
+            "time_signature_source": "default",
+            "anchor_sec": None,
+            "beat_duration_sec": None,
+            "beats": [],
+            "bars": [],
+        }
+
+    beat_duration = 60.0 / float(tempo)
+    anchor = float(consensus[0]["start_sec"])
+    last_end = max(float(item["end_sec"]) for item in consensus)
+    beat_count = max(1, int((last_end - anchor) / beat_duration + 0.999999))
+    beats = []
+    for index in range(beat_count):
+        start = anchor + index * beat_duration
+        end = start + beat_duration
+        midpoint = (start + end) / 2.0
+        active = next(
+            (
+                item for item in consensus
+                if float(item["start_sec"]) <= midpoint < float(item["end_sec"])
+            ),
+            None,
+        )
+        beat_number = (index % beats_per_bar) + 1
+        bar_number = (index // beats_per_bar) + 1
+        beats.append({
+            "bar": bar_number,
+            "beat": beat_number,
+            "start_sec": round(start, 4),
+            "end_sec": round(end, 4),
+            "chord": active["chord"] if active else None,
+            "roman_numeral": active.get("roman_numeral") if active else None,
+            "confidence": active.get("confidence") if active else None,
+        })
+
+    bars = []
+    for bar_number in range(1, (len(beats) // beats_per_bar) + 1):
+        bar_beats = [
+            beat for beat in beats if beat["bar"] == bar_number
+        ]
+        bars.append({
+            "bar": bar_number,
+            "beats": bar_beats,
+            "compact": " ".join(
+                beat["chord"] or "." for beat in bar_beats
+            ),
+        })
+
+    return {
+        "available": True,
+        "time_signature": "4/4",
+        "time_signature_source": "default",
+        "anchor_sec": round(anchor, 4),
+        "beat_duration_sec": round(beat_duration, 6),
+        "beats": beats,
+        "bars": bars,
+        "grid_semantics": "relative_to_first_consensus_onset",
+    }
+
+
+def _build_prompt_harmony(beat_grid):
+    if not beat_grid.get("available"):
+        return None
+    lines = [
+        f"TIME: {beat_grid['time_signature']}",
+        f"BEAT: {beat_grid['beat_duration_sec']:.3f}s",
+        "HARMONY GRID:",
+    ]
+    for bar in beat_grid["bars"]:
+        lines.append(f"Bar {bar['bar']:02d} | " + " | ".join(
+            f"{beat['beat']}:{beat['chord'] or '.'}"
+            for beat in bar["beats"]
+        ))
+    return "\n".join(lines)
+
 def fuse_track_harmony(conn, track_id):
     """Fuse up to five independent observations without collapsing harmonic identity.
 
@@ -341,10 +429,15 @@ def fuse_track_harmony(conn, track_id):
         max(1.0, consensus[-1]["end_sec"] - consensus[0]["start_sec"])
     ) if consensus else None
 
+    beat_grid = _build_beat_grid(consensus, tempo)
+    prompt_harmony = _build_prompt_harmony(beat_grid)
+
     profile = {
         "progression": progression,
         "roman_progression": [item["roman_numeral"] for item in consensus],
         "segments": consensus,
+        "beat_grid": beat_grid,
+        "prompt_harmony": prompt_harmony,
         "harmonic_rhythm_sec": harmonic_rhythm,
         "chord_change_rate_per_sec": change_rate,
         "extensions": sorted({
