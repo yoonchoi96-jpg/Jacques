@@ -67,3 +67,22 @@ def test_consensus_requires_two_sources_and_preserves_competing_label():
     assert "C6" in segment["pitch_set_equivalents"]
     assert segment["competing_evidence"][0]["chord"] == "C6"
     assert profile["consensus_policy"]["minimum_agreeing_sources"] == 2
+
+
+def test_enharmonic_spelling_can_reach_consensus_without_collapsing_source_text():
+    conn = _conn()
+    rows = [
+        ("t2", "source_a", None, 0.0, 4.0, "C#maj7", 0.9),
+        ("t2", "source_b", None, 0.1, 4.1, "Dbmaj7", 0.8),
+    ]
+    conn.executemany(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows
+    )
+    conn.execute("INSERT INTO harmony_sources VALUES ('t2', 'Db major', 0.9)")
+    conn.commit()
+
+    profile = fuse_track_harmony(conn, "t2")
+
+    assert profile["progression"] == ["C#maj7"]
+    assert profile["segments"][0]["source_count"] == 2
+    assert profile["segments"][0]["evidence"][1]["chord"] == "Dbmaj7"
