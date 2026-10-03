@@ -1,8 +1,31 @@
 # Jacques Production Workflow
 
-Jacques treats a music production as a persistent project rather than a single generation request.
+Jacques has two distinct media paths:
 
-## 1. Create a project
+1. **Released-track analysis** is streaming/link-only.
+2. **Generated production projects** may store local generated/reference assets when they are owned project assets.
+
+## Released-track analysis
+
+```text
+Spotify track URL / YouTube URL
+        ↓
+external provider
+        ↓
+raw evidence
+        ↓
+consensus
+        ↓
+music-theory / production interpretation
+        ↓
+SQLite
+        ↓
+Obsidian
+```
+
+Do not download, cache, fingerprint, or locally DSP-analyze released music. A provider may process a public URL on its own infrastructure, but Jacques stores only the link and returned structured evidence.
+
+## 1. Create a generation project
 
 ```bash
 python tools/create_project.py "My Track"
@@ -19,15 +42,11 @@ projects/My_Track/
 └── final/
 ```
 
-## 2. Import reference audio
+The project directories are for **owned/generated production assets**, not for downloading released reference tracks.
 
-```bash
-python tools/import_audio.py <project_id> /path/to/reference.wav --type reference
-```
+## 2. Generate
 
-The source is copied into the project and fingerprinted with SHA-256.
-
-## 3. Generate
+Mureka:
 
 ```bash
 python tools/generate.py \
@@ -37,9 +56,7 @@ python tools/generate.py \
   --prompt "..."
 ```
 
-Generated outputs are attached to the project, fingerprinted, analyzed, and recorded in SQLite.
-
-ACE-Step uses the same project storage:
+ACE-Step:
 
 ```bash
 python tools/generate.py \
@@ -49,13 +66,13 @@ python tools/generate.py \
   --prompt "..."
 ```
 
-## 4. Continue a lineage
+Generated outputs are attached to the project and recorded in SQLite.
+
+## 3. Continue a lineage
 
 Pass the parent job when a generation is derived from an earlier generation. Jacques records the output relation so the production tree can be reconstructed later.
 
-## 5. Promote a version
-
-Move/copy a chosen output into another project stage:
+## 4. Promote a version
 
 ```bash
 python tools/promote_output.py <output_id> --stage edits
@@ -64,7 +81,7 @@ python tools/promote_output.py <output_id> --stage final
 
 Only one output may occupy the `final` stage of a project at a time.
 
-## 6. Track production decisions
+## 5. Track production decisions
 
 ```bash
 python tools/project_note.py <project_id> "Keep the second chorus arrangement; reduce vocal reverb."
@@ -72,22 +89,43 @@ python tools/project_note.py <project_id> "Keep the second chorus arrangement; r
 
 Notes are stored in SQLite and exported to Obsidian.
 
-## 7. Inspect the project
+## 6. Inspect the project
 
 ```bash
 python tools/project_status.py <project_id>
 python tools/project_status.py <project_id> --json
 ```
 
+## 7. Analyze released references
+
+For released tracks, register the Spotify/YouTube link and let an external provider produce evidence.
+
+```bash
+python tools/register_media_link.py <track_id> <spotify-or-youtube-url>
+```
+
+External analysis results belong in:
+
+- `music_analysis_evidence`
+- `harmony_segments`
+- `harmony_consensus`
+- `harmony_profiles`
+- `harmony_structures`
+- `melody_analysis`
+- `scale_mode_analysis`
+- `production_analysis`
+
+The underlying released audio must not be stored by Jacques.
+
 ## 8. Export to Obsidian
 
-The existing Obsidian export includes project metadata, assets, production notes, generation outputs, fingerprints, and stages.
+The Obsidian export is the knowledge/research view of the database. Generated production metadata, notes, lineage, and analysis evidence can be exported without making local released-track audio part of the export.
 
 ## Storage principle
 
-- Local project directory: authoritative location for production audio files.
-- SQLite: authoritative production metadata, fingerprints, analysis, jobs, outputs, relations, and notes.
-- Obsidian: research/knowledge view of the production history.
-- GitHub: Jacques code, schema, tests, and documentation; production audio is excluded from Git.
+- **Generated project directory:** authoritative location for owned/generated production assets.
+- **SQLite:** authoritative production metadata, analysis evidence, jobs, outputs, relations, and notes.
+- **Obsidian:** research/knowledge view.
+- **GitHub:** Jacques code, schema, tests, and documentation.
 
-This keeps large audio files local while retaining a complete machine-readable production history.
+This separation keeps the released-music analysis pipeline streaming-only while allowing the generation subsystem to maintain its own owned local assets.
