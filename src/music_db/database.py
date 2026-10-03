@@ -1068,6 +1068,8 @@ VALUES
      'YouTube-linked transcription candidate for notes/MIDI/MusicXML; disabled until browser automation/export path is verified', CURRENT_TIMESTAMP),
     ('acousterr', 'web', 137, 0, 'melody_evidence',
      'YouTube-linked notes/chords/key transcription candidate; disabled until browser automation/export path is verified', CURRENT_TIMESTAMP),
+    ('youtube_loudness_console', 'web', 165, 0, 'production_evidence',
+     'Browser-based YouTube playback metering candidate for LUFS/peak/spectrum/stereo; disabled until reproducible automated extraction is verified', CURRENT_TIMESTAMP),
     ('spotify_stream', 'web', 10, 1, 'media_input',
      'Spotify track/stream URLs identify playback targets; Jacques does not download or store the underlying audio', CURRENT_TIMESTAMP)
 ON CONFLICT(source) DO UPDATE SET
