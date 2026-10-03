@@ -522,6 +522,9 @@ def fuse_track_harmony(conn, track_id):
     prompt_harmony = _build_prompt_harmony(beat_grid)
 
     profile = {
+        "key": resolved_key,
+        "tempo": tempo,
+        "time_signature": "4/4",
         "progression": progression,
         "roman_progression": [item["roman_numeral"] for item in consensus],
         "segments": consensus,
