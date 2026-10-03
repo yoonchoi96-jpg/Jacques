@@ -152,13 +152,18 @@ def main() -> None:
                     if attempt < PROVIDER_RETRIES:
                         page.wait_for_timeout(min(10_000, attempt * 2_000))
                 except Exception as exc:
+                    error_text = f"{type(exc).__name__}: {exc}"
                     result = {
                         "provider": provider,
                         "youtube_url": YOUTUBE_URL,
-                        "status": "exception",
+                        "status": "rate_limited" if "429" in error_text else "exception",
                         "attempt": attempt,
-                        "error": f"{type(exc).__name__}: {exc}",
+                        "error": error_text,
                     }
+                    # A provider-side 429 must never cause a second heavy submission.
+                    # Preserve the evidence and move on to the next provider.
+                    if "429" in error_text:
+                        break
                     if attempt < PROVIDER_RETRIES:
                         page.wait_for_timeout(min(10_000, attempt * 2_000))
             results.append(result)
