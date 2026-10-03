@@ -54,6 +54,41 @@ jobs:
           sqlite3 db/music.db "PRAGMA integrity_check;" | grep -qx "ok"
           python tools/db_quality.py --fail-on-error
 
+      - name: Output Spotify Top 3 / Top 10 (Long Term)
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          import spotipy
+          from spotipy.oauth2 import SpotifyOAuth
+
+          oauth = SpotifyOAuth(
+              client_id=os.environ["SPOTIFY_CLIENT_ID"],
+              client_secret=os.environ["SPOTIFY_CLIENT_SECRET"],
+              redirect_uri="http://127.0.0.1:8888/callback",
+              scope="user-top-read",
+          )
+          token_info = oauth.refresh_access_token(os.environ["SPOTIFY_REFRESH_TOKEN"])
+          sp = spotipy.Spotify(auth=token_info["access_token"])
+
+          items = sp.current_user_top_tracks(limit=10, time_range="long_term").get("items", [])
+
+          print("\n" + "=" * 60)
+          print("SPOTIFY LONG-TERM TOP 3 / TOP 10")
+          print("=" * 60)
+
+          for i, track in enumerate(items, start=1):
+              artists = ", ".join(a.get("name", "") for a in track.get("artists", []))
+              print(f"{i:>2}. {track.get('name', '')} — {artists}")
+              if i == 3:
+                  print("-" * 60)
+
+          print("=" * 60)
+          PY
+
       - name: Commit database changes
         run: |
           git config user.name "github-actions[bot]"
