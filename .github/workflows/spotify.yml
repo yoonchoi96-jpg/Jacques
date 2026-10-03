@@ -1,7 +1,6 @@
-name: Spotify Music DB # live analysis test
+name: Spotify Music DB
 
 on:
-  push:
   workflow_dispatch:
     inputs:
       analysis_scope:
