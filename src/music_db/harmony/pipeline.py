@@ -543,10 +543,21 @@ def fuse_track_harmony(conn, track_id):
     evidence_end = max(
         float(item["end_sec"]) for item in candidates
     ) if candidates else None
-    strict_duration = (
-        max(float(item["end_sec"]) for item in strict_consensus)
-        - min(float(item["start_sec"]) for item in strict_consensus)
-    ) if strict_consensus else 0.0
+    strict_intervals = sorted(
+        (float(item["start_sec"]), float(item["end_sec"]))
+        for item in strict_consensus
+        if float(item["end_sec"]) > float(item["start_sec"])
+    )
+    strict_duration = 0.0
+    if strict_intervals:
+        cur_start, cur_end = strict_intervals[0]
+        for start_sec, end_sec in strict_intervals[1:]:
+            if start_sec <= cur_end:
+                cur_end = max(cur_end, end_sec)
+            else:
+                strict_duration += cur_end - cur_start
+                cur_start, cur_end = start_sec, end_sec
+        strict_duration += cur_end - cur_start
     evidence_duration = (
         evidence_end - evidence_start
         if evidence_start is not None and evidence_end is not None
@@ -722,6 +733,19 @@ def fuse_track_harmony(conn, track_id):
             )
         prompt_harmony = (prompt_harmony + "\n\n" + "\n".join(chart_lines)) if prompt_harmony else "\n".join(chart_lines)
 
+    provider_coverage = {}
+    for source in sources:
+        source_items = by_source[source]
+        if source_items:
+            source_start = min(float(item["start_sec"]) for item in source_items)
+            source_end = max(float(item["end_sec"]) for item in source_items)
+            provider_coverage[source] = {
+                "start_sec": round(source_start, 4),
+                "end_sec": round(source_end, 4),
+                "duration_sec": round(max(0.0, source_end - source_start), 4),
+                "segment_count": len(source_items),
+            }
+
     profile = {
         "key": resolved_key,
         "tempo": tempo,
@@ -743,6 +767,7 @@ def fuse_track_harmony(conn, track_id):
             sum(item["confidence"] for item in consensus) / len(consensus)
             if consensus else 0
         ),
+        "provider_coverage": provider_coverage,
         "consensus_policy": {
             "max_sources": MAX_HARMONY_SOURCES,
             "minimum_agreeing_sources": MIN_CONSENSUS_SOURCES,
