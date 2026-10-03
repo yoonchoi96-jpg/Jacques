@@ -502,5 +502,44 @@ def fuse_track_harmony(conn, track_id):
             _now(), _now(),
         ),
     )
+    # Persist normalized harmonic structure separately from the consensus label.
+    # UST fields are only populated when evidence explicitly supplies them;
+    # a slash chord/inversion is never silently reinterpreted as a UST.
+    conn.execute("DELETE FROM harmony_structures WHERE track_id=?", (track_id,))
+    for item in consensus:
+        identity = _chord_identity(item["chord"]) or {}
+        bass = identity.get("bass") or identity.get("root")
+        root = identity.get("root")
+        inversion = None
+        if bass and root and bass != root:
+            inversion = "slash_bass"
+        evidence_ids = []
+        cur = conn.execute(
+            """INSERT INTO music_analysis_evidence
+               (track_id, domain, source, source_type, method, version,
+                start_sec, end_sec, payload_json, confidence, observed_at, created_at)
+               VALUES (?, 'harmony', 'harmony_consensus', 'derived', ?, 'consensus_v1', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
+            (
+                track_id, "multi_source_consensus", item["start_sec"], item["end_sec"],
+                json.dumps(item, ensure_ascii=False), item["confidence"],
+            ),
+        )
+        evidence_ids.append(int(cur.lastrowid))
+        conn.execute(
+            """INSERT INTO harmony_structures
+               (track_id, start_sec, end_sec, root, bass_note, chord_quality,
+                inversion, upper_structure_root, upper_structure_quality,
+                upper_structure_notes, pitch_classes, roman_candidate,
+                function_candidate, secondary_function, borrowed_from_mode,
+                confidence, evidence_json, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
+            (
+                track_id, item["start_sec"], item["end_sec"], root, bass,
+                identity.get("quality"), inversion, None, None, None,
+                json.dumps(identity.get("pitch_classes", [])),
+                item.get("roman_numeral"), None, None, None, item["confidence"],
+                json.dumps({"evidence_ids": evidence_ids, "pitch_set_equivalents": item.get("pitch_set_equivalents", []), "competing_evidence": item.get("competing_evidence", [])}, ensure_ascii=False),
+            ),
+        )
     conn.commit()
     return profile
