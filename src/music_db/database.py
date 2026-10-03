@@ -1027,8 +1027,6 @@ VALUES
      'Apple Music catalog/search/charts adapter', CURRENT_TIMESTAMP),
     ('discogs', 'api', 75, 0, 'release_credit_metadata',
      'Optional release/label/credit metadata adapter', CURRENT_TIMESTAMP),
-    ('acoustid', 'api', 90, 0, 'audio_identity',
-     'Optional audio fingerprint identification', CURRENT_TIMESTAMP),
     ('mureka', 'api', 200, 0, 'generation',
      'Cloud music generation provider adapter', CURRENT_TIMESTAMP),
     ('ace_step', 'api', 210, 0, 'generation',
