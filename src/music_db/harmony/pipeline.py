@@ -41,6 +41,7 @@ MIN_CONSENSUS_SOURCES = 2
 SOURCE_PRIORITY = {
     "chordidentifier": 10,
     "chordino": 20,
+    "magic_chords": 25,
     "essentia": 30,
     "librosa_chroma_template": 40,
 }
