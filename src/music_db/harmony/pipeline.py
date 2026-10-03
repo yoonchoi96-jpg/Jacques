@@ -41,6 +41,12 @@ QUALITY_INTERVALS = {
 }
 MAX_HARMONY_SOURCES = 5
 MIN_CONSENSUS_SOURCES = 2
+SOURCE_PRIORITY = {
+    "chordidentifier": 10,
+    "chordino": 20,
+    "essentia": 30,
+    "librosa_chroma_template": 40,
+}
 
 def _family(chord):
     chord = str(chord or "").strip()
@@ -308,7 +314,10 @@ def fuse_track_harmony(conn, track_id):
     for row in rows:
         by_source[row["source"]].append(dict(row))
 
-    sources = sorted(by_source)[:MAX_HARMONY_SOURCES]
+    sources = sorted(
+        by_source,
+        key=lambda source: (SOURCE_PRIORITY.get(source, 100), source),
+    )[:MAX_HARMONY_SOURCES]
     evidence_rows = [item for source in sources for item in by_source[source]]
     candidates = []
     for item in evidence_rows:
