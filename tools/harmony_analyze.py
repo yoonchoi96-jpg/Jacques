@@ -12,12 +12,11 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from music_db.database import initialize_database
-from music_db.harmony import analyze_track_audio, import_external_harmony, fuse_track_harmony
+from music_db.harmony import import_external_harmony, fuse_track_harmony
 
 def main():
     parser = argparse.ArgumentParser(description="Jacques multi-source harmony analysis")
     parser.add_argument("track_id")
-    parser.add_argument("--audio", help="Path to legally available local audio")
     parser.add_argument("--external-json", action="append", help="Normalized external harmony JSON")
     args = parser.parse_args()
 
@@ -25,9 +24,6 @@ def main():
     conn = sqlite3.connect(ROOT / "db" / "music.db")
     conn.row_factory = sqlite3.Row
     try:
-        if args.audio:
-            print(f"[Jacques Harmony] audio={args.audio}")
-            analyze_track_audio(conn, args.track_id, args.audio)
         for path in args.external_json or []:
             payload = json.loads(Path(path).read_text(encoding="utf-8"))
             count = import_external_harmony(conn, args.track_id, payload)
