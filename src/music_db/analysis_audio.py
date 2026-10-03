@@ -184,6 +184,31 @@ def analyze_and_store_scale_melody(track_id: str, audio_path: str | Path) -> dic
         confidence=scale.get("confidence"),
     )
     with get_connection() as conn:
+        melody = result.get("melody")
+        chord_tone_ratio = None
+        if melody:
+            structures = conn.execute(
+                "SELECT start_sec, end_sec, pitch_classes FROM harmony_structures WHERE track_id=? ORDER BY start_sec",
+                (track_id,),
+            ).fetchall()
+            if structures:
+                total_weight = sum(melody["pitch_class_distribution"].values())
+                chord_weight = 0
+                for row in structures:
+                    try:
+                        pcs = set(json.loads(row["pitch_classes"] or "[]"))
+                    except (TypeError, ValueError):
+                        pcs = set()
+                    if not pcs:
+                        continue
+                    for name, count in melody["pitch_class_distribution"].items():
+                        pc = PC_NAMES.index(name)
+                        if pc in pcs:
+                            chord_weight += int(count)
+                if total_weight:
+                    chord_tone_ratio = float(chord_weight / total_weight)
+            melody["chord_tone_ratio"] = chord_tone_ratio
+
         conn.execute("DELETE FROM scale_mode_analysis WHERE track_id=?", (track_id,))
         conn.execute(
             """INSERT INTO scale_mode_analysis
@@ -208,8 +233,9 @@ def analyze_and_store_scale_melody(track_id: str, audio_path: str | Path) -> dic
                    (track_id, section_name, start_sec, end_sec, key_candidate,
                     mode_candidate, scale_candidate, range_semitones, mean_midi,
                     contour, pitch_class_distribution_json, interval_distribution_json,
-                    motif_json, confidence, evidence_json, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
+                    motif_json, non_chord_tone_json, chord_tone_ratio, confidence,
+                    evidence_json, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
                 (
                     track_id, "full_track", melody["start_sec"], melody["end_sec"],
                     scale.get("tonic"), scale.get("mode"), scale.get("scale"),
@@ -217,6 +243,8 @@ def analyze_and_store_scale_melody(track_id: str, audio_path: str | Path) -> dic
                     json.dumps(melody["pitch_class_distribution"]),
                     json.dumps(melody["interval_distribution"]),
                     json.dumps(melody["motif_interval_candidate"]),
+                    json.dumps({"chord_tone_ratio": chord_tone_ratio}),
+                    chord_tone_ratio,
                     result["confidence"],
                     json.dumps({"evidence_ids": [evidence_id]}),
                 ),
