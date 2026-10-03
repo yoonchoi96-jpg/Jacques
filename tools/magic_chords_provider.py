@@ -23,6 +23,7 @@ def _segments(result):
     return out
 
 def analyze(page, youtube_url, polls=24, wait=5):
+    page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
     job = page.evaluate("""async ({url}) => {
         const r = await fetch("%s/analyze/url", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({url})});
         return await r.json();
