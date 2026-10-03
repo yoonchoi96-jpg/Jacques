@@ -79,7 +79,28 @@ def _chord_identity(chord):
     root, quality, bass = _split(chord)
     if root is None:
         return None
-    return {"root": root, "quality": quality, "bass": bass, "pitch_classes": _pitch_classes(chord)}
+    return {
+        "root": root,
+        "quality": quality,
+        "bass": bass,
+        "pitch_classes": _pitch_classes(chord),
+    }
+
+
+def _chord_identity_key(chord):
+    """Match harmonic identity by pitch class while preserving source spelling."""
+    identity = _chord_identity(chord)
+    if not identity:
+        return None
+    root_pc = CHORD_ROOT_TO_PC.get(identity["root"])
+    bass_pc = (
+        CHORD_ROOT_TO_PC.get(identity["bass"])
+        if identity["bass"] is not None
+        else None
+    )
+    if root_pc is None or (identity["bass"] is not None and bass_pc is None):
+        return None
+    return (root_pc, identity["quality"], bass_pc)
 
 def _chord_ambiguity(chord):
     """Return pitch-set-equivalent spellings without treating them as the same chord."""
@@ -222,7 +243,7 @@ def fuse_track_harmony(conn, track_id):
             continue
         same_identity = [
             item for item in cluster
-            if _chord_identity(item["chord"]) == identity
+            if _chord_identity_key(item["chord"]) == _chord_identity_key(anchor["chord"])
         ]
         if len({item["source"] for item in same_identity}) < MIN_CONSENSUS_SOURCES:
             continue
@@ -337,7 +358,7 @@ def fuse_track_harmony(conn, track_id):
         "consensus_policy": {
             "max_sources": MAX_HARMONY_SOURCES,
             "minimum_agreeing_sources": MIN_CONSENSUS_SOURCES,
-            "identity_rule": "root+quality+bass",
+            "identity_rule": "root_pitch_class+quality+bass_pitch_class",
             "pitch_set_equivalents_are_not_merged": True,
         },
     }
