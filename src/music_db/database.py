@@ -1062,6 +1062,8 @@ VALUES
      'YouTube-linked chord timeline provider; preview/full-song availability depends on provider access', CURRENT_TIMESTAMP),
     ('magic_chords', 'web', 26, 1, 'harmony_evidence',
      'YouTube/media-URL chord analysis provider; returns structured chord/key/tempo evidence', CURRENT_TIMESTAMP),
+    ('methodic_truth', 'web', 27, 1, 'harmony_evidence',
+     'YouTube-linked chord/key/BPM/structure provider; external processing, structured evidence only', CURRENT_TIMESTAMP),
     ('klangio_melody_scanner', 'web', 135, 0, 'melody_evidence',
      'YouTube-linked melody/lead-sheet transcription candidate; disabled until browser automation/export path is verified', CURRENT_TIMESTAMP),
     ('songscription', 'web', 136, 0, 'melody_evidence',
