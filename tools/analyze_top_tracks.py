@@ -42,17 +42,41 @@ def _youtube_candidate_score(
     uploader = entry.get("channel") or entry.get("uploader") or ""
     artist_text = " ".join(artists)
 
+    normalized_title = _norm_text(title)
+    normalized_candidate = _norm_text(candidate_title)
     title_ratio = difflib.SequenceMatcher(
-        None, _norm_text(title), _norm_text(candidate_title)
+        None, normalized_title, normalized_candidate
     ).ratio()
     title_overlap = _token_overlap(title, candidate_title)
     artist_overlap = _token_overlap(artist_text, f"{candidate_title} {uploader}")
+    title_exact_or_contained = (
+        1.0
+        if normalized_title and (
+            normalized_title == normalized_candidate
+            or normalized_title in normalized_candidate
+        )
+        else 0.0
+    )
+    artist_exact = (
+        1.0
+        if any(
+            _norm_text(artist) and
+            _norm_text(artist) in _norm_text(f"{candidate_title} {uploader}")
+            for artist in artists
+        )
+        else 0.0
+    )
 
-    score = 0.50 * title_ratio + 0.25 * title_overlap + 0.20 * artist_overlap
+    score = (
+        0.35 * title_ratio
+        + 0.15 * title_overlap
+        + 0.20 * title_exact_or_contained
+        + 0.25 * artist_exact
+    )
 
     lower = _norm_text(candidate_title + " " + uploader)
     if any(token in lower.split() for token in ("official", "vevo", "topic")):
-        score += 0.06
+        score += 0.05
 
     unwanted = (
         ("live" in lower or "concert" in lower) and
