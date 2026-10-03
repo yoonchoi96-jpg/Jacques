@@ -11,6 +11,10 @@ on:
         description: "Comma-separated providers"
         required: true
         default: "chordidentifier,songscription"
+      track_id:
+        description: "Optional Jacques track_id; persists returned provider evidence when supplied"
+        required: false
+        default: ""
 
 jobs:
   probe:
@@ -35,6 +39,7 @@ jobs:
         env:
           YOUTUBE_URL: ${{ inputs.youtube_url }}
           PROVIDERS: ${{ inputs.providers }}
+          TRACK_ID: ${{ inputs.track_id }}
         run: |
           python tools/youtube_provider_probe.py
 
