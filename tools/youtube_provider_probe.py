@@ -66,7 +66,7 @@ def run_provider(page, provider: str) -> dict:
         for idx in range(inputs.count()):
             item = inputs.nth(idx)
             placeholder = (item.get_attribute("placeholder") or "").lower()
-            input_type = (await item.get_attribute("type") or "").lower()
+            input_type = (item.get_attribute("type") or "").lower()
             if "youtube" in placeholder or "soundcloud" in placeholder or input_type == "url":
                 target = item
                 break
