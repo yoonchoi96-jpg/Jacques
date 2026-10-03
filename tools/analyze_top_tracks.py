@@ -78,18 +78,18 @@ def _youtube_candidate_score(
     if any(token in lower.split() for token in ("official", "vevo", "topic")):
         score += 0.05
 
-    unwanted = (
-        ("live" in lower or "concert" in lower) and
-        "live" not in _norm_text(title)
-    ) or (
-        "cover" in lower and "cover" not in _norm_text(title)
-    ) or (
-        "karaoke" in lower and "karaoke" not in _norm_text(title)
-    ) or (
-        "remix" in lower and "remix" not in _norm_text(title)
+    unwanted_tokens = {
+        "live", "concert", "cover", "karaoke", "remix",
+        "8d", "432", "hz", "slowed", "sped", "nightcore",
+        "instrumental", "reaction", "tutorial",
+    }
+    target_tokens = set(_norm_text(title).split())
+    unwanted = any(
+        token in lower.split() and token not in target_tokens
+        for token in unwanted_tokens
     )
     if unwanted:
-        score -= 0.15
+        score -= 0.25
 
     candidate_duration = entry.get("duration")
     if duration_ms and candidate_duration:
@@ -175,9 +175,25 @@ def youtube_search(title: str, artists: list[str], duration_ms: int | None) -> d
         key=lambda x: x["score"],
         reverse=True,
     )
+    # Compare against a genuinely different candidate, not harmless upload
+    # variants such as "(Audio)" or "(Official Audio)".
+    def candidate_core(candidate: dict) -> str:
+        value = _norm_text(candidate.get("title") or "")
+        value = re.sub(
+            r"\\b(official audio|official video|audio|lyrics|visualizer|video)\\b",
+            " ",
+            value,
+        )
+        return re.sub(r"\\s+", " ", value).strip()
+
     best = ranked[0]
-    second = ranked[1] if len(ranked) > 1 else None
-    margin = best["score"] - second["score"] if second else best["score"]
+    distinct_second = next(
+        (candidate for candidate in ranked[1:]
+         if candidate_core(candidate) != candidate_core(best)),
+        None,
+    )
+    second = distinct_second or (ranked[1] if len(ranked) > 1 else None)
+    margin = best["score"] - distinct_second["score"] if distinct_second else best["score"]
 
     if not best["url"]:
         raise RuntimeError(f"Best YouTube result has no URL: {best}")
