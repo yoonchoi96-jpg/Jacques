@@ -209,5 +209,30 @@ def analyze_and_store_production(
                 json.dumps({"evidence_ids": [evidence_id]}),
             ),
         )
+        metrics = [
+            ("loudness", "lufs_integrated", lufs.get("integrated"), "LUFS"),
+            ("level", "peak_dbfs", result.get("peak_dbfs"), "dBFS"),
+            ("level", "true_peak_dbtp", result.get("true_peak_dbtp_approx"), "dBTP"),
+            ("level", "rms_dbfs", result.get("rms_dbfs"), "dBFS"),
+            ("level", "vu_average", result.get("vu_average_proxy"), "VU_proxy"),
+            ("dynamics", "crest_factor", result.get("crest_factor_db"), "dB"),
+            ("stereo", "phase_correlation", result.get("phase_correlation"), "ratio"),
+            ("stereo", "stereo_width", result.get("stereo_width"), "ratio"),
+            ("stereo", "mono_compatibility", result.get("mono_compatibility"), "ratio"),
+            ("technical", "clipping_samples", result.get("clipping_samples"), "samples"),
+        ]
+        for category, parameter, value, unit in metrics:
+            if value is None:
+                continue
+            conn.execute(
+                """INSERT INTO production_observations
+                   (track_id, stage, category, parameter, value, unit,
+                    confidence, evidence_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                (
+                    track_id, stage, category, parameter, float(value), unit,
+                    1.0, json.dumps({"evidence_ids": [evidence_id]}),
+                ),
+            )
         conn.commit()
     return {"track_id": track_id, "stage": stage, "evidence_id": evidence_id, "analysis": result}
