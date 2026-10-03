@@ -116,6 +116,55 @@ jobs:
           PYTHONPATH=src python - <<'PY'
           import sqlite3
           from pathlib import Path
+          from music_db.database import initialize_database, get_connection
+          from music_db.production import analyze_and_store_production
+          from music_db.analysis_audio import analyze_and_store_scale_melody
+
+          initialize_database()
+          with get_connection() as conn:
+              conn.execute(
+                  "INSERT OR IGNORE INTO tracks(track_id, title) VALUES (?, ?)",
+                  ("synthetic-test", "Synthetic Test"),
+              )
+              conn.commit()
+
+          production = analyze_and_store_production(
+              "synthetic-test", "/tmp/jacques_test.wav", stage="test"
+          )
+          scale_melody = analyze_and_store_scale_melody(
+              "synthetic-test", "/tmp/jacques_test.wav"
+          )
+
+          with get_connection() as conn:
+              production_count = conn.execute(
+                  "SELECT COUNT(*) FROM production_analysis WHERE track_id=?",
+                  ("synthetic-test",),
+              ).fetchone()[0]
+              observation_count = conn.execute(
+                  "SELECT COUNT(*) FROM production_observations WHERE track_id=?",
+                  ("synthetic-test",),
+              ).fetchone()[0]
+              scale_count = conn.execute(
+                  "SELECT COUNT(*) FROM scale_mode_analysis WHERE track_id=?",
+                  ("synthetic-test",),
+              ).fetchone()[0]
+              melody_count = conn.execute(
+                  "SELECT COUNT(*) FROM melody_analysis WHERE track_id=?",
+                  ("synthetic-test",),
+              ).fetchone()[0]
+
+          assert production["evidence_id"] > 0
+          assert scale_melody["evidence_id"] > 0
+          assert production_count == 1
+          assert observation_count >= 1
+          assert scale_count == 1
+          assert melody_count == 1
+          print("Jacques production/scale/melody persistence OK")
+          PY
+
+          PYTHONPATH=src python - <<'PY'
+          import sqlite3
+          from pathlib import Path
           from tempfile import TemporaryDirectory
           from unittest.mock import patch
           from music_db.generation.audio_analysis import analyze_and_store, analyze_audio
