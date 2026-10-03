@@ -633,6 +633,28 @@ CREATE INDEX IF NOT EXISTS idx_source_records_track ON source_records(track_id);
 CREATE INDEX IF NOT EXISTS idx_source_records_source ON source_records(source);
 
 -- ============================================================
+-- MEDIA LINKS / STREAMING-ONLY INPUTS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS track_media_links (
+    link_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    url TEXT NOT NULL,
+    media_type TEXT NOT NULL DEFAULT 'track',
+    is_primary INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'active',
+    metadata_json TEXT,
+    last_checked_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(track_id, provider, url),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_track_media_links_track ON track_media_links(track_id, provider);
+CREATE INDEX IF NOT EXISTS idx_track_media_links_provider ON track_media_links(provider, status);
+
+-- ============================================================
 -- MUSIC THEORY / ANALYSIS KNOWLEDGE LAYER
 -- Evidence, normalized concepts, and derived analyses are kept
 -- separate so measurements never get confused with interpretation.
@@ -987,9 +1009,7 @@ INSERT INTO source_registry
 VALUES
     ('spotify', 'api', 10, 1, 'canonical_identity',
      'Spotify track/artist/listening source', CURRENT_TIMESTAMP),
-    ('local_audio_library', 'local', 2, 1, 'audio_primary',
-     'User-owned/local audio files used for direct DSP and music-analysis evidence', CURRENT_TIMESTAMP),
-    ('freqblog', 'api', 20, 1, 'audio_primary',
+        ('freqblog', 'api', 20, 1, 'audio_primary',
      'Canonical audio-feature source', CURRENT_TIMESTAMP),
     ('songbpm', 'web', 30, 1, 'audio_fallback',
      'Fallback only when FreqBlog has terminal not_found', CURRENT_TIMESTAMP),
@@ -1013,48 +1033,36 @@ VALUES
      'Cloud music generation provider adapter', CURRENT_TIMESTAMP),
     ('ace_step', 'api', 210, 0, 'generation',
      'ACE-Step 1.5 local/self-hosted generation adapter', CURRENT_TIMESTAMP),
-    ('librosa_harmony', 'local', 100, 1, 'harmony_analysis',
-     'Local chroma/template harmony evidence', CURRENT_TIMESTAMP),
-    ('chordino', 'local', 110, 1, 'harmony_analysis',
-     'Optional independent chord-recognition evidence', CURRENT_TIMESTAMP),
-    ('lv_chordia', 'local', 120, 0, 'harmony_analysis',
-     'Optional large-vocabulary chord transcription evidence', CURRENT_TIMESTAMP),
+    ('librosa_harmony', 'local', 100, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; use Spotify/YouTube-linked evidence instead', CURRENT_TIMESTAMP),
+    ('chordino', 'local', 110, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; use Spotify/YouTube-linked evidence instead', CURRENT_TIMESTAMP),
+    ('lv_chordia', 'local', 120, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; use Spotify/YouTube-linked evidence instead', CURRENT_TIMESTAMP),
     ('human_chord_chart', 'web', 130, 0, 'harmony_evidence',
      'Human-authored chord chart evidence; never treated as official notation', CURRENT_TIMESTAMP),
     ('official_notation', 'primary', 5, 0, 'primary_music_evidence',
      'Official score/notation when legitimately available', CURRENT_TIMESTAMP),
-    ('melody_analyzer', 'local', 140, 0, 'melody_analysis',
-     'Pitch, contour, interval and motif analysis', CURRENT_TIMESTAMP),
-    ('scale_mode_analyzer', 'local', 150, 0, 'scale_mode_analysis',
-     'Key, mode, scale and modulation analysis', CURRENT_TIMESTAMP),
-    ('production_meter', 'local', 160, 0, 'production_measurement',
-     'Peak, RMS, LUFS, VU and dynamic measurements', CURRENT_TIMESTAMP),
-    ('spectral_analyzer', 'local', 170, 0, 'production_measurement',
-     'Spectrum, EQ balance, masking and tonal distribution', CURRENT_TIMESTAMP),
-    ('stereo_analyzer', 'local', 180, 0, 'production_measurement',
-     'Phase, width and mono compatibility measurements', CURRENT_TIMESTAMP)
+    ('melody_analyzer', 'local', 140, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; use Spotify/YouTube-linked evidence instead', CURRENT_TIMESTAMP),
+    ('scale_mode_analyzer', 'local', 150, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; use Spotify/YouTube-linked evidence instead', CURRENT_TIMESTAMP),
+    ('production_meter', 'local', 160, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; production measurements must come from external/link-based evidence', CURRENT_TIMESTAMP),
+    ('spectral_analyzer', 'local', 170, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; production measurements must come from external/link-based evidence', CURRENT_TIMESTAMP),
+    ('stereo_analyzer', 'local', 180, 0, 'legacy_audio_analysis',
+     'Disabled: Jacques never ingests local audio; production measurements must come from external/link-based evidence', CURRENT_TIMESTAMP),
+    ('youtube_link', 'web', 15, 1, 'media_input',
+     'YouTube URLs are accepted as analysis inputs; Jacques does not download or store the underlying audio', CURRENT_TIMESTAMP),
+    ('spotify_stream', 'web', 10, 1, 'media_input',
+     'Spotify track/stream URLs identify playback targets; Jacques does not download or store the underlying audio', CURRENT_TIMESTAMP)
 ON CONFLICT(source) DO UPDATE SET
     source_type = excluded.source_type,
     priority = excluded.priority,
     role = excluded.role,
     notes = excluded.notes,
     updated_at = excluded.updated_at;
-CREATE TABLE IF NOT EXISTS audio_library_assets (
-    asset_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    track_id TEXT NOT NULL,
-    path TEXT NOT NULL,
-    fingerprint_sha256 TEXT NOT NULL UNIQUE,
-    file_size INTEGER,
-    modified_at REAL,
-    match_method TEXT,
-    last_analyzed_at TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_audio_assets_track ON audio_library_assets(track_id);
-CREATE INDEX IF NOT EXISTS idx_audio_assets_path ON audio_library_assets(path);
-
 """
 
 def run_migrations(conn):
