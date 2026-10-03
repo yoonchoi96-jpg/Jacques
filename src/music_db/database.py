@@ -1058,6 +1058,10 @@ VALUES
      'Disabled: Jacques never ingests local audio; production measurements must come from external/link-based evidence', CURRENT_TIMESTAMP),
     ('youtube_link', 'web', 15, 1, 'media_input',
      'YouTube URLs are accepted as analysis inputs; Jacques does not download or store the underlying audio', CURRENT_TIMESTAMP),
+    ('chordidentifier', 'web', 25, 1, 'harmony_evidence',
+     'YouTube-linked chord timeline provider; preview/full-song availability depends on provider access', CURRENT_TIMESTAMP),
+    ('magic_chords', 'web', 26, 1, 'harmony_evidence',
+     'YouTube/media-URL chord analysis provider; returns structured chord/key/tempo evidence', CURRENT_TIMESTAMP),
     ('spotify_stream', 'web', 10, 1, 'media_input',
      'Spotify track/stream URLs identify playback targets; Jacques does not download or store the underlying audio', CURRENT_TIMESTAMP)
 ON CONFLICT(source) DO UPDATE SET
