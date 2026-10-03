@@ -32,6 +32,16 @@ def _token_overlap(a: str, b: str) -> float:
     return len(left & right) / max(1, len(left | right))
 
 
+def _candidate_core(value: str) -> str:
+    value = _norm_text(value)
+    value = re.sub(
+        r"\b(official audio|official video|audio|lyrics|visualizer|video)\b",
+        " ",
+        value,
+    )
+    return re.sub(r"\s+", " ", value).strip()
+
+
 def _youtube_candidate_score(
     title: str,
     artists: list[str],
@@ -48,10 +58,10 @@ def _youtube_candidate_score(
         None, normalized_title, normalized_candidate
     ).ratio()
     title_overlap = _token_overlap(title, candidate_title)
-    artist_overlap = _token_overlap(artist_text, f"{candidate_title} {uploader}")
     title_exact_or_contained = (
         1.0
-        if normalized_title and (
+        if normalized_title
+        and (
             normalized_title == normalized_candidate
             or normalized_title in normalized_candidate
         )
@@ -60,8 +70,8 @@ def _youtube_candidate_score(
     artist_exact = (
         1.0
         if any(
-            _norm_text(artist) and
-            _norm_text(artist) in _norm_text(f"{candidate_title} {uploader}")
+            _norm_text(artist)
+            and _norm_text(artist) in _norm_text(f"{candidate_title} {uploader}")
             for artist in artists
         )
         else 0.0
@@ -84,11 +94,7 @@ def _youtube_candidate_score(
         "instrumental", "reaction", "tutorial",
     }
     target_tokens = set(_norm_text(title).split())
-    unwanted = any(
-        token in lower.split() and token not in target_tokens
-        for token in unwanted_tokens
-    )
-    if unwanted:
+    if any(token in lower.split() and token not in target_tokens for token in unwanted_tokens):
         score -= 0.25
 
     candidate_duration = entry.get("duration")
@@ -110,20 +116,26 @@ YOUTUBE_MIN_MATCH_SCORE = float(os.environ.get("JACQUES_YOUTUBE_MIN_MATCH_SCORE"
 YOUTUBE_MIN_MATCH_MARGIN = float(os.environ.get("JACQUES_YOUTUBE_MIN_MATCH_MARGIN", "0.08"))
 
 
-def _candidate_is_strong(title: str, artists: list[str], duration_ms: int | None, candidate: dict) -> bool:
-    normalized_title = _norm_text(title)
-    candidate_title = _norm_text(candidate.get("title") or "")
+def _candidate_is_strong(
+    title: str,
+    artists: list[str],
+    duration_ms: int | None,
+    candidate: dict,
+) -> bool:
+    target_core = _candidate_core(title)
+    candidate_core = _candidate_core(candidate.get("title") or "")
     candidate_blob = _norm_text(
         f'{candidate.get("title") or ""} {candidate.get("channel") or ""}'
     )
-    title_exact = bool(normalized_title and normalized_title == candidate_title)
+    title_exact = bool(target_core and target_core == candidate_core)
     artist_exact = any(
         _norm_text(artist) and _norm_text(artist) in candidate_blob
         for artist in artists
     )
     duration = candidate.get("duration")
     duration_close = (
-        duration_ms is not None and duration is not None
+        duration_ms is not None
+        and duration is not None
         and abs(float(duration) - duration_ms / 1000.0) <= 10
     )
     return title_exact and artist_exact and duration_close
@@ -175,21 +187,15 @@ def youtube_search(title: str, artists: list[str], duration_ms: int | None) -> d
         key=lambda x: x["score"],
         reverse=True,
     )
-    # Compare against a genuinely different candidate, not harmless upload
-    # variants such as "(Audio)" or "(Official Audio)".
-    def candidate_core(candidate: dict) -> str:
-        value = _norm_text(candidate.get("title") or "")
-        value = re.sub(
-            r"\\b(official audio|official video|audio|lyrics|visualizer|video)\\b",
-            " ",
-            value,
-        )
-        return re.sub(r"\\s+", " ", value).strip()
 
     best = ranked[0]
     distinct_second = next(
-        (candidate for candidate in ranked[1:]
-         if candidate_core(candidate) != candidate_core(best)),
+        (
+            candidate
+            for candidate in ranked[1:]
+            if _candidate_core(candidate.get("title") or "")
+            != _candidate_core(best.get("title") or "")
+        ),
         None,
     )
     second = distinct_second or (ranked[1] if len(ranked) > 1 else None)
@@ -213,7 +219,11 @@ def youtube_search(title: str, artists: list[str], duration_ms: int | None) -> d
         )
 
     best["match_margin"] = round(margin, 3)
-    best["match_gate"] = "strong_exact_title_artist_duration" if strong_exception else "threshold_and_margin"
+    best["match_gate"] = (
+        "strong_exact_core_artist_duration"
+        if strong_exception
+        else "threshold_and_margin"
+    )
 
     print(
         "YouTube candidates: "
