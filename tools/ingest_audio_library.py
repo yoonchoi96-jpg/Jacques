@@ -108,6 +108,12 @@ def ingest_audio_folder(audio_root: str | Path, *, dry_run: bool = False) -> dic
                 continue
             try:
                 fingerprint = _fingerprint(path)
+                cached = conn.execute(
+                    "SELECT asset_id, last_analyzed_at FROM audio_library_assets WHERE fingerprint_sha256=?",
+                    (fingerprint,),
+                ).fetchone()
+                if cached:
+                    continue
                 conn.execute(
                     """INSERT INTO music_analysis_evidence
                        (track_id, domain, source, source_type, method, version,
@@ -141,6 +147,25 @@ def ingest_audio_folder(audio_root: str | Path, *, dry_run: bool = False) -> dic
 
                 analyze_and_store_scale_melody(track_id, path)
                 analyze_and_store_production(track_id, path, stage="master")
+                conn.execute(
+                    """INSERT INTO audio_library_assets
+                       (track_id, path, fingerprint_sha256, file_size, modified_at,
+                        match_method, last_analyzed_at, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                       ON CONFLICT(fingerprint_sha256) DO UPDATE SET
+                           track_id=excluded.track_id,
+                           path=excluded.path,
+                           file_size=excluded.file_size,
+                           modified_at=excluded.modified_at,
+                           match_method=excluded.match_method,
+                           last_analyzed_at=CURRENT_TIMESTAMP,
+                           updated_at=CURRENT_TIMESTAMP""",
+                    (
+                        track_id, str(path), fingerprint, path.stat().st_size,
+                        path.stat().st_mtime, method,
+                    ),
+                )
+                conn.commit()
                 result["analyzed"] += 1
             except Exception as exc:
                 result["errors"].append({
