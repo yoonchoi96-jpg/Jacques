@@ -26,6 +26,22 @@ def _conn():
             chord TEXT, chord_family TEXT, confidence REAL, agreement REAL,
             source_count INTEGER, evidence_json TEXT, created_at TEXT, updated_at TEXT
         );
+        CREATE TABLE music_analysis_evidence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id TEXT, domain TEXT, source TEXT, source_type TEXT,
+            method TEXT, version TEXT, start_sec REAL, end_sec REAL,
+            payload_json TEXT, confidence REAL, observed_at TEXT, created_at TEXT
+        );
+        CREATE TABLE harmony_structures (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id TEXT, start_sec REAL, end_sec REAL, root TEXT,
+            bass_note TEXT, chord_quality TEXT, inversion TEXT,
+            upper_structure_root TEXT, upper_structure_quality TEXT,
+            upper_structure_notes TEXT, pitch_classes TEXT, roman_candidate TEXT,
+            function_candidate TEXT, secondary_function TEXT,
+            borrowed_from_mode TEXT, confidence REAL, evidence_json TEXT,
+            created_at TEXT, updated_at TEXT
+        );
         CREATE TABLE harmony_profiles (
             track_id TEXT PRIMARY KEY, key TEXT, mode TEXT,
             harmonic_rhythm REAL, chord_change_rate REAL, loop_bars REAL,
@@ -86,3 +102,31 @@ def test_enharmonic_spelling_can_reach_consensus_without_collapsing_source_text(
     assert profile["progression"] == ["C#maj7"]
     assert profile["segments"][0]["source_count"] == 2
     assert profile["segments"][0]["evidence"][1]["chord"] == "Dbmaj7"
+
+
+def test_beat_grid_is_available_and_prompt_ready():
+    conn = _conn()
+    rows = [
+        ("t3", "source_a", None, 0.0, 2.0, "Cmaj7", 0.9),
+        ("t3", "source_b", None, 0.0, 2.0, "Cmaj7", 0.9),
+        ("t3", "source_a", None, 2.0, 4.0, "Am7", 0.9),
+        ("t3", "source_b", None, 2.0, 4.0, "Am7", 0.9),
+    ]
+    conn.executemany(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows
+    )
+    conn.execute("INSERT INTO harmony_sources VALUES ('t3', 'C major', 0.9)")
+    conn.execute("INSERT INTO audio_features VALUES ('t3', 120.0)")
+    conn.commit()
+
+    profile = fuse_track_harmony(conn, "t3")
+
+    grid = profile["beat_grid"]
+    assert grid["available"] is True
+    assert grid["time_signature"] == "4/4"
+    assert grid["grid_semantics"] == "relative_to_first_consensus_onset"
+    assert grid["beats"][0]["bar"] == 1
+    assert grid["beats"][0]["beat"] == 1
+    assert grid["beats"][0]["chord"] == "Cmaj7"
+    assert profile["prompt_harmony"].startswith("TIME: 4/4")
+    assert "Bar 01" in profile["prompt_harmony"]
