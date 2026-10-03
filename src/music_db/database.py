@@ -1062,6 +1062,12 @@ VALUES
      'YouTube-linked chord timeline provider; preview/full-song availability depends on provider access', CURRENT_TIMESTAMP),
     ('magic_chords', 'web', 26, 1, 'harmony_evidence',
      'YouTube/media-URL chord analysis provider; returns structured chord/key/tempo evidence', CURRENT_TIMESTAMP),
+    ('klangio_melody_scanner', 'web', 135, 0, 'melody_evidence',
+     'YouTube-linked melody/lead-sheet transcription candidate; disabled until browser automation/export path is verified', CURRENT_TIMESTAMP),
+    ('songscription', 'web', 136, 0, 'melody_evidence',
+     'YouTube-linked transcription candidate for notes/MIDI/MusicXML; disabled until browser automation/export path is verified', CURRENT_TIMESTAMP),
+    ('acousterr', 'web', 137, 0, 'melody_evidence',
+     'YouTube-linked notes/chords/key transcription candidate; disabled until browser automation/export path is verified', CURRENT_TIMESTAMP),
     ('spotify_stream', 'web', 10, 1, 'media_input',
      'Spotify track/stream URLs identify playback targets; Jacques does not download or store the underlying audio', CURRENT_TIMESTAMP)
 ON CONFLICT(source) DO UPDATE SET
