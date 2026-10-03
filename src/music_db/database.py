@@ -633,6 +633,220 @@ CREATE INDEX IF NOT EXISTS idx_source_records_track ON source_records(track_id);
 CREATE INDEX IF NOT EXISTS idx_source_records_source ON source_records(source);
 
 -- ============================================================
+-- MUSIC THEORY / ANALYSIS KNOWLEDGE LAYER
+-- Evidence, normalized concepts, and derived analyses are kept
+-- separate so measurements never get confused with interpretation.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS music_analysis_evidence (
+    evidence_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    source TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    method TEXT,
+    version TEXT,
+    start_sec REAL,
+    end_sec REAL,
+    payload_json TEXT NOT NULL,
+    confidence REAL,
+    observed_at TEXT,
+    created_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_music_evidence_track_domain
+    ON music_analysis_evidence(track_id, domain, start_sec);
+CREATE INDEX IF NOT EXISTS idx_music_evidence_source
+    ON music_analysis_evidence(source, domain);
+
+CREATE TABLE IF NOT EXISTS music_theory_concepts (
+    concept_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain TEXT NOT NULL,
+    concept_key TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    parent_concept_id INTEGER,
+    definition TEXT,
+    metadata_json TEXT,
+    created_at TEXT,
+    FOREIGN KEY (parent_concept_id)
+        REFERENCES music_theory_concepts(concept_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS track_theory_observations (
+    observation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    concept_id INTEGER,
+    domain TEXT NOT NULL,
+    observation_type TEXT NOT NULL,
+    value_text TEXT,
+    value_json TEXT,
+    start_sec REAL,
+    end_sec REAL,
+    confidence REAL,
+    evidence_json TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE,
+    FOREIGN KEY (concept_id) REFERENCES music_theory_concepts(concept_id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_track_theory_track_domain
+    ON track_theory_observations(track_id, domain, start_sec);
+CREATE INDEX IF NOT EXISTS idx_track_theory_concept
+    ON track_theory_observations(concept_id);
+
+-- Harmony extensions: root/bass/upper-structure are intentionally
+-- separate from chord labels so pitch-set equivalents are not merged.
+CREATE TABLE IF NOT EXISTS harmony_structures (
+    structure_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    start_sec REAL NOT NULL,
+    end_sec REAL NOT NULL,
+    root TEXT,
+    bass_note TEXT,
+    chord_quality TEXT,
+    inversion TEXT,
+    upper_structure_root TEXT,
+    upper_structure_quality TEXT,
+    upper_structure_notes TEXT,
+    pitch_classes TEXT,
+    roman_candidate TEXT,
+    function_candidate TEXT,
+    secondary_function TEXT,
+    borrowed_from_mode TEXT,
+    confidence REAL,
+    evidence_json TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_harmony_structures_track
+    ON harmony_structures(track_id, start_sec);
+
+CREATE TABLE IF NOT EXISTS melody_analysis (
+    melody_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    section_name TEXT,
+    start_sec REAL,
+    end_sec REAL,
+    key_candidate TEXT,
+    mode_candidate TEXT,
+    scale_candidate TEXT,
+    range_semitones REAL,
+    mean_midi REAL,
+    contour TEXT,
+    pitch_class_distribution_json TEXT,
+    scale_degree_distribution_json TEXT,
+    interval_distribution_json TEXT,
+    motif_json TEXT,
+    non_chord_tone_json TEXT,
+    chord_tone_ratio REAL,
+    chromaticism REAL,
+    confidence REAL,
+    evidence_json TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_melody_analysis_track
+    ON melody_analysis(track_id, start_sec);
+
+CREATE TABLE IF NOT EXISTS scale_mode_analysis (
+    analysis_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    section_name TEXT,
+    start_sec REAL,
+    end_sec REAL,
+    tonic TEXT,
+    mode TEXT,
+    scale TEXT,
+    parent_scale TEXT,
+    scale_degrees_json TEXT,
+    modal_interchange INTEGER DEFAULT 0,
+    modulation_from TEXT,
+    modulation_to TEXT,
+    confidence REAL,
+    evidence_json TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_scale_mode_track
+    ON scale_mode_analysis(track_id, start_sec);
+
+-- Production / mixing / mastering measurements.
+CREATE TABLE IF NOT EXISTS production_analysis (
+    production_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    source TEXT NOT NULL,
+    start_sec REAL,
+    end_sec REAL,
+    sample_rate INTEGER,
+    bit_depth INTEGER,
+    peak_dbfs REAL,
+    true_peak_dbtp REAL,
+    rms_dbfs REAL,
+    lufs_momentary REAL,
+    lufs_short_term REAL,
+    lufs_integrated REAL,
+    loudness_range_lu REAL,
+    vu_reference_dbfs REAL,
+    vu_average REAL,
+    crest_factor_db REAL,
+    dynamic_range_db REAL,
+    phase_correlation REAL,
+    stereo_width REAL,
+    mono_compatibility REAL,
+    dc_offset REAL,
+    clipping_samples INTEGER,
+    eq_balance_json TEXT,
+    spectrum_json TEXT,
+    dynamics_json TEXT,
+    stereo_json TEXT,
+    processing_chain_json TEXT,
+    confidence REAL,
+    evidence_json TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_production_analysis_track_stage
+    ON production_analysis(track_id, stage, start_sec);
+
+CREATE TABLE IF NOT EXISTS production_observations (
+    observation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    category TEXT NOT NULL,
+    parameter TEXT NOT NULL,
+    value REAL,
+    unit TEXT,
+    reference_value REAL,
+    reference_unit TEXT,
+    interpretation TEXT,
+    confidence REAL,
+    evidence_json TEXT,
+    created_at TEXT,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_production_observations_track
+    ON production_observations(track_id, stage, category);
+
+-- Canonical knowledge about measurement/analysis concepts, kept distinct
+-- from per-track observations. This is the future Jacques knowledge graph.
+CREATE TABLE IF NOT EXISTS production_theory_concepts (
+    concept_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    concept_key TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL,
+    name TEXT NOT NULL,
+    definition TEXT,
+    unit TEXT,
+    typical_context TEXT,
+    relationships_json TEXT,
+    created_at TEXT
+);
+
+-- ============================================================
 -- GENERATION LAYER
 -- ============================================================
 CREATE TABLE IF NOT EXISTS generation_projects (
