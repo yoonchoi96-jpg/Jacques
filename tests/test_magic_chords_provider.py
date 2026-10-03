@@ -1,7 +1,29 @@
 import unittest
-from unittest.mock import Mock, patch
 
-from tools.magic_chords_provider import _segments
+from tools.magic_chords_provider import MagicChordsTimeout, _segments, analyze
+
+
+class FakePage:
+    def __init__(self, statuses):
+        self.statuses = iter(statuses)
+        self.waits = []
+
+    def goto(self, *args, **kwargs):
+        return None
+
+    def evaluate(self, script, arg=None):
+        if "analyze/url" in script:
+            return {"job_id": "job-123", "status": "processing"}
+        if "/result" in script:
+            return {
+                "key": "C major",
+                "tempo": 120,
+                "segments": [{"start": 0, "end": 2, "chord": "C"}],
+            }
+        return {"status": next(self.statuses)}
+
+    def wait_for_timeout(self, milliseconds):
+        self.waits.append(milliseconds)
 
 
 class MagicChordsProviderTests(unittest.TestCase):
@@ -26,6 +48,20 @@ class MagicChordsProviderTests(unittest.TestCase):
         self.assertEqual(rows[0]["chord"], "Dm")
         self.assertEqual(rows[0]["start_sec"], 1.0)
         self.assertEqual(rows[0]["end_sec"], 3.0)
+
+    def test_completed_job_returns_result(self):
+        page = FakePage(["processing", "completed"])
+        result = analyze(page, "https://www.youtube.com/watch?v=test", polls=3, wait=1)
+        self.assertEqual(result["job_id"], "job-123")
+        self.assertEqual(result["tempo"], 120)
+        self.assertEqual(result["segments"][0]["chord"], "C")
+        self.assertTrue(page.waits)
+
+    def test_timeout_exposes_job_id_for_poll_retry(self):
+        page = FakePage(["processing", "processing"])
+        with self.assertRaises(MagicChordsTimeout) as ctx:
+            analyze(page, "https://www.youtube.com/watch?v=test", polls=2, wait=1)
+        self.assertEqual(ctx.exception.job_id, "job-123")
 
 
 if __name__ == "__main__":
