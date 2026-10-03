@@ -365,7 +365,18 @@ def main() -> None:
                             harmony_payload.get("confidence"),
                         ),
                     )
-            fuse_track_harmony(conn, TRACK_ID)
+            profile = fuse_track_harmony(conn, TRACK_ID)
+            if profile:
+                print("HARMONY CONSENSUS")
+                print(json.dumps({
+                    "key": profile.get("key"),
+                    "tempo": profile.get("tempo"),
+                    "confidence": profile.get("confidence"),
+                    "progression": profile.get("progression"),
+                    "roman_progression": profile.get("roman_progression"),
+                    "beat_grid": profile.get("beat_grid"),
+                    "prompt_harmony": profile.get("prompt_harmony"),
+                }, ensure_ascii=False, indent=2))
             conn.commit()
         payload["track_id"] = TRACK_ID
         payload["imported"] = imported
