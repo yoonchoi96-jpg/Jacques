@@ -270,6 +270,17 @@ def analyze_track_audio(conn, track_id, audio_path):
     if chordino:
         results.append(chordino)
 
+    # Optional independent large-vocabulary model. Kept outside the baseline
+    # dependency set because its PyTorch/model footprint is substantially larger.
+    if os.getenv("JACQUES_ENABLE_CHORDIA", "").lower() in {"1", "true", "yes"}:
+        try:
+            from .chordia_adapter import chordia_estimate
+            chordia = chordia_estimate(audio_path)
+            if chordia:
+                results.append(chordia)
+        except (ImportError, RuntimeError, OSError):
+            pass
+
     for result in results:
         source = result.get("method", "audio")
         for seg in result.get("segments", []):
