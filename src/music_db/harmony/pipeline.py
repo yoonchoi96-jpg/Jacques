@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
-import subprocess
-import tempfile
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -160,146 +157,12 @@ def import_external_harmony(conn, track_id, payload, source="external"):
     conn.commit()
     return len(segments)
 
-def _librosa_estimate(audio_path):
-    import librosa
-    import numpy as np
-
-    y, sr = librosa.load(audio_path, sr=44100, mono=True)
-    duration = float(librosa.get_duration(y=y, sr=sr))
-    tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
-    tempo = float(np.asarray(tempo).reshape(-1)[0])
-    beat_times = librosa.frames_to_time(beats, sr=sr)
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
-
-    segments = []
-    if len(beat_times) < 2:
-        beat_times = np.array([0.0, duration])
-
-    for i in range(0, len(beat_times) - 1, 4):
-        start = float(beat_times[i])
-        end = float(beat_times[min(i + 4, len(beat_times) - 1)])
-        if end <= start:
-            continue
-        a = int(librosa.time_to_frames(start, sr=sr))
-        b = int(librosa.time_to_frames(end, sr=sr))
-        vec = np.mean(chroma[:, a:max(a + 1, b)], axis=1)
-        norm = np.linalg.norm(vec) or 1.0
-        vec = vec / norm
-        scores = []
-        for root_idx, root_name in enumerate(CHROMA_ROOTS):
-            for quality, intervals in TEMPLATES.items():
-                template = np.zeros(12, dtype=float)
-                for interval in intervals:
-                    template[(root_idx + interval) % 12] = 1.0
-                template /= np.linalg.norm(template) or 1.0
-                scores.append((float(np.dot(vec, template)), root_name + quality))
-        scores.sort(reverse=True)
-        best, chord = scores[0]
-        second = scores[1][0] if len(scores) > 1 else 0.0
-        confidence = max(0.0, min(1.0, (best - second) * 4.0 + best * 0.5))
-        segments.append({
-            "start_sec": start,
-            "end_sec": end,
-            "chord": chord,
-            "confidence": confidence,
-            "method": "librosa_chroma_template",
-        })
-
-    collapsed = []
-    for seg in segments:
-        if collapsed and _family(collapsed[-1]["chord"]) == _family(seg["chord"]):
-            collapsed[-1]["end_sec"] = seg["end_sec"]
-            collapsed[-1]["confidence"] = (
-                collapsed[-1]["confidence"] + seg["confidence"]
-            ) / 2
-        else:
-            collapsed.append(seg)
-
-    chroma_mean = np.mean(chroma, axis=1)
-    major = np.array([1,0,0,0.5,0,0,0.5,1,0,0,0,0.5], dtype=float)
-    minor = np.array([1,0,0.5,1,0,0,0.5,1,0,0.5,0,0], dtype=float)
-    candidates = []
-    for root in range(12):
-        candidates.append((float(np.dot(chroma_mean, np.roll(major, root))), CHROMA_ROOTS[root], "major"))
-        candidates.append((float(np.dot(chroma_mean, np.roll(minor, root))), CHROMA_ROOTS[root], "minor"))
-    candidates.sort(reverse=True)
-    _, key_root, mode = candidates[0]
-
-    return {
-        "tempo": tempo,
-        "duration_sec": duration,
-        "key": f"{key_root} {mode}",
-        "mode": mode,
-        "segments": collapsed,
-        "method": "librosa_chroma_template",
-    }
-
-def _chordino_estimate(audio_path):
-    command = os.getenv("CHORDINO_COMMAND")
-    if not command:
-        return None
-    with tempfile.TemporaryDirectory() as td:
-        out = Path(td) / "chords.csv"
-        cmd = command.split() + [audio_path, "-w", str(out)]
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
-        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            return None
-        if not out.exists():
-            return None
-        segments = []
-        for line in out.read_text(encoding="utf-8", errors="ignore").splitlines():
-            parts = [x.strip() for x in line.split(",")]
-            if len(parts) < 3:
-                continue
-            try:
-                segments.append({
-                    "start_sec": float(parts[0]),
-                    "end_sec": float(parts[1]),
-                    "chord": parts[2],
-                    "confidence": None,
-                    "method": "chordino",
-                })
-            except ValueError:
-                continue
-        return {"segments": segments, "method": "chordino"} if segments else None
-
 def analyze_track_audio(conn, track_id, audio_path):
-    results = [_librosa_estimate(audio_path)]
-    chordino = _chordino_estimate(audio_path)
-    if chordino:
-        results.append(chordino)
-
-    # Optional independent large-vocabulary model. Kept outside the baseline
-    # dependency set because its PyTorch/model footprint is substantially larger.
-    if os.getenv("JACQUES_ENABLE_CHORDIA", "").lower() in {"1", "true", "yes"}:
-        try:
-            from .chordia_adapter import chordia_estimate
-            chordia = chordia_estimate(audio_path)
-            if chordia:
-                results.append(chordia)
-        except (ImportError, RuntimeError, OSError):
-            pass
-
-    for result in results:
-        source = result.get("method", "audio")
-        for seg in result.get("segments", []):
-            _store_segment(conn, track_id, source, seg)
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO harmony_sources
-                  (track_id, source, source_type, section_name, start_sec, end_sec,
-                   chord, key, confidence, raw_data, observed_at)
-                VALUES (?, ?, 'audio', ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    track_id, source, None, seg["start_sec"], seg["end_sec"],
-                    seg.get("chord"), result.get("key"), seg.get("confidence"),
-                    json.dumps(seg, ensure_ascii=False), _now(),
-                ),
-            )
-    conn.commit()
-    return results
+    """Deprecated: Jacques is streaming/link-only and never analyzes local released audio."""
+    raise RuntimeError(
+        "Local audio analysis is disabled. Register a Spotify or YouTube URL "
+        "and import provider evidence instead."
+    )
 
 def fuse_track_harmony(conn, track_id):
     """Fuse up to five independent observations without collapsing harmonic identity.
