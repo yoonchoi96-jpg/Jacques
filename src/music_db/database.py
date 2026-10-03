@@ -1037,6 +1037,22 @@ ON CONFLICT(source) DO UPDATE SET
     role = excluded.role,
     notes = excluded.notes,
     updated_at = excluded.updated_at;
+CREATE TABLE IF NOT EXISTS audio_library_assets (
+    asset_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    fingerprint_sha256 TEXT NOT NULL UNIQUE,
+    file_size INTEGER,
+    modified_at REAL,
+    match_method TEXT,
+    last_analyzed_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_audio_assets_track ON audio_library_assets(track_id);
+CREATE INDEX IF NOT EXISTS idx_audio_assets_path ON audio_library_assets(path);
+
 """
 
 def run_migrations(conn):
