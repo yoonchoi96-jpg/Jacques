@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from music_db.harmony.chordidentifier import build_harmony_payload
 from music_db.database import initialize_database, get_connection
 from music_db.harmony.pipeline import import_external_harmony, fuse_track_harmony
+from magic_chords_provider import analyze as analyze_magic_chords
 
 from playwright.sync_api import sync_playwright
 
@@ -29,6 +30,10 @@ PROVIDER_CONFIG = {
         "url": "https://www.songscription.ai/youtube-to-sheet-music",
         "wait_seconds": 45,
     },
+    "magic_chords": {
+        "url": "https://magic-chords.dev/api/v1",
+        "wait_seconds": 5,
+    },
 }
 
 def safe_name(value: str) -> str:
@@ -38,6 +43,11 @@ def extract_visible_text(page) -> str:
     return page.locator("body").inner_text(timeout=15_000)
 
 def run_provider(page, provider: str) -> dict:
+    if provider == "magic_chords":
+        payload = analyze_magic_chords(page, YOUTUBE_URL)
+        return {"provider": "magic_chords", "youtube_url": YOUTUBE_URL,
+                "provider_url": PROVIDER_CONFIG["magic_chords"]["url"],
+                "status": "accepted_or_processing", "harmony_payload": payload}
     cfg = PROVIDER_CONFIG[provider]
     result = {"provider": provider, "youtube_url": YOUTUBE_URL, "provider_url": cfg["url"], "status": "unknown"}
 
