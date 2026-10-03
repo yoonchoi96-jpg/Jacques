@@ -144,3 +144,70 @@ def analyze_production_audio(
         "lufs": _lufs(data, sr),
         "spectrum": _spectrum(mono, sr),
     }
+
+
+def analyze_and_store_production(
+    track_id: str,
+    audio_path: str | Path,
+    *,
+    stage: str = "master",
+    vu_reference_dbfs: float = -18.0,
+) -> dict[str, Any]:
+    """Analyze an audio file and persist measurements/evidence for one track."""
+    import json
+    from ..analysis_store import store_evidence
+    from ..database import get_connection
+
+    result = analyze_production_audio(
+        audio_path, vu_reference_dbfs=vu_reference_dbfs
+    )
+    evidence_id = store_evidence(
+        track_id,
+        "production",
+        "production_meter",
+        "local",
+        result,
+        method="production_measurements",
+        version=result.get("analysis_version"),
+        confidence=1.0,
+    )
+    lufs = result.get("lufs") or {}
+    spectrum = result.get("spectrum") or {}
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO production_analysis (
+                track_id, stage, source, start_sec, end_sec, sample_rate,
+                peak_dbfs, true_peak_dbtp, rms_dbfs,
+                lufs_momentary, lufs_short_term, lufs_integrated,
+                vu_reference_dbfs, vu_average, crest_factor_db,
+                phase_correlation, stereo_width, mono_compatibility,
+                clipping_samples, eq_balance_json, spectrum_json,
+                dynamics_json, stereo_json, confidence, evidence_json,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            (
+                track_id, stage, "production_meter", 0.0,
+                result["duration_seconds"], result["sample_rate"],
+                result["peak_dbfs"], result["true_peak_dbtp_approx"],
+                result["rms_dbfs"], lufs.get("momentary"),
+                lufs.get("short_term"), lufs.get("integrated"),
+                result["vu_reference_dbfs"], result["vu_average_proxy"],
+                result["crest_factor_db"], result.get("phase_correlation"),
+                result.get("stereo_width"), result.get("mono_compatibility"),
+                result["clipping_samples"],
+                json.dumps(spectrum.get("band_energy_ratio", {})),
+                json.dumps(spectrum),
+                json.dumps({"rms_dbfs": result["rms_dbfs"], "crest_factor_db": result["crest_factor_db"]}),
+                json.dumps({
+                    "phase_correlation": result.get("phase_correlation"),
+                    "stereo_width": result.get("stereo_width"),
+                    "mono_compatibility": result.get("mono_compatibility"),
+                }),
+                1.0,
+                json.dumps({"evidence_ids": [evidence_id]}),
+            ),
+        )
+        conn.commit()
+    return {"track_id": track_id, "stage": stage, "evidence_id": evidence_id, "analysis": result}
