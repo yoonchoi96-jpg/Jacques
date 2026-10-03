@@ -40,6 +40,7 @@ jobs:
           YOUTUBE_URL: ${{ inputs.youtube_url }}
           PROVIDERS: ${{ inputs.providers }}
           TRACK_ID: ${{ inputs.track_id }}
+          PROVIDER_RETRIES: "2"
         run: |
           python tools/youtube_provider_probe.py
 
