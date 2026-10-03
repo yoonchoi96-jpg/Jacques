@@ -1043,6 +1043,70 @@ def run_migrations(conn):
     conn.executescript(MIGRATION_SCHEMA)
     conn.executescript(SOURCE_SEED)
 
+    # Seed stable music-theory/production vocabulary. Definitions are
+    # intentionally compact; detailed knowledge can be expanded later
+    # without changing the per-track observation schema.
+    concept_seeds = [
+        ("harmony", "harmony.triad", "Triad", None, "Three-note chord built from stacked thirds or an equivalent pitch collection."),
+        ("harmony", "harmony.seventh_chord", "Seventh chord", "harmony.triad", "Four-note chord containing a seventh above its root."),
+        ("harmony", "harmony.upper_structure_triad", "Upper Structure Triad", "harmony.triad", "A triad interpreted above a distinct lower harmonic structure, commonly over a bass/root context."),
+        ("harmony", "harmony.inversion", "Inversion", "harmony.triad", "A chord voicing in which a chord tone other than the root occupies the bass."),
+        ("harmony", "harmony.slash_chord", "Slash chord", None, "Chord notation that explicitly specifies a bass note; not automatically equivalent to an upper-structure interpretation."),
+        ("harmony", "harmony.secondary_dominant", "Secondary dominant", None, "Dominant-function chord tonicizing a diatonic chord other than the global tonic."),
+        ("harmony", "harmony.borrowed_chord", "Borrowed chord", None, "Chord borrowed from a parallel mode or tonal collection."),
+        ("harmony", "harmony.cadence", "Cadence", None, "Harmonic/phrase closure pattern characterized by its tonal and melodic resolution behavior."),
+        ("scale", "scale.major", "Major scale", None, "Seven-note diatonic scale with the major-mode interval pattern."),
+        ("scale", "scale.natural_minor", "Natural minor", None, "Aeolian-type seven-note minor collection."),
+        ("mode", "mode.ionian", "Ionian", None, "Major-mode diatonic mode."),
+        ("mode", "mode.dorian", "Dorian", None, "Minor-mode diatonic mode with a raised sixth relative to natural minor."),
+        ("mode", "mode.phrygian", "Phrygian", None, "Minor-mode diatonic mode with a lowered second degree."),
+        ("mode", "mode.lydian", "Lydian", None, "Major-mode diatonic mode with a raised fourth degree."),
+        ("mode", "mode.mixolydian", "Mixolydian", None, "Major-mode diatonic mode with a lowered seventh degree."),
+        ("mode", "mode.aeolian", "Aeolian", None, "Natural-minor mode."),
+        ("mode", "mode.locrian", "Locrian", None, "Minor-type diatonic mode with lowered second and fifth degrees."),
+        ("scale", "scale.harmonic_minor", "Harmonic minor", None, "Minor scale with a raised seventh degree."),
+        ("scale", "scale.melodic_minor", "Melodic minor", None, "Minor-scale collection with raised sixth and seventh degrees in its ascending form."),
+        ("scale", "scale.pentatonic", "Pentatonic", None, "Five-note scale family."),
+        ("scale", "scale.blues", "Blues scale", None, "Blues-derived scale containing characteristic chromatic inflection."),
+        ("scale", "scale.whole_tone", "Whole tone", None, "Symmetric six-note scale built from whole steps."),
+        ("scale", "scale.diminished", "Diminished scale", None, "Symmetric alternating whole-step/half-step or half-step/whole-step collection."),
+        ("scale", "scale.altered", "Altered scale", None, "Dominant-oriented scale containing altered extensions."),
+        ("melody", "melody.chord_tone", "Chord tone", None, "Melodic pitch belonging to the active harmonic structure."),
+        ("melody", "melody.non_chord_tone", "Non-chord tone", None, "Melodic pitch not belonging to the active harmonic structure, interpreted by context."),
+        ("melody", "melody.passing_tone", "Passing tone", "melody.non_chord_tone", "Stepwise non-chord tone connecting two chord tones."),
+        ("melody", "melody.neighbor_tone", "Neighbor tone", "melody.non_chord_tone", "Non-chord tone that departs from and returns to a neighboring chord tone."),
+        ("production", "production.vu_meter", "VU meter", None, "Average-oriented level measurement with a defined calibration/reference context."),
+        ("production", "production.lufs_integrated", "Integrated LUFS", None, "Integrated loudness measurement over a defined program duration."),
+        ("production", "production.lufs_short_term", "Short-term LUFS", None, "Loudness measurement over a short moving time window."),
+        ("production", "production.true_peak", "True peak", None, "Estimated inter-sample peak level, normally reported in dBTP."),
+        ("production", "production.crest_factor", "Crest factor", None, "Difference or ratio between peak magnitude and an average level measure, depending on definition."),
+        ("production", "production.dynamic_range", "Dynamic range", None, "Description of level variation over a defined signal or program context."),
+        ("production", "production.eq_balance", "EQ balance", None, "Distribution of spectral energy across frequency regions, interpreted relative to context/reference."),
+        ("production", "production.phase_correlation", "Phase correlation", None, "Measure describing similarity/opposition of left/right signal phase relationships."),
+        ("production", "production.mono_compatibility", "Mono compatibility", None, "How the stereo mix behaves when summed or reproduced in mono."),
+    ]
+    for domain, key, name, parent_key, definition in concept_seeds:
+        parent_id = None
+        if parent_key:
+            parent_row = conn.execute(
+                "SELECT concept_id FROM music_theory_concepts WHERE concept_key = ?",
+                (parent_key,),
+            ).fetchone()
+            parent_id = parent_row["concept_id"] if parent_row else None
+        conn.execute(
+            """
+            INSERT INTO music_theory_concepts
+                (domain, concept_key, name, parent_concept_id, definition, created_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(concept_key) DO UPDATE SET
+                domain = excluded.domain,
+                name = excluded.name,
+                definition = excluded.definition,
+                parent_concept_id = excluded.parent_concept_id
+            """,
+            (domain, key, name, parent_id, definition),
+        )
+
     # Lightweight additive migrations for existing databases.
     conn.execute(
         """CREATE TABLE IF NOT EXISTS generation_project_notes (
