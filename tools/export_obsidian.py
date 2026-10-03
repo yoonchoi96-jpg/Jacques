@@ -152,6 +152,141 @@ def export_tracks(conn, root, limit=None):
             for c in credits
         ] or ["- None"]
 
+        harmony_profile = conn.execute(
+            """SELECT key, mode, harmonic_rhythm, chord_change_rate,
+                      loop_bars, progression_json, consensus_confidence
+               FROM harmony_profiles
+               WHERE track_id=?""",
+            (row["track_id"],),
+        ).fetchone()
+        harmony_rows = conn.execute(
+            """SELECT start_sec, end_sec, root, bass_note, chord_quality,
+                      inversion, roman_candidate, function_candidate,
+                      secondary_function, borrowed_from_mode, confidence
+               FROM harmony_structures
+               WHERE track_id=?
+               ORDER BY start_sec""",
+            (row["track_id"],),
+        ).fetchall()
+        lines += ["", "## Harmony", ""]
+        if harmony_profile:
+            lines += [
+                f"- Key: {harmony_profile['key'] or ''}",
+                f"- Mode: {harmony_profile['mode'] or ''}",
+                f"- Harmonic rhythm: {harmony_profile['harmonic_rhythm'] or ''} sec",
+                f"- Chord change rate: {harmony_profile['chord_change_rate'] or ''} / sec",
+                f"- Loop estimate: {harmony_profile['loop_bars'] or ''} bars",
+                f"- Consensus confidence: {harmony_profile['consensus_confidence'] or ''}",
+                f"- Progression: {harmony_profile['progression_json'] or '[]'}",
+            ]
+        else:
+            lines.append("- No normalized harmony profile")
+        if harmony_rows:
+            lines += ["", "### Harmony Timeline", ""]
+            for h in harmony_rows:
+                label = (h["root"] or "") + (h["chord_quality"] or "")
+                if h["bass_note"] and h["bass_note"] != h["root"]:
+                    label += f"/{h['bass_note']}"
+                details = []
+                if h["inversion"]:
+                    details.append(h["inversion"])
+                if h["roman_candidate"]:
+                    details.append(h["roman_candidate"])
+                if h["function_candidate"]:
+                    details.append(h["function_candidate"])
+                if h["secondary_function"]:
+                    details.append(h["secondary_function"])
+                if h["borrowed_from_mode"]:
+                    details.append(f"borrowed:{h['borrowed_from_mode']}")
+                suffix = f" — {', '.join(details)}" if details else ""
+                lines.append(
+                    f"- {h['start_sec']:.2f}–{h['end_sec']:.2f}s: **{label or 'Unknown'}** "
+                    f"(confidence {h['confidence'] if h['confidence'] is not None else ''}){suffix}"
+                )
+
+        melody_rows = conn.execute(
+            """SELECT section_name, start_sec, end_sec, key_candidate,
+                      mode_candidate, scale_candidate, range_semitones,
+                      contour, chord_tone_ratio, chromaticism, confidence
+               FROM melody_analysis
+               WHERE track_id=?
+               ORDER BY start_sec""",
+            (row["track_id"],),
+        ).fetchall()
+        scale_rows = conn.execute(
+            """SELECT section_name, start_sec, end_sec, tonic, mode, scale,
+                      modal_interchange, modulation_from, modulation_to, confidence
+               FROM scale_mode_analysis
+               WHERE track_id=?
+               ORDER BY start_sec""",
+            (row["track_id"],),
+        ).fetchall()
+        lines += ["", "## Melody & Scale", ""]
+        if melody_rows:
+            for m in melody_rows:
+                lines.append(
+                    f"- {m['start_sec'] if m['start_sec'] is not None else ''}–"
+                    f"{m['end_sec'] if m['end_sec'] is not None else ''}s "
+                    f"{m['section_name'] or ''}: key={m['key_candidate'] or ''}, "
+                    f"mode={m['mode_candidate'] or ''}, scale={m['scale_candidate'] or ''}, "
+                    f"range={m['range_semitones'] or ''} st, "
+                    f"chord-tone-ratio={m['chord_tone_ratio'] or ''}, "
+                    f"chromaticism={m['chromaticism'] or ''}, "
+                    f"confidence={m['confidence'] if m['confidence'] is not None else ''}"
+                )
+        else:
+            lines.append("- No melody analysis yet")
+        if scale_rows:
+            lines += ["", "### Scale / Modulation", ""]
+            for s in scale_rows:
+                flags = []
+                if s["modal_interchange"]:
+                    flags.append("modal interchange")
+                if s["modulation_from"] or s["modulation_to"]:
+                    flags.append(
+                        f"modulation {s['modulation_from'] or '?'} → {s['modulation_to'] or '?'}"
+                    )
+                suffix = f" — {', '.join(flags)}" if flags else ""
+                lines.append(
+                    f"- {s['start_sec'] if s['start_sec'] is not None else ''}–"
+                    f"{s['end_sec'] if s['end_sec'] is not None else ''}s "
+                    f"{s['section_name'] or ''}: tonic={s['tonic'] or ''}, "
+                    f"mode={s['mode'] or ''}, scale={s['scale'] or ''}, "
+                    f"confidence={s['confidence'] if s['confidence'] is not None else ''}{suffix}"
+                )
+
+        production_rows = conn.execute(
+            """SELECT stage, source, start_sec, end_sec, peak_dbfs,
+                      true_peak_dbtp, rms_dbfs, lufs_integrated,
+                      loudness_range_lu, vu_average, crest_factor_db,
+                      dynamic_range_db, phase_correlation, stereo_width,
+                      mono_compatibility, clipping_samples, confidence
+               FROM production_analysis
+               WHERE track_id=?
+               ORDER BY stage, start_sec""",
+            (row["track_id"],),
+        ).fetchall()
+        lines += ["", "## Production Analysis", ""]
+        if production_rows:
+            for p in production_rows:
+                lines.append(
+                    f"- {p['stage']} / {p['source']} "
+                    f"{p['start_sec'] if p['start_sec'] is not None else ''}–"
+                    f"{p['end_sec'] if p['end_sec'] is not None else ''}s: "
+                    f"LUFS-I={p['lufs_integrated'] if p['lufs_integrated'] is not None else ''}, "
+                    f"TP={p['true_peak_dbtp'] if p['true_peak_dbtp'] is not None else ''} dBTP, "
+                    f"RMS={p['rms_dbfs'] if p['rms_dbfs'] is not None else ''} dBFS, "
+                    f"crest={p['crest_factor_db'] if p['crest_factor_db'] is not None else ''} dB, "
+                    f"dynamic={p['dynamic_range_db'] if p['dynamic_range_db'] is not None else ''} dB, "
+                    f"phase={p['phase_correlation'] if p['phase_correlation'] is not None else ''}, "
+                    f"stereo={p['stereo_width'] if p['stereo_width'] is not None else ''}, "
+                    f"mono={p['mono_compatibility'] if p['mono_compatibility'] is not None else ''}, "
+                    f"clips={p['clipping_samples'] if p['clipping_samples'] is not None else ''}, "
+                    f"confidence={p['confidence'] if p['confidence'] is not None else ''}"
+                )
+        else:
+            lines.append("- No production analysis yet")
+
         (out / f"{safe_filename(row['title'])}__{row['track_id'][:8]}.md").write_text(
             "\n".join(lines) + "\n",
             encoding="utf-8",
