@@ -110,7 +110,7 @@ jobs:
           PY
 
       - name: Analyze Spotify Top tracks via YouTube providers
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-analysis]')) }}
         env:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
@@ -122,7 +122,7 @@ jobs:
           python tools/analyze_top_tracks.py
 
       - name: Upload analysis artifacts
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && always() }}
+        if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-analysis]'))) && always() }}
         uses: actions/upload-artifact@v4
         with:
           name: jacques-top-track-analysis-${{ github.run_id }}
@@ -145,6 +145,11 @@ jobs:
             # onto the latest main before pushing to avoid non-fast-forward
             # failures.
             git fetch origin main
-            git rebase origin/main
+            if ! git rebase origin/main; then
+              echo "Binary DB conflict during rebase; keeping the generated runner DB."
+              git checkout --theirs db/music.db
+              git add db/music.db
+              GIT_EDITOR=true git rebase --continue
+            fi
             git push origin HEAD:main
           fi
