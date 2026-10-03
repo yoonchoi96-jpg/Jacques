@@ -17,6 +17,10 @@ on:
         default: "chordidentifier,methodic_truth,magic_chords"
         type: string
 
+  push:
+    paths-ignore:
+      - "db/music.db"
+
   schedule:
     - cron: "0 0,8,15 * * *"
 
