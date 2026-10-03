@@ -52,6 +52,29 @@ def extract_visible_text(page) -> str:
 
 
 
+def extract_methodic_sections(text: str) -> list[dict]:
+    """Extract explicit section labels only when the provider visibly exposes them."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    section_re = re.compile(r"^(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus(?:\s*\d+)?|post[- ]?chorus|bridge(?:\s*\d+)?|breakdown|interlude|outro|hook(?:\s*\d+)?|refrain)(?:\s*[:\-].*)?$", re.IGNORECASE)
+    timestamp_re = re.compile(r"^(\d{1,2}:\d{2}(?::\d{2})?)$")
+    markers = []
+    for idx, line in enumerate(lines):
+        match = section_re.fullmatch(line)
+        if not match:
+            continue
+        start_sec = None
+        for candidate in lines[idx + 1:idx + 8]:
+            if timestamp_re.fullmatch(candidate):
+                parts = [int(x) for x in candidate.split(":")]
+                start_sec = parts[0] * 60 + parts[1] if len(parts) == 2 else parts[0] * 3600 + parts[1] * 60 + parts[2]
+                break
+        if start_sec is not None:
+            label = match.group(1).title().replace("Pre Chorus", "Pre-Chorus").replace("Post Chorus", "Post-Chorus")
+            markers.append({"section": label, "start_sec": float(start_sec), "source": "methodic_truth", "explicit": True, "confidence": 0.9})
+    for idx, marker in enumerate(markers):
+        marker["end_sec"] = markers[idx + 1]["start_sec"] if idx + 1 < len(markers) else None
+    return [item for item in markers if item.get("end_sec") is not None]
+
 def extract_methodic_metadata(text: str) -> dict:
     """Extract song-level BPM/key/meter from Methodic Truth's result header."""
     head = text[:2_500]
@@ -123,6 +146,7 @@ def run_provider(page, provider: str) -> dict:
         result["final_url"] = page.url
         result["final_text_excerpt"] = text[:16_000]
         metadata = extract_methodic_metadata(text)
+        explicit_sections = extract_methodic_sections(text)
 
         # The UI renders chord and timestamp on adjacent lines in Play Along:
         #   Esus4
@@ -201,6 +225,7 @@ def run_provider(page, provider: str) -> dict:
                 "chart_bars": chart_bars,
                 "segment_count": len(chord_rows),
                 "chart_bar_count": len(chart_bars),
+                "sections": explicit_sections,
                 "method": "youtube_browser_analysis",
             }
             result["status"] = "success"

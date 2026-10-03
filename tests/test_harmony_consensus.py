@@ -124,9 +124,30 @@ def test_beat_grid_is_available_and_prompt_ready():
     grid = profile["beat_grid"]
     assert grid["available"] is True
     assert grid["time_signature"] == "4/4"
-    assert grid["grid_semantics"] == "relative_to_first_consensus_onset"
+    assert grid["grid_semantics"] == "relative_to_first_consensus_onset_with_onset_snapping"
     assert grid["beats"][0]["bar"] == 1
     assert grid["beats"][0]["beat"] == 1
     assert grid["beats"][0]["chord"] == "Cmaj7"
     assert profile["prompt_harmony"].startswith("TIME: 4/4")
     assert "Bar 01" in profile["prompt_harmony"]
+
+
+def test_structure_map_is_bar_aware_and_never_invents_semantics():
+    conn = _conn()
+    rows = [
+        ("t4", "source_a", None, 0.0, 4.0, "C", 0.9),
+        ("t4", "source_b", None, 0.0, 4.0, "C", 0.9),
+        ("t4", "source_a", None, 4.0, 8.0, "F", 0.9),
+        ("t4", "source_b", None, 4.0, 8.0, "F", 0.9),
+    ]
+    conn.executemany("INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
+    conn.execute("INSERT INTO harmony_sources VALUES ('t4', 'C major', 0.9)")
+    conn.execute("INSERT INTO audio_features VALUES ('t4', 120.0)")
+    conn.commit()
+    profile = fuse_track_harmony(conn, "t4")
+    structure = profile["structure_map"]
+    assert structure[0]["section"] == "Section 01"
+    assert structure[0]["start_bar"] == 1
+    assert structure[0]["end_bar"] == 2
+    assert structure[0]["semantic_label_evidence"] is False
+    assert "[Section 01] Bars 01-02" in profile["prompt_harmony"]

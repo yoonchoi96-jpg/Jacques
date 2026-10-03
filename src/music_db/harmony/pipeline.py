@@ -209,6 +209,10 @@ def import_external_harmony(conn, track_id, payload, source="external"):
         if payload.get("time_signature") is not None:
             item.setdefault("provider_time_signature", payload.get("time_signature"))
         item.setdefault("section_name", seg.get("section"))
+        if payload.get("sections"):
+            item["_provider_sections"] = payload.get("sections")
+        if payload.get("chart_bars"):
+            item["_provider_chart_bars"] = payload.get("chart_bars")
         conn.execute(
             """
             INSERT OR REPLACE INTO harmony_sources
@@ -326,7 +330,60 @@ def _build_beat_grid(consensus, tempo, beats_per_bar=4, time_signature="4/4"):
     }
 
 
-def _build_prompt_harmony(beat_grid):
+def _build_structure_map(consensus, beat_grid, explicit_sections=None):
+    """Build a conservative bar-aware song structure map."""
+    explicit_sections = explicit_sections or []
+    bars = beat_grid.get("bars") or []
+    if not bars or not consensus:
+        return []
+
+    def bar_for_sec(sec):
+        beats = beat_grid.get("beats") or []
+        if not beats:
+            return 1
+        nearest = min(beats, key=lambda beat: abs(float(beat["start_sec"]) - float(sec)))
+        return int(nearest["bar"])
+
+    sections = []
+    for item in explicit_sections:
+        try:
+            start_sec = float(item["start_sec"])
+            end_sec = float(item["end_sec"])
+        except (TypeError, ValueError):
+            continue
+        if end_sec <= start_sec:
+            continue
+        start_bar = bar_for_sec(start_sec)
+        end_bar = max(start_bar, bar_for_sec(max(start_sec, end_sec - 1e-6)))
+        sections.append({
+            "section": item.get("section") or item.get("label") or "Section",
+            "start_bar": start_bar,
+            "end_bar": end_bar,
+            "start_sec": round(start_sec, 4),
+            "end_sec": round(end_sec, 4),
+            "chords": [beat.get("chord") for beat in beat_grid.get("beats", [])
+                       if start_bar <= beat["bar"] <= end_bar and beat.get("chord")],
+            "source": item.get("source", "provider"),
+            "confidence": item.get("confidence"),
+            "semantic_label_evidence": bool(item.get("explicit", True)),
+        })
+    if sections:
+        sections.sort(key=lambda item: (item["start_bar"], item["end_bar"]))
+        return sections
+
+    return [{
+        "section": "Section 01",
+        "start_bar": min((bar["bar"] for bar in bars), default=1),
+        "end_bar": max((bar["bar"] for bar in bars), default=1),
+        "start_sec": round(float(consensus[0]["start_sec"]), 4),
+        "end_sec": round(float(consensus[-1]["end_sec"]), 4),
+        "chords": [beat.get("chord") for beat in beat_grid.get("beats", []) if beat.get("chord")],
+        "source": "neutral_fallback",
+        "confidence": None,
+        "semantic_label_evidence": False,
+    }]
+
+def _build_prompt_harmony(beat_grid, structure_map=None):
     if not beat_grid.get("available"):
         return None
     lines = [
@@ -339,6 +396,10 @@ def _build_prompt_harmony(beat_grid):
             f"{beat['beat']}:{beat['chord'] or '.'}"
             for beat in bar["beats"]
         ))
+    if structure_map:
+        lines.extend(["", "SONG STRUCTURE:"])
+        for item in structure_map:
+            lines.append(f"[{item['section']}] Bars {item['start_bar']:02d}-{item['end_bar']:02d}")
     return "\n".join(lines)
 
 def fuse_track_harmony(conn, track_id):
@@ -607,11 +668,22 @@ def fuse_track_harmony(conn, track_id):
             raw = json.loads(row[0] or "{}")
         except (TypeError, json.JSONDecodeError):
             continue
-        if raw.get("chart_bars"):
-            chart_bars = raw["chart_bars"]
+        if raw.get("chart_bars") or raw.get("_provider_chart_bars"):
+            chart_bars = raw.get("chart_bars") or raw.get("_provider_chart_bars")
             break
 
-    prompt_harmony = _build_prompt_harmony(beat_grid)
+    explicit_sections = []
+    for row in chart_rows:
+        try:
+            raw = json.loads(row[0] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if raw.get("sections") or raw.get("_provider_sections"):
+            explicit_sections = raw.get("sections") or raw.get("_provider_sections")
+            break
+
+    structure_map = _build_structure_map(consensus, beat_grid, explicit_sections)
+    prompt_harmony = _build_prompt_harmony(beat_grid, structure_map)
     if chart_bars:
         chart_lines = ["CHORD CHART BARS:"]
         for chart in chart_bars:
@@ -630,6 +702,7 @@ def fuse_track_harmony(conn, track_id):
         "beat_grid": beat_grid,
         "prompt_harmony": prompt_harmony,
         "chart_bars": chart_bars,
+        "structure_map": structure_map,
         "harmonic_rhythm_sec": harmonic_rhythm,
         "chord_change_rate_per_sec": change_rate,
         "extensions": sorted({
@@ -668,7 +741,7 @@ def fuse_track_harmony(conn, track_id):
         (
             track_id, resolved_key, mode, harmonic_rhythm, change_rate, loop_bars,
             json.dumps(progression, ensure_ascii=False),
-            json.dumps([], ensure_ascii=False),
+            json.dumps(structure_map, ensure_ascii=False),
             json.dumps(profile["extensions"], ensure_ascii=False),
             json.dumps([], ensure_ascii=False),
             profile["confidence"],
