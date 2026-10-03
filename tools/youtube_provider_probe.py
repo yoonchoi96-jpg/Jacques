@@ -57,8 +57,19 @@ def run_provider(page, provider: str) -> dict:
         "status": "unknown",
     }
 
-    page.goto(cfg["url"], wait_until="domcontentloaded", timeout=60_000)
-    page.wait_for_timeout(2_000)
+    try:
+        page.goto(cfg["url"], wait_until="commit", timeout=30_000)
+        page.wait_for_timeout(3_000)
+    except Exception as exc:
+        result["navigation_error"] = f"{type(exc).__name__}: {exc}"
+        try:
+            body = extract_visible_text(page)
+            result["initial_text_excerpt"] = body[:4_000]
+        except Exception:
+            body = ""
+        if not body:
+            result["status"] = "navigation_failed"
+            return result
 
     body = extract_visible_text(page)
     result["initial_text_excerpt"] = body[:4_000]
