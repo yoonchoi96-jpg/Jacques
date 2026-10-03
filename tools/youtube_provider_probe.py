@@ -437,21 +437,26 @@ def main() -> None:
                     )
             profile = fuse_track_harmony(conn, TRACK_ID)
             if profile:
+                payload["harmony_profile"] = profile
                 print("HARMONY CONSENSUS")
                 print(json.dumps({
                     "key": profile.get("key"),
                     "tempo": profile.get("tempo"),
+                    "time_signature": profile.get("time_signature"),
                     "confidence": profile.get("confidence"),
+                    "consensus_policy": profile.get("consensus_policy"),
                     "progression": profile.get("progression"),
                     "roman_progression": profile.get("roman_progression"),
                     "beat_grid": profile.get("beat_grid"),
+                    "structure_map": profile.get("structure_map"),
                     "prompt_harmony": profile.get("prompt_harmony"),
                 }, ensure_ascii=False, indent=2))
             conn.commit()
         payload["track_id"] = TRACK_ID
         payload["imported"] = imported
 
-    (ARTIFACT_DIR / "result.json").write_text(
+    artifact_stem = safe_name(TRACK_ID or "unknown_track")
+    (ARTIFACT_DIR / f"result_{artifact_stem}.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
