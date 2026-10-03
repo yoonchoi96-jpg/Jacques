@@ -14,15 +14,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def youtube_search(query: str) -> str:
     proc = subprocess.run(
-        ["yt-dlp", "--flat-playlist", "--playlist-end", "1", f"ytsearch1:{query}"],
+        ["yt-dlp", "--flat-playlist", "--playlist-end", "1", "--no-warnings", "--print", "%(id)s", f"ytsearch1:{query}"],
         check=True,
         capture_output=True,
         text=True,
     )
     for line in proc.stdout.splitlines():
-        data = json.loads(line)
-        video_id = data.get("id")
-        if video_id:
+        video_id = line.strip()
+        if video_id and len(video_id) == 11:
             return f"https://www.youtube.com/watch?v={video_id}"
     raise RuntimeError(f"No YouTube result for: {query}")
 
