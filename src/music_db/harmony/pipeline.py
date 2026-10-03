@@ -596,7 +596,29 @@ def fuse_track_harmony(conn, track_id):
         beats_per_bar=beats_per_bar,
         time_signature=time_signature,
     )
+
+    chart_bars = []
+    chart_rows = conn.execute(
+        "SELECT raw_data FROM harmony_sources WHERE track_id=? ORDER BY observed_at DESC",
+        (track_id,),
+    ).fetchall()
+    for row in chart_rows:
+        try:
+            raw = json.loads(row[0] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if raw.get("chart_bars"):
+            chart_bars = raw["chart_bars"]
+            break
+
     prompt_harmony = _build_prompt_harmony(beat_grid)
+    if chart_bars:
+        chart_lines = ["CHORD CHART BARS:"]
+        for chart in chart_bars:
+            chart_lines.append(
+                f"Bar {int(chart['bar']):02d}: " + " → ".join(chart.get("chords", []))
+            )
+        prompt_harmony = (prompt_harmony + "\n\n" + "\n".join(chart_lines)) if prompt_harmony else "\n".join(chart_lines)
 
     profile = {
         "key": resolved_key,
@@ -607,6 +629,7 @@ def fuse_track_harmony(conn, track_id):
         "segments": consensus,
         "beat_grid": beat_grid,
         "prompt_harmony": prompt_harmony,
+        "chart_bars": chart_bars,
         "harmonic_rhythm_sec": harmonic_rhythm,
         "chord_change_rate_per_sec": change_rate,
         "extensions": sorted({
