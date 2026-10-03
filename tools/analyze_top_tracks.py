@@ -106,6 +106,27 @@ def _youtube_candidate_score(
     return max(0.0, min(1.0, score))
 
 
+YOUTUBE_MIN_MATCH_SCORE = float(os.environ.get("JACQUES_YOUTUBE_MIN_MATCH_SCORE", "0.72"))
+YOUTUBE_MIN_MATCH_MARGIN = float(os.environ.get("JACQUES_YOUTUBE_MIN_MATCH_MARGIN", "0.08"))
+
+
+def _candidate_is_strong(title: str, artists: list[str], duration_ms: int | None, candidate: dict) -> bool:
+    normalized_title = _norm_text(title)
+    candidate_title = _norm_text(candidate.get("title") or "")
+    candidate_blob = _norm_text(f"{candidate.get("title") or ""} {candidate.get("channel") or ""}")
+    title_exact = bool(normalized_title and normalized_title == candidate_title)
+    artist_exact = any(
+        _norm_text(artist) and _norm_text(artist) in candidate_blob
+        for artist in artists
+    )
+    duration = candidate.get("duration")
+    duration_close = (
+        duration_ms is not None and duration is not None
+        and abs(float(duration) - duration_ms / 1000.0) <= 10
+    )
+    return title_exact and artist_exact and duration_close
+
+
 def youtube_search(title: str, artists: list[str], duration_ms: int | None) -> dict:
     query = f"{title} {' '.join(artists)} official audio"
     proc = subprocess.run(
@@ -153,8 +174,28 @@ def youtube_search(title: str, artists: list[str], duration_ms: int | None) -> d
         reverse=True,
     )
     best = ranked[0]
+    second = ranked[1] if len(ranked) > 1 else None
+    margin = best["score"] - second["score"] if second else best["score"]
+
     if not best["url"]:
         raise RuntimeError(f"Best YouTube result has no URL: {best}")
+
+    strong_exception = _candidate_is_strong(title, artists, duration_ms, best)
+    if best["score"] < YOUTUBE_MIN_MATCH_SCORE and not strong_exception:
+        raise RuntimeError(
+            f"YouTube match rejected: score={best['score']:.3f} "
+            f"< {YOUTUBE_MIN_MATCH_SCORE:.2f}; candidate={best['title']!r} "
+            f"channel={best['channel']!r}"
+        )
+    if margin < YOUTUBE_MIN_MATCH_MARGIN and not strong_exception:
+        raise RuntimeError(
+            f"YouTube match ambiguous: margin={margin:.3f} "
+            f"< {YOUTUBE_MIN_MATCH_MARGIN:.2f}; "
+            f"best={best['title']!r}; second={second['title'] if second else None!r}"
+        )
+
+    best["match_margin"] = round(margin, 3)
+    best["match_gate"] = "strong_exact_title_artist_duration" if strong_exception else "threshold_and_margin"
 
     print(
         "YouTube candidates: "
@@ -283,6 +324,8 @@ def main() -> int:
                 "artists": artists,
                 "duration_ms": duration_ms,
                 "match_score": candidate["score"],
+                "match_margin": candidate.get("match_margin"),
+                "match_gate": candidate.get("match_gate"),
                 "candidate_title": candidate["title"],
                 "candidate_channel": candidate["channel"],
                 "candidate_duration": candidate["duration"],
