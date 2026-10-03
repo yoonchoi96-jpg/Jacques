@@ -38,6 +38,10 @@ PROVIDER_CONFIG = {
         "url": "https://www.mazmazika.com/chordanalyzer",
         "wait_seconds": 60,
     },
+    "methodic_truth": {
+        "url": "https://methodictruth.com/song-analyzer",
+        "wait_seconds": 35,
+    },
 }
 
 def safe_name(value: str) -> str:
@@ -58,6 +62,64 @@ def run_provider(page, provider: str) -> dict:
     page.goto(cfg["url"], wait_until="domcontentloaded", timeout=30_000)
     page.wait_for_timeout(3_000)
     result["initial_text_excerpt"] = extract_visible_text(page)[:4_000]
+
+    if provider == "methodic_truth":
+        # Methodic Truth accepts a public YouTube URL and renders a timestamped chord chart.
+        inputs = page.locator("input")
+        target = None
+        for idx in range(inputs.count()):
+            item = inputs.nth(idx)
+            placeholder = (item.get_attribute("placeholder") or "").lower()
+            input_type = (item.get_attribute("type") or "").lower()
+            if "youtube" in placeholder or input_type == "url":
+                target = item
+                break
+        if target is None:
+            raise RuntimeError("Methodic Truth YouTube URL input not found")
+        target.fill(YOUTUBE_URL)
+
+        buttons = page.get_by_role("button")
+        clicked = False
+        for idx in range(buttons.count()):
+            b = buttons.nth(idx)
+            label = (b.inner_text()).strip().lower()
+            if "analyze" in label:
+                b.click()
+                clicked = True
+                break
+        if not clicked:
+            raise RuntimeError("Methodic Truth analyze button not found")
+
+        page.wait_for_timeout(cfg["wait_seconds"] * 1_000)
+        text = extract_visible_text(page)
+        result["final_url"] = page.url
+        result["final_text_excerpt"] = text[:16_000]
+
+        import re
+        chord_rows = []
+        for line in text.splitlines():
+            line = line.strip()
+            match = re.search(
+                r"(\d{1,2}:\d{2}(?::\d{2})?)\s+([A-G](?:#|b)?(?:maj7|maj|min7|min|m7|m|dim7|dim|aug|sus2|sus4|sus|7|6|9|11|13|add9)?)\b",
+                line,
+            )
+            if match:
+                timestamp = match.group(1)
+                parts = [int(x) for x in timestamp.split(":")]
+                start_sec = parts[0] * 60 + parts[1] if len(parts) == 2 else parts[0] * 3600 + parts[1] * 60 + parts[2]
+                chord_rows.append({"start_sec": float(start_sec), "chord": match.group(2)})
+        if chord_rows:
+            for idx, row in enumerate(chord_rows):
+                row["end_sec"] = (
+                    chord_rows[idx + 1]["start_sec"]
+                    if idx + 1 < len(chord_rows)
+                    else None
+                )
+            result["harmony"] = chord_rows
+            result["status"] = "success"
+        else:
+            result["status"] = "accepted_or_processing"
+        return result
 
     if provider == "mazmazika":
         # Mazmazika accepts a YouTube URL and exposes a timestamped chord timeline.
