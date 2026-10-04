@@ -285,20 +285,18 @@ def run_provider(page, provider: str) -> dict:
         submit.click()
 
     if provider == "chordidentifier":
-        # The site renders an initial "Generating Chords..." marker and mutates the
-        # same page when recognition finishes. Poll the live DOM instead of taking
-        # one fixed-time snapshot, and never treat the placeholder as harmony data.
+        # ChordIdentifier progressively renders the timeline. Do not stop at the
+        # first non-empty snapshot: that can be only the first few generated regions.
+        # Poll until the segment count stabilizes while the page is still generating,
+        # or until the provider reaches its deadline.
         deadline_ms = cfg["wait_seconds"] * 1_000
         poll_ms = 5_000
         elapsed_ms = 0
         payload = {"source": "chordidentifier", "segments": [], "segment_count": 0}
         text = ""
-        previous_signature = None
+        last_count = -1
         stable_polls = 0
-        best_segment_count = 0
-        # ChordIdentifier can progressively render the timeline. Do not stop at
-        # the first visible segment; wait until the segment timeline stops growing
-        # for two consecutive polls or the provider reports an error.
+        first_nonempty_ms = None
         while elapsed_ms < deadline_ms:
             page.wait_for_timeout(poll_ms)
             elapsed_ms += poll_ms
@@ -306,26 +304,31 @@ def run_provider(page, provider: str) -> dict:
             payload = build_harmony_payload(
                 page.content(), source_url=page.url, youtube_url=YOUTUBE_URL
             )
-            segments = payload.get("segments") or []
-            signature = tuple(
-                (
-                    segment.get("start_sec"),
-                    segment.get("end_sec"),
-                    segment.get("chord"),
-                )
-                for segment in segments
-            )
-            if signature == previous_signature and segments:
+            count = int(payload.get("segment_count", 0) or 0)
+            lower_poll = text.lower()
+            generating = any(x in lower_poll for x in (
+                "generating chords", "preparing the track", "fetching youtube audio",
+                "processing", "please wait",
+            ))
+            if count > 0 and first_nonempty_ms is None:
+                first_nonempty_ms = elapsed_ms
+            if count == last_count and count > 0:
                 stable_polls += 1
             else:
                 stable_polls = 0
-            previous_signature = signature
-            best_segment_count = max(best_segment_count, len(segments))
-            if segments and stable_polls >= 2:
+            last_count = count
+
+            # Three consecutive identical snapshots after the first result is a
+            # practical completion signal. If the UI explicitly stopped generating,
+            # accept immediately. Never accept the 0:00-0:00 placeholder as data.
+            if count > 0 and (
+                (stable_polls >= 3 and elapsed_ms - (first_nonempty_ms or 0) >= 10_000)
+                or (not generating and stable_polls >= 1)
+            ):
                 break
-            lower_poll = text.lower()
             if any(x in lower_poll for x in ("error", "failed", "invalid", "not found", "unable")):
                 break
+
         result["final_url"] = page.url
         result["final_text_excerpt"] = text[:16_000]
         result["harmony_payload"] = payload
