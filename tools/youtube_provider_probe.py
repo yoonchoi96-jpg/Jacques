@@ -293,6 +293,12 @@ def run_provider(page, provider: str) -> dict:
         elapsed_ms = 0
         payload = {"source": "chordidentifier", "segments": [], "segment_count": 0}
         text = ""
+        previous_signature = None
+        stable_polls = 0
+        best_segment_count = 0
+        # ChordIdentifier can progressively render the timeline. Do not stop at
+        # the first visible segment; wait until the segment timeline stops growing
+        # for two consecutive polls or the provider reports an error.
         while elapsed_ms < deadline_ms:
             page.wait_for_timeout(poll_ms)
             elapsed_ms += poll_ms
@@ -300,7 +306,22 @@ def run_provider(page, provider: str) -> dict:
             payload = build_harmony_payload(
                 page.content(), source_url=page.url, youtube_url=YOUTUBE_URL
             )
-            if payload.get("segment_count", 0) > 0:
+            segments = payload.get("segments") or []
+            signature = tuple(
+                (
+                    segment.get("start_sec"),
+                    segment.get("end_sec"),
+                    segment.get("chord"),
+                )
+                for segment in segments
+            )
+            if signature == previous_signature and segments:
+                stable_polls += 1
+            else:
+                stable_polls = 0
+            previous_signature = signature
+            best_segment_count = max(best_segment_count, len(segments))
+            if segments and stable_polls >= 2:
                 break
             lower_poll = text.lower()
             if any(x in lower_poll for x in ("error", "failed", "invalid", "not found", "unable")):
