@@ -429,7 +429,11 @@ def main() -> None:
                     ),
                 )
                 harmony_payload = result.get("harmony_payload")
-                if harmony_payload and harmony_payload.get("segments"):
+                # Treat every provider payload as the current snapshot, including
+                # an empty/processing payload. import_external_harmony() clears the
+                # previous provider observation before importing, so empty results
+                # must also reach it to prevent stale evidence from surviving runs.
+                if harmony_payload is not None:
                     count = import_external_harmony(
                         conn, TRACK_ID, harmony_payload,
                         source=harmony_payload.get("source", result["provider"]),
