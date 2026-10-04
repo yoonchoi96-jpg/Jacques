@@ -46,14 +46,17 @@ def parse_chordidentifier_html(html: str) -> list[dict[str, Any]]:
         before = html[cursor:region.start()]
         markers = list(_MARKER_RE.finditer(before))
         if not markers:
+            cursor = region.end()
             continue
         chord = _clean_chord(markers[-1].group(1))
         match = _TIME_RANGE_RE.match(region.group(1))
         if not match:
+            cursor = region.end()
             continue
         start_sec = _parse_time(match.group(1))
         end_sec = _parse_time(match.group(2))
         if end_sec <= start_sec or not _CHORD_VALUE_RE.match(chord):
+            cursor = region.end()
             continue
         segments.append({
             "start_sec": start_sec,
