@@ -182,6 +182,21 @@ def import_external_harmony(conn, track_id, payload, source="external"):
     source = payload.get("source") or source
     source_url = payload.get("source_url")
     segments = payload.get("segments") or payload.get("chords") or []
+
+    # Provider observations are snapshots, not append-only history. Clear the
+    # previous observation for this track/source before importing the current
+    # payload, including an empty/processing payload. Otherwise a failed or
+    # partial provider refresh can silently contaminate consensus with stale
+    # evidence from an earlier run.
+    conn.execute(
+        "DELETE FROM harmony_segments WHERE track_id=? AND source=?",
+        (track_id, source),
+    )
+    conn.execute(
+        "DELETE FROM harmony_sources WHERE track_id=? AND source=?",
+        (track_id, source),
+    )
+
     imported_count = 0
     skipped_count = 0
     for seg in segments:
