@@ -268,35 +268,20 @@ def run_provider(page, provider: str) -> dict:
         return result
 
     if provider == "chordidentifier":
-        # ChordIdentifier keeps the YouTube input inside a modal.
-        page.locator('button[title="YouTube video"]').click()
-        input_box = page.locator("#ci-youtube-url")
-        input_box.wait_for(state="visible", timeout=5_000)
-        input_box.fill(YOUTUBE_URL)
-        submit = page.locator('button:has-text("Fetch audio & generate chords")').first
-        submit.wait_for(state="visible", timeout=5_000)
-        submit.click()
-    else:
-        input_box = page.locator("#youtube-link")
-        input_box.wait_for(state="visible", timeout=5_000)
-        input_box.fill(YOUTUBE_URL)
-        submit = input_box.locator("xpath=../following-sibling::button").first
-        submit.wait_for(state="visible", timeout=5_000)
-        submit.click()
-
-    if provider == "chordidentifier":
-        # ChordIdentifier progressively renders the timeline. Do not stop at the
-        # first non-empty snapshot: that can be only the first few generated regions.
-        # Poll until the segment count stabilizes while the page is still generating,
-        # or until the provider reaches its deadline.
+        # ChordIdentifier progressively renders its timeline. A non-zero segment
+        # count is only an intermediate state, so keep polling until the timeline
+        # stops changing for several consecutive polls (or the provider reports an
+        # explicit failure). This prevents short partial timelines from becoming
+        # the canonical provider snapshot.
         deadline_ms = cfg["wait_seconds"] * 1_000
         poll_ms = 5_000
+        stable_polls_required = 3
         elapsed_ms = 0
+        stable_polls = 0
+        previous_signature = None
         payload = {"source": "chordidentifier", "segments": [], "segment_count": 0}
         text = ""
-        last_count = -1
-        stable_polls = 0
-        first_nonempty_ms = None
+
         while elapsed_ms < deadline_ms:
             page.wait_for_timeout(poll_ms)
             elapsed_ms += poll_ms
@@ -304,36 +289,44 @@ def run_provider(page, provider: str) -> dict:
             payload = build_harmony_payload(
                 page.content(), source_url=page.url, youtube_url=YOUTUBE_URL
             )
-            count = int(payload.get("segment_count", 0) or 0)
-            lower_poll = text.lower()
-            generating = any(x in lower_poll for x in (
-                "generating chords", "preparing the track", "fetching youtube audio",
-                "processing", "please wait",
-            ))
-            if count > 0 and first_nonempty_ms is None:
-                first_nonempty_ms = elapsed_ms
-            if count == last_count and count > 0:
+            segments = payload.get("segments") or []
+            signature = tuple(
+                (
+                    segment.get("start_sec"),
+                    segment.get("end_sec"),
+                    segment.get("chord"),
+                )
+                for segment in segments
+            )
+
+            if signature and signature == previous_signature:
                 stable_polls += 1
+            elif signature:
+                stable_polls = 0
             else:
                 stable_polls = 0
-            last_count = count
+            previous_signature = signature
 
-            # Three consecutive identical snapshots after the first result is a
-            # practical completion signal. If the UI explicitly stopped generating,
-            # accept immediately. Never accept the 0:00-0:00 placeholder as data.
-            if count > 0 and (
-                (stable_polls >= 3 and elapsed_ms - (first_nonempty_ms or 0) >= 10_000)
-                or (not generating and stable_polls >= 1)
-            ):
-                break
+            lower_poll = text.lower()
             if any(x in lower_poll for x in ("error", "failed", "invalid", "not found", "unable")):
+                break
+
+            # Require the first non-empty timeline to remain unchanged across
+            # multiple polls. This is intentionally stricter than a non-zero
+            # segment count, because the provider can append or replace regions
+            # while generation is still in progress.
+            if signature and stable_polls >= stable_polls_required:
                 break
 
         result["final_url"] = page.url
         result["final_text_excerpt"] = text[:16_000]
         result["harmony_payload"] = payload
+        result["poll_elapsed_seconds"] = elapsed_ms / 1_000
+        result["stable_polls"] = stable_polls
+        result["timeline_segment_count"] = payload.get("segment_count", 0)
+
         lower = text.lower()
-        if payload.get("segment_count", 0) > 0:
+        if payload.get("segment_count", 0) > 0 and stable_polls >= stable_polls_required:
             result["status"] = "success"
         elif any(x in lower for x in ("error", "failed", "invalid", "not found", "unable")):
             result["status"] = "provider_error_or_rejection"
