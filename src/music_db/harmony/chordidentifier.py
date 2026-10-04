@@ -5,15 +5,20 @@ from html import unescape
 from typing import Any
 
 
-_CHORD_RE = re.compile(
-    r"<span[^>]*>\s*"
-    r"([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|\d|\+|-|/)*?)"
-    r"<br\s*/?>\s*</span>",
+_TIME_RANGE_RE = re.compile(
+    r"^\s*(\d+(?::\d+)?(?:\.\d+)?)\s*-\s*(\d+(?::\d+)?(?:\.\d+)?)\s*$"
+)
+_CHORD_VALUE_RE = re.compile(
+    r"^[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|\d|\+|-|/)*(?:\(.*\))?$",
     re.I,
 )
 _REGION_RE = re.compile(
     r"<region\b[^>]*\btitle=[\"']([^\"']+)[\"'][^>]*>",
     re.I,
+)
+_MARKER_RE = re.compile(
+    r"<span\b[^>]*>(.*?)<br\s*/?>\s*</span>",
+    re.I | re.S,
 )
 
 
@@ -28,19 +33,27 @@ def _parse_time(value: str) -> float:
     return float(value)
 
 
-def parse_chordidentifier_html(html: str) -> list[dict[str, Any]]:
-    """Extract the visible chord timeline emitted by ChordIdentifier's YouTube UI."""
-    labels = [unescape(x).strip() for x in _CHORD_RE.findall(html)]
-    regions = _REGION_RE.findall(html)
+def _clean_chord(value: str) -> str:
+    value = unescape(re.sub(r"<[^>]+>", "", value))
+    return re.sub(r"\s+", " ", value).strip()
 
+
+def parse_chordidentifier_html(html: str) -> list[dict[str, Any]]:
+    """Extract timeline by pairing each region with its preceding marker."""
     segments: list[dict[str, Any]] = []
-    for chord, region in zip(labels, regions):
-        match = re.match(r"^\s*(\d+(?::\d+)?(?:\.\d+)?)\s*-\s*(\d+(?::\d+)?(?:\.\d+)?)\s*$", region)
+    cursor = 0
+    for region in _REGION_RE.finditer(html):
+        before = html[cursor:region.start()]
+        markers = list(_MARKER_RE.finditer(before))
+        if not markers:
+            continue
+        chord = _clean_chord(markers[-1].group(1))
+        match = _TIME_RANGE_RE.match(region.group(1))
         if not match:
             continue
         start_sec = _parse_time(match.group(1))
         end_sec = _parse_time(match.group(2))
-        if end_sec <= start_sec or not chord:
+        if end_sec <= start_sec or not _CHORD_VALUE_RE.match(chord):
             continue
         segments.append({
             "start_sec": start_sec,
@@ -48,8 +61,9 @@ def parse_chordidentifier_html(html: str) -> list[dict[str, Any]]:
             "chord": chord,
             "confidence": None,
             "method": "chordidentifier_youtube",
-            "raw_region": region,
+            "raw_region": region.group(1),
         })
+        cursor = region.end()
     return segments
 
 
@@ -66,6 +80,5 @@ def build_harmony_payload(
         "youtube_url": youtube_url,
         "confidence": None,
         "segments": segments,
-        "segment_count": len(segments),
         "method": "youtube_browser_analysis",
     }
