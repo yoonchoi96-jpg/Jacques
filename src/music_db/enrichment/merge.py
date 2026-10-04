@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 
 
@@ -40,7 +41,8 @@ def _source_row(conn, track_id, source):
             valence,
             acousticness,
             instrumentalness,
-            speechiness
+            speechiness,
+            confidence
         FROM audio_feature_sources
         WHERE track_id = ?
           AND source = ?
@@ -54,87 +56,144 @@ def get_preferred_audio_features(conn, track_id):
     freqblog = _source_row(conn, track_id, "freqblog")
     songbpm = _source_row(conn, track_id, "songbpm")
 
-    if not freqblog and not songbpm:
+    rows = {
+        source: _source_row(conn, track_id, source)
+        for (source,) in conn.execute(
+            "SELECT DISTINCT source FROM audio_feature_sources WHERE track_id = ?",
+            (track_id,),
+        ).fetchall()
+    }
+    rows = {source: row for source, row in rows.items() if row is not None}
+    if not rows:
         return None
 
+    priority_table = conn.execute(
+        """
+        SELECT 1 FROM sqlite_master
+        WHERE type = 'table' AND name = 'source_priority'
+        """
+    ).fetchone()
+    priorities = {}
+    if priority_table:
+        priorities = {
+            (field, source): priority
+            for field, source, priority in conn.execute(
+                "SELECT field_name, source, priority FROM source_priority"
+            ).fetchall()
+        }
+
     result = {}
+    source_by_field = {}
 
     for field in FIELD_ORDER:
-        value = None
-
-        if freqblog is not None:
-            value = freqblog[field]
-
-        if value is None and songbpm is not None:
-            value = songbpm[field]
-
+        available = [
+            source for source, row in rows.items() if row[field] is not None
+        ]
+        source = (
+            min(
+                available,
+                key=lambda candidate: (
+                    priorities.get(
+                        (field, candidate),
+                        10 if candidate == "freqblog" else 20,
+                    ),
+                    candidate,
+                ),
+            )
+            if available
+            else None
+        )
+        value = rows[source][field] if source else None
         result[field] = value
+        source_by_field[field] = source
 
     if freqblog is not None:
         result["primary_source"] = "freqblog"
-    else:
+    elif songbpm is not None:
         result["primary_source"] = "songbpm"
+    else:
+        result["primary_source"] = next(iter(rows))
+    result["source_by_field"] = source_by_field
 
     return result
 
 
 def refresh_canonical_audio_features(conn, track_id):
     """Materialize FreqBlog-first audio features into the canonical table."""
-    row = conn.execute(
-        """
-        SELECT
-            t.duration_ms,
-            f.tempo AS f_tempo, s.tempo AS s_tempo,
-            f.key AS f_key, s.key AS s_key,
-            f.mode AS f_mode, s.mode AS s_mode,
-            f.loudness AS f_loudness, s.loudness AS s_loudness,
-            f.energy AS f_energy, s.energy AS s_energy,
-            f.danceability AS f_danceability, s.danceability AS s_danceability,
-            f.valence AS f_valence, s.valence AS s_valence,
-            f.acousticness AS f_acousticness, s.acousticness AS s_acousticness,
-            f.instrumentalness AS f_instrumentalness, s.instrumentalness AS s_instrumentalness,
-            f.speechiness AS f_speechiness, s.speechiness AS s_speechiness,
-            f.confidence AS f_confidence, s.confidence AS s_confidence,
-            CASE WHEN f.track_id IS NOT NULL THEN 'freqblog' ELSE 'songbpm' END AS source
-        FROM tracks t
-        LEFT JOIN audio_feature_sources f
-          ON f.track_id = t.track_id AND f.source = 'freqblog'
-        LEFT JOIN audio_feature_sources s
-          ON s.track_id = t.track_id AND s.source = 'songbpm'
-        WHERE t.track_id = ?
-        """,
-        (track_id,),
-    ).fetchone()
-
-    if row is None or (row["f_tempo"] is None and row["s_tempo"] is None):
+    features = get_preferred_audio_features(conn, track_id)
+    if features is None or not any(features[field] is not None for field in FIELD_ORDER):
         return False
 
-    def first(field):
-        return row[f"f_{field}"] if row[f"f_{field}"] is not None else row[f"s_{field}"]
-
-    conn.execute(
-        """
-        INSERT INTO audio_features (
-            track_id, duration_ms, tempo, key, mode, loudness,
-            energy, danceability, valence, acousticness,
-            instrumentalness, speechiness, source, confidence, updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(track_id) DO UPDATE SET
-            duration_ms=excluded.duration_ms, tempo=excluded.tempo,
-            key=excluded.key, mode=excluded.mode, loudness=excluded.loudness,
-            energy=excluded.energy, danceability=excluded.danceability,
-            valence=excluded.valence, acousticness=excluded.acousticness,
-            instrumentalness=excluded.instrumentalness,
-            speechiness=excluded.speechiness, source=excluded.source,
-            confidence=excluded.confidence, updated_at=excluded.updated_at
-        """,
-        (
-            track_id, row["duration_ms"], first("tempo"), first("key"),
-            first("mode"), first("loudness"), first("energy"),
-            first("danceability"), first("valence"), first("acousticness"),
-            first("instrumentalness"), first("speechiness"), row["source"],
-            row["f_confidence"] if row["f_confidence"] is not None else row["s_confidence"],
-        ),
+    duration = conn.execute(
+        "SELECT duration_ms FROM tracks WHERE track_id = ?", (track_id,)
+    ).fetchone()
+    if duration is None:
+        return False
+    source_rows = {
+        source: _source_row(conn, track_id, source)
+        for source in set(features["source_by_field"].values()) - {None}
+    }
+    distinct_sources = set(features["source_by_field"].values()) - {None}
+    confidence_source = (
+        features["source_by_field"].get("tempo")
+        or next(iter(distinct_sources), None)
     )
+    confidence = (
+        source_rows.get(confidence_source)["confidence"]
+        if source_rows.get(confidence_source) is not None
+        else None
+    )
+    source = (
+        next(iter(distinct_sources))
+        if len(distinct_sources) == 1
+        else "mixed"
+    )
+    values = [features[field] for field in FIELD_ORDER]
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(audio_features)")
+    }
+    source_by_field = json.dumps(features["source_by_field"], sort_keys=True)
+
+    if "source_by_field" in columns:
+        conn.execute(
+            """
+            INSERT INTO audio_features (
+                track_id, duration_ms, tempo, key, mode, loudness,
+                energy, danceability, valence, acousticness, instrumentalness,
+                speechiness, source, confidence, source_by_field, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(track_id) DO UPDATE SET
+                duration_ms=excluded.duration_ms, tempo=excluded.tempo,
+                key=excluded.key, mode=excluded.mode, loudness=excluded.loudness,
+                energy=excluded.energy, danceability=excluded.danceability,
+                valence=excluded.valence, acousticness=excluded.acousticness,
+                instrumentalness=excluded.instrumentalness,
+                speechiness=excluded.speechiness, source=excluded.source,
+                confidence=excluded.confidence,
+                source_by_field=excluded.source_by_field,
+                updated_at=excluded.updated_at
+            """,
+            (track_id, duration[0], *values, source, confidence, source_by_field),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO audio_features (
+                track_id, duration_ms, tempo, key, mode, loudness,
+                energy, danceability, valence, acousticness,
+                instrumentalness, speechiness, source, confidence, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(track_id) DO UPDATE SET
+                duration_ms=excluded.duration_ms, tempo=excluded.tempo,
+                key=excluded.key, mode=excluded.mode, loudness=excluded.loudness,
+                energy=excluded.energy, danceability=excluded.danceability,
+                valence=excluded.valence, acousticness=excluded.acousticness,
+                instrumentalness=excluded.instrumentalness,
+                speechiness=excluded.speechiness, source=excluded.source,
+                confidence=excluded.confidence, updated_at=excluded.updated_at
+            """,
+            (track_id, duration[0], *values, source, confidence),
+        )
     return True

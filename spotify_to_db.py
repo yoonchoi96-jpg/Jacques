@@ -1,3 +1,4 @@
+import argparse
 import os
 import sqlite3
 from pathlib import Path
@@ -7,6 +8,10 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
 import sys
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--dry-run", action="store_true")
+DRY_RUN = parser.parse_args().dry_run
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_DIR = PROJECT_ROOT / "src"
@@ -45,7 +50,8 @@ def load_env_file(path=".env"):
 
 load_env_file()
 
-initialize_database()
+if not DRY_RUN:
+    initialize_database()
 
 
 # =========================================================
@@ -96,6 +102,26 @@ token_info = oauth.refresh_access_token(REFRESH_TOKEN)
 sp = spotipy.Spotify(
     auth=token_info["access_token"]
 )
+
+if DRY_RUN:
+    from music_db.spotify_preview import (
+        collect_spotify_tracks,
+        preview_enrichment,
+        print_dry_run_report,
+    )
+
+    preview_conn = sqlite3.connect(
+        f"file:{DB_PATH}?mode=ro",
+        uri=True,
+    )
+    preview_conn.row_factory = sqlite3.Row
+    try:
+        preview_tracks = collect_spotify_tracks(sp)
+        candidates = preview_enrichment(preview_conn, preview_tracks)
+        print_dry_run_report(preview_tracks, candidates)
+    finally:
+        preview_conn.close()
+    raise SystemExit(0)
 
 
 # =========================================================

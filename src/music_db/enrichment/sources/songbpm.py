@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -33,6 +34,18 @@ def _set_status(
     completed=False,
 ):
     now = _now()
+    error_details = json.dumps(
+        {
+            "source": SOURCE,
+            "entity_type": "audio_features",
+            "status": status,
+            "attempts": attempts,
+            "error": last_error,
+            "completed": completed,
+            "recorded_at": now,
+        },
+        sort_keys=True,
+    )
 
     conn.execute(
         """
@@ -43,17 +56,19 @@ def _set_status(
             status,
             attempts,
             last_error,
+            error_details,
             last_attempted_at,
             completed_at,
             created_at,
             updated_at
         )
-        VALUES (?, ?, 'track', ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, 'audio_features', ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(track_id, source, entity_type)
         DO UPDATE SET
             status = excluded.status,
             attempts = excluded.attempts,
             last_error = excluded.last_error,
+            error_details = excluded.error_details,
             last_attempted_at = excluded.last_attempted_at,
             completed_at = excluded.completed_at,
             updated_at = excluded.updated_at
@@ -64,6 +79,7 @@ def _set_status(
             status,
             attempts,
             last_error,
+            error_details,
             now,
             now if completed else None,
             now,

@@ -1086,6 +1086,9 @@ ON CONFLICT(source) DO UPDATE SET
 def run_migrations(conn):
     conn.executescript(MIGRATION_SCHEMA)
     conn.executescript(SOURCE_SEED)
+    from music_db.schema.migrations import apply_migrations
+
+    apply_migrations(conn)
 
     # Seed stable music-theory/production vocabulary. Definitions are
     # intentionally compact; detailed knowledge can be expanded later
@@ -1289,6 +1292,13 @@ def initialize_database():
                 updated_at = excluded.updated_at
             """
         )
+
+        from music_db.enrichment.merge import refresh_canonical_audio_features
+
+        for row in conn.execute(
+            "SELECT DISTINCT track_id FROM audio_feature_sources"
+        ).fetchall():
+            refresh_canonical_audio_features(conn, row[0])
         conn.commit()
 
 

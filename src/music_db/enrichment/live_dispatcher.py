@@ -319,7 +319,7 @@ class LiveEnrichmentDispatcher:
                 FROM enrichment_status
                 WHERE track_id = ?
                   AND source = 'songbpm'
-                  AND entity_type = 'track'
+                  AND entity_type = 'audio_features'
                 """,
                 (track_id,),
             ).fetchone()
