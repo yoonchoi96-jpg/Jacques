@@ -329,16 +329,6 @@ def run_provider(page, provider: str) -> dict:
             result["status"] = "provider_error_or_rejection"
         else:
             result["status"] = "submitted_unknown_result"
-    else:
-        if page.url != cfg["url"] or any(x in lower for x in (
-            "your transcriptions", "piano roll", "transcription", "processing"
-        )):
-            result["status"] = "accepted_or_processing"
-        elif any(x in lower for x in ("error", "failed", "invalid", "not found")):
-            result["status"] = "provider_error_or_rejection"
-        else:
-            result["status"] = "submitted_unknown_result"
-
     return result
 
 def main() -> None:
