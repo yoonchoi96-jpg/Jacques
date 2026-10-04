@@ -24,7 +24,7 @@ PROVIDER_RETRIES = max(1, int(os.environ.get("PROVIDER_RETRIES", "2")))
 PROVIDER_CONFIG = {
     "chordidentifier": {
         "url": "https://chordidentifier.com/chord-finder-from-youtube/",
-        "wait_seconds": 90,
+        "wait_seconds": 180,
     },
     "songscription": {
         "url": "https://www.songscription.ai/youtube-to-sheet-music",
@@ -284,23 +284,48 @@ def run_provider(page, provider: str) -> dict:
         submit.wait_for(state="visible", timeout=5_000)
         submit.click()
 
-    page.wait_for_timeout(cfg["wait_seconds"] * 1_000)
-    text = extract_visible_text(page)
-    result["final_url"] = page.url
-    result["final_text_excerpt"] = text[:16_000]
     if provider == "chordidentifier":
-        result["harmony_payload"] = build_harmony_payload(
-            page.content(), source_url=page.url, youtube_url=YOUTUBE_URL
-        )
-    lower = text.lower()
-
-    if provider == "chordidentifier":
-        if any(x in lower for x in (
-            "chord timeline", "chord summary", "export chords",
-            "unlock full chords", "chords detected"
+        # The site renders an initial "Generating Chords..." marker and mutates the
+        # same page when recognition finishes. Poll the live DOM instead of taking
+        # one fixed-time snapshot, and never treat the placeholder as harmony data.
+        deadline_ms = cfg["wait_seconds"] * 1_000
+        poll_ms = 5_000
+        elapsed_ms = 0
+        payload = {"source": "chordidentifier", "segments": [], "segment_count": 0}
+        text = ""
+        while elapsed_ms < deadline_ms:
+            page.wait_for_timeout(poll_ms)
+            elapsed_ms += poll_ms
+            text = extract_visible_text(page)
+            payload = build_harmony_payload(
+                page.content(), source_url=page.url, youtube_url=YOUTUBE_URL
+            )
+            if payload.get("segment_count", 0) > 0:
+                break
+            lower_poll = text.lower()
+            if any(x in lower_poll for x in ("error", "failed", "invalid", "not found", "unable")):
+                break
+        result["final_url"] = page.url
+        result["final_text_excerpt"] = text[:16_000]
+        result["harmony_payload"] = payload
+        lower = text.lower()
+        if payload.get("segment_count", 0) > 0:
+            result["status"] = "success"
+        elif any(x in lower for x in ("error", "failed", "invalid", "not found", "unable")):
+            result["status"] = "provider_error_or_rejection"
+        else:
+            result["status"] = "accepted_or_processing"
+    else:
+        page.wait_for_timeout(cfg["wait_seconds"] * 1_000)
+        text = extract_visible_text(page)
+        result["final_url"] = page.url
+        result["final_text_excerpt"] = text[:16_000]
+        lower = text.lower()
+        if page.url != cfg["url"] or any(x in lower for x in (
+            "your transcriptions", "piano roll", "transcription", "processing"
         )):
             result["status"] = "accepted_or_processing"
-        elif any(x in lower for x in ("error", "failed", "invalid", "not found", "unable")):
+        elif any(x in lower for x in ("error", "failed", "invalid", "not found")):
             result["status"] = "provider_error_or_rejection"
         else:
             result["status"] = "submitted_unknown_result"
