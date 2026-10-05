@@ -831,17 +831,33 @@ def fuse_track_harmony(conn, track_id):
         if bass and root and bass != root:
             inversion = "slash_bass"
         evidence_ids = []
-        cur = conn.execute(
-            """INSERT INTO music_analysis_evidence
-               (track_id, domain, source, source_type, method, version,
-                start_sec, end_sec, payload_json, confidence, observed_at, created_at)
-               VALUES (?, 'harmony', 'harmony_consensus', 'derived', ?, 'consensus_v1', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
+        payload_json = json.dumps(item, ensure_ascii=False)
+        existing_evidence = conn.execute(
+            """SELECT rowid FROM music_analysis_evidence
+               WHERE track_id=? AND domain='harmony'
+                 AND source='harmony_consensus'
+                 AND method='multi_source_consensus'
+                 AND version='consensus_v1'
+                 AND start_sec=? AND end_sec=? AND payload_json=?
+               ORDER BY rowid LIMIT 1""",
             (
-                track_id, "multi_source_consensus", item["start_sec"], item["end_sec"],
-                json.dumps(item, ensure_ascii=False), item["confidence"],
+                track_id, item["start_sec"], item["end_sec"], payload_json,
             ),
-        )
-        evidence_ids.append(int(cur.lastrowid))
+        ).fetchone()
+        if existing_evidence:
+            evidence_ids.append(int(existing_evidence[0]))
+        else:
+            cur = conn.execute(
+                """INSERT INTO music_analysis_evidence
+                   (track_id, domain, source, source_type, method, version,
+                    start_sec, end_sec, payload_json, confidence, observed_at, created_at)
+                   VALUES (?, 'harmony', 'harmony_consensus', 'derived', ?, 'consensus_v1', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
+                (
+                    track_id, "multi_source_consensus", item["start_sec"],
+                    item["end_sec"], payload_json, item["confidence"],
+                ),
+            )
+            evidence_ids.append(int(cur.lastrowid))
         conn.execute(
             """INSERT INTO harmony_structures
                (track_id, start_sec, end_sec, root, bass_note, chord_quality,

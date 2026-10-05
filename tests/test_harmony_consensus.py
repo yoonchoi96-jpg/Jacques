@@ -85,6 +85,38 @@ def test_consensus_requires_two_sources_and_preserves_competing_label():
     assert profile["consensus_policy"]["minimum_agreeing_sources"] == 2
 
 
+def test_repeated_fusion_reuses_unchanged_derived_evidence():
+    conn = _conn()
+    rows = [
+        ("t-idempotent", "source_a", None, 0.0, 4.0, "Cmaj7", 0.9),
+        ("t-idempotent", "source_b", None, 0.0, 4.0, "Cmaj7", 0.9),
+    ]
+    conn.executemany(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows
+    )
+    conn.commit()
+
+    first_profile = fuse_track_harmony(conn, "t-idempotent")
+    evidence_count = conn.execute(
+        """SELECT COUNT(*) FROM music_analysis_evidence
+           WHERE track_id=? AND source='harmony_consensus'""",
+        ("t-idempotent",),
+    ).fetchone()[0]
+    second_profile = fuse_track_harmony(conn, "t-idempotent")
+    repeated_evidence_count = conn.execute(
+        """SELECT COUNT(*) FROM music_analysis_evidence
+           WHERE track_id=? AND source='harmony_consensus'""",
+        ("t-idempotent",),
+    ).fetchone()[0]
+
+    assert first_profile["progression"] == second_profile["progression"]
+    assert evidence_count == repeated_evidence_count == 1
+    assert conn.execute(
+        "SELECT COUNT(*) FROM harmony_structures WHERE track_id=?",
+        ("t-idempotent",),
+    ).fetchone()[0] == 1
+
+
 def test_enharmonic_spelling_can_reach_consensus_without_collapsing_source_text():
     conn = _conn()
     rows = [
