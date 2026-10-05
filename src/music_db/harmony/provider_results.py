@@ -59,8 +59,19 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
         }
 
     normalized = []
-    invalid = int(payload.get("invalid_segment_count") or 0)
-    raw_segment_count = int(payload.get("raw_segment_count", len(raw_segments)))
+    try:
+        invalid = int(payload.get("invalid_segment_count") or 0)
+        raw_segment_count = int(payload.get("raw_segment_count", len(raw_segments)))
+        if invalid < 0 or raw_segment_count < 0:
+            raise ValueError
+    except (TypeError, ValueError, OverflowError):
+        return result, {
+            "status": "invalid_result",
+            "segments": [],
+            "error_type": "InvalidTimelineMetadata",
+            "error_message": "Provider timeline counts must be non-negative integers.",
+            "raw_result_available": True,
+        }
     for segment in raw_segments:
         if not isinstance(segment, dict):
             invalid += 1

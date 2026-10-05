@@ -90,7 +90,8 @@ def make_report(data, rank):
             "fallback_reasons": sorted(
                 {
                     segment.get("fallback_reason")
-                    for segment in p.get("provisional_segments") or []
+                    for segment in (p.get("structure_map") or [])
+                    + (p.get("provisional_segments") or [])
                     if segment.get("fallback_reason")
                 }
             ),
@@ -100,6 +101,9 @@ def make_report(data, rank):
                 or item.get("evidence_class") == "fallback_placeholder"
                 for item in (p.get("structure_map") or [])
                 + (p.get("provisional_segments") or [])
+            ),
+            "provisional_provider_fallback_used": bool(
+                p.get("provisional_segments")
             ),
             "grid_semantics": (p.get("beat_grid") or {}).get("grid_semantics"),
         },
@@ -127,6 +131,7 @@ def markdown(r):
         f'- Confidence: {h["confidence"]}',
         f'- QC issues: {", ".join(h["qc_issues"]) or "none"}',
         f'- Fallback used: {h["fallback_used"]}; reasons: {", ".join(h["fallback_reasons"]) or "none"}',
+        f'- Provisional provider fallback used: {h["provisional_provider_fallback_used"]}',
         f'- Provisional-only progression (not consensus): {", ".join(h["provisional_progression"]) or "none"}',
         f'- Provider results: {provider_results}',
         f'- Harmony segments: {m["segment_count"]}; unique chords: {m["unique_chord_count"]}',

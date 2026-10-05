@@ -49,6 +49,11 @@ class MagicChordsProviderTests(unittest.TestCase):
         self.assertEqual(rows[0]["start_sec"], 1.0)
         self.assertEqual(rows[0]["end_sec"], 3.0)
 
+    def test_rejects_timeline_without_explicit_start_time(self):
+        rows = _segments({"segments": [{"end": 3, "chord": "Dm"}]})
+
+        self.assertEqual(rows, [])
+
     def test_completed_job_returns_result(self):
         page = FakePage(["processing", "completed"])
         result = analyze(page, "https://www.youtube.com/watch?v=test", polls=3, wait=1)

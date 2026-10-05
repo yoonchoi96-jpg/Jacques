@@ -35,7 +35,7 @@ def _parse_segments(result):
             invalid += 1
             continue
         chord = x.get("chord") or x.get("symbol") or x.get("label")
-        start = x.get("start_sec", x.get("start", x.get("startTime", 0)))
+        start = x.get("start_sec", x.get("start", x.get("startTime")))
         end = x.get("end_sec", x.get("end", x.get("endTime")))
         try:
             start = float(start)

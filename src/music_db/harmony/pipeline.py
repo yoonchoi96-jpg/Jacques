@@ -37,6 +37,14 @@ QUALITY_INTERVALS = {
     "dim7": [0, 3, 6, 9],
     "aug": [0, 4, 8],
     "add9": [0, 4, 7, 2],
+    "maj": [0, 4, 7],
+    "min": [0, 3, 7],
+    "9": [0, 4, 7, 10, 2],
+    "11": [0, 4, 7, 10, 2, 5],
+    "13": [0, 4, 7, 10, 2, 5, 9],
+    "m9": [0, 3, 7, 10, 2],
+    "m11": [0, 3, 7, 10, 2, 5],
+    "m13": [0, 3, 7, 10, 2, 5, 9],
 }
 MAX_HARMONY_SOURCES = 5
 MIN_CONSENSUS_SOURCES = 2
@@ -216,6 +224,7 @@ def import_external_harmony(conn, track_id, payload, source="external"):
 
     imported_count = 0
     skipped_count = 0
+    seen_segments = set()
     for seg in segments:
         item = dict(seg)
         start_sec = _coerce_seconds(
@@ -228,6 +237,16 @@ def import_external_harmony(conn, track_id, payload, source="external"):
         # Keep malformed provider evidence in the raw provider record, but do not
         # let it poison the normalized harmony tables.
         identity_key = _chord_identity_key(item.get("chord"))
+        confidence = item.get("confidence", payload.get("confidence"))
+        if confidence is not None:
+            try:
+                confidence = float(confidence)
+            except (TypeError, ValueError, OverflowError):
+                skipped_count += 1
+                continue
+            if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+                skipped_count += 1
+                continue
         if (
             start_sec is None
             or end_sec is None
@@ -241,9 +260,14 @@ def import_external_harmony(conn, track_id, payload, source="external"):
         ):
             skipped_count += 1
             continue
+        segment_key = (start_sec, end_sec, item.get("chord"))
+        if segment_key in seen_segments:
+            skipped_count += 1
+            continue
+        seen_segments.add(segment_key)
         item["start_sec"] = start_sec
         item["end_sec"] = end_sec
-        item.setdefault("confidence", payload.get("confidence"))
+        item["confidence"] = confidence
         item.setdefault("method", "external")
         if payload.get("key") is not None:
             item.setdefault("provider_key", payload.get("key"))
@@ -424,6 +448,7 @@ def _build_structure_map(consensus, beat_grid, explicit_sections=None):
         "source": "neutral_fallback",
         "confidence": None,
         "semantic_label_evidence": False,
+        "fallback_reason": "No explicit semantic section labels were supplied by an evidence source.",
     }]
 
 def _build_prompt_harmony(beat_grid, structure_map=None):
@@ -591,6 +616,7 @@ def fuse_track_harmony(conn, track_id):
         SELECT source, section_name, start_sec, end_sec, chord, confidence
         FROM harmony_segments
         WHERE track_id=? AND chord IS NOT NULL
+          AND source != 'neutral_fallback'
         {provider_filter}
         ORDER BY start_sec, source
         """,
@@ -775,9 +801,26 @@ def fuse_track_harmony(conn, track_id):
         if evidence_start is not None and evidence_end is not None
         else 0.0
     )
+    track_duration_sec = None
+    has_tracks = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tracks'"
+    ).fetchone()
+    if has_tracks:
+        duration_row = conn.execute(
+            "SELECT duration_ms FROM tracks WHERE track_id=?",
+            (track_id,),
+        ).fetchone()
+        if duration_row and duration_row[0] is not None:
+            try:
+                candidate_duration = float(duration_row[0]) / 1000.0
+                if math.isfinite(candidate_duration) and candidate_duration > 0:
+                    track_duration_sec = candidate_duration
+            except (TypeError, ValueError, OverflowError):
+                pass
+    coverage_duration = track_duration_sec or evidence_duration
     strict_coverage = (
-        strict_duration / evidence_duration
-        if evidence_duration > 0 else 0.0
+        strict_duration / coverage_duration
+        if coverage_duration > 0 else 0.0
     )
     has_strict_profile = bool(
         strict_consensus
@@ -887,11 +930,17 @@ def fuse_track_harmony(conn, track_id):
     if tempo is not None and (not math.isfinite(tempo) or not 30.0 <= tempo <= 300.0):
         tempo = None
     if tempo is None:
-        tempo_rows = conn.execute(
-            "SELECT raw_data FROM harmony_sources WHERE track_id=? "
-            "ORDER BY confidence DESC, observed_at DESC",
-            (track_id,),
-        ).fetchall()
+        tempo_rows = []
+        if "raw_data" in harmony_source_columns:
+            tempo_sql = "SELECT raw_data FROM harmony_sources WHERE track_id=?"
+            tempo_params = [track_id]
+            if "source" in harmony_source_columns:
+                tempo_sql += " AND source IN (" + ", ".join("?" for _ in sources) + ")"
+                tempo_params.extend(sources)
+            tempo_sql += " ORDER BY confidence DESC"
+            if "observed_at" in harmony_source_columns:
+                tempo_sql += ", observed_at DESC"
+            tempo_rows = conn.execute(tempo_sql, tempo_params).fetchall()
         for row in tempo_rows:
             try:
                 raw = json.loads(row[0] or "{}")
@@ -1092,7 +1141,7 @@ def fuse_track_harmony(conn, track_id):
             "fusion_mode": fusion_mode,
             "strict_consensus_segment_count": len(strict_consensus),
             "strict_consensus_coverage": round(strict_coverage, 4),
-            "evidence_duration_sec": round(evidence_duration, 4),
+            "evidence_duration_sec": round(coverage_duration, 4),
             "minimum_consensus_coverage": MIN_CONSENSUS_COVERAGE,
         },
     }
@@ -1106,7 +1155,19 @@ def fuse_track_harmony(conn, track_id):
         profile["prompt_harmony"] = None
         profile["harmonic_rhythm_sec"] = None
         profile["chord_change_rate_per_sec"] = None
-        profile["qc_issues"] = _validate_harmony_profile(conn, track_id, profile)
+        profile["extensions"] = []
+        profile["structure_map"] = []
+        profile["chart_bars"] = []
+        profile["beat_grid"] = {
+            **profile["beat_grid"],
+            "available": False,
+            "reason": "profile_failed_quality_control",
+            "beats": [],
+            "bars": [],
+        }
+        consensus = []
+        harmonic_rhythm = None
+        change_rate = None
 
     loop_bars = None
     if tempo and harmonic_rhythm:

@@ -4,6 +4,7 @@ import sqlite3
 from src.music_db.harmony.pipeline import (
     _chord_ambiguity,
     _split,
+    _validate_harmony_profile,
     fuse_track_harmony,
 )
 
@@ -148,6 +149,117 @@ def test_structure_map_is_bar_aware_and_never_invents_semantics():
     structure = profile["structure_map"]
     assert structure[0]["section"] == "Section 01"
     assert structure[0]["start_bar"] == 1
-    assert structure[0]["end_bar"] == 2
+    assert structure[0]["end_bar"] == 4
     assert structure[0]["semantic_label_evidence"] is False
-    assert "[Section 01] Bars 01-02" in profile["prompt_harmony"]
+    assert "[Section 01] Bars 01-04" in profile["prompt_harmony"]
+
+
+def test_single_provider_remains_provisional_without_confidence():
+    conn = _conn()
+    conn.execute(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("single", "source_a", None, 0.0, 10.0, "Am7", 0.99),
+    )
+    conn.commit()
+
+    profile = fuse_track_harmony(conn, "single")
+
+    assert profile["analysis_status"] == "provisional_insufficient_evidence"
+    assert profile["progression"] == []
+    assert profile["segments"] == []
+    assert profile["provisional_progression"] == ["Am7"]
+    assert profile["confidence"] is None
+
+
+def test_neutral_fallback_is_never_counted_as_harmony_evidence():
+    conn = _conn()
+    conn.execute(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("fallback", "neutral_fallback", None, 0.0, 10.0, "C", 1.0),
+    )
+    conn.commit()
+
+    assert fuse_track_harmony(conn, "fallback") is None
+
+
+def test_conflicting_providers_do_not_create_strict_consensus():
+    conn = _conn()
+    conn.executemany(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            ("conflict", "source_a", None, 0.0, 10.0, "Am7", 0.9),
+            ("conflict", "source_b", None, 0.0, 10.0, "C6", 0.9),
+        ],
+    )
+    conn.commit()
+
+    profile = fuse_track_harmony(conn, "conflict")
+
+    assert profile["analysis_status"] == "provisional_insufficient_evidence"
+    assert profile["consensus_policy"]["strict_consensus_segment_count"] == 0
+    assert profile["progression"] == []
+    assert profile["confidence"] is None
+
+
+def test_strict_consensus_coverage_is_based_on_agreeing_evidence():
+    conn = _conn()
+    conn.executemany(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            ("coverage", "source_a", None, 0.0, 4.0, "C", 0.9),
+            ("coverage", "source_b", None, 0.0, 4.0, "C", 0.8),
+            ("coverage", "source_a", None, 6.0, 10.0, "F", 0.9),
+        ],
+    )
+    conn.commit()
+
+    profile = fuse_track_harmony(conn, "coverage")
+
+    assert profile["consensus_policy"]["strict_consensus_segment_count"] == 1
+    assert profile["consensus_policy"]["strict_consensus_coverage"] == 0.4
+    assert profile["analysis_status"] == "strict_consensus"
+
+
+def test_profile_quality_control_rejects_confidence_without_evidence():
+    conn = _conn()
+    issues = _validate_harmony_profile(
+        conn,
+        "no-evidence",
+        {
+            "analysis_status": "provisional_insufficient_evidence",
+            "confidence": 0.8,
+            "evidence_count": 0,
+            "segments": [],
+            "strict_consensus_segments": [],
+            "provider_coverage": {},
+            "consensus_policy": {
+                "strict_consensus_coverage": 0,
+                "evidence_duration_sec": 0,
+            },
+        },
+    )
+
+    assert "confidence_without_evidence" in issues
+    assert "confidence_on_non_strict_profile" in issues
+
+
+def test_strict_coverage_uses_known_track_duration():
+    conn = _conn()
+    conn.execute(
+        "CREATE TABLE tracks (track_id TEXT PRIMARY KEY, duration_ms INTEGER)"
+    )
+    conn.execute("INSERT INTO tracks VALUES ('short-evidence', 100000)")
+    conn.executemany(
+        "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            ("short-evidence", "source_a", None, 0.0, 4.0, "C", 0.9),
+            ("short-evidence", "source_b", None, 0.0, 4.0, "C", 0.9),
+        ],
+    )
+    conn.commit()
+
+    profile = fuse_track_harmony(conn, "short-evidence")
+
+    assert profile["consensus_policy"]["strict_consensus_coverage"] == 0.04
+    assert profile["analysis_status"] == "provisional_insufficient_evidence"
+    assert profile["progression"] == []

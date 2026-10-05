@@ -69,6 +69,24 @@ class PhaseOneStabilityTests(unittest.TestCase):
             "error_details",
             {row[1] for row in conn.execute("PRAGMA table_info(enrichment_status)")},
         )
+        self.assertIn(
+            "harmony_provider_runs",
+            {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            },
+        )
+        self.assertIn(
+            "normalized_segment_count",
+            {
+                row[1]
+                for row in conn.execute(
+                    "PRAGMA table_info(harmony_provider_runs)"
+                )
+            },
+        )
         conn.close()
 
     def test_songbpm_status_records_structured_json(self):
