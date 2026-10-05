@@ -362,6 +362,7 @@ def run_provider(page, provider: str) -> dict:
         elif any(x in lower for x in ("no chords found", "no chord data")):
             result["status"] = "success"
             result["harmony_payload"]["status"] = "success"
+            result["harmony_payload"]["raw_result_available"] = True
         elif any(x in lower for x in ("error", "failed", "invalid", "not found", "unable")):
             result["status"] = "provider_error_or_rejection"
         else:
@@ -519,7 +520,7 @@ def main() -> None:
                     if confidence_values
                     else (
                         harmony_payload.get("confidence")
-                        if isinstance(harmony_payload, dict)
+                        if isinstance(harmony_payload, dict) and payload_segments
                         else None
                     )
                 )

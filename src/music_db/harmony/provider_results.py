@@ -57,12 +57,27 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
             "segments": [],
             "error_type": result.get("error_type"),
             "error_message": result.get("error"),
-            "raw_result_available": bool(result.get("final_text_excerpt") or result.get("initial_text_excerpt")),
+            "raw_result_available": bool(
+                result.get("raw_result_available")
+                or result.get("final_text_excerpt")
+                or result.get("initial_text_excerpt")
+            ),
         }
 
     raw_segments = payload.get("segments", payload.get("chords"))
     if raw_segments is None:
-        raw_segments = []
+        return result, {
+            "status": "invalid_result",
+            "segments": [],
+            "error_type": "MissingTimeline",
+            "error_message": "Provider result did not include a harmony timeline.",
+            "raw_result_available": bool(
+                result.get("raw_result_available")
+                or payload.get("raw_result_available")
+                or payload.get("raw_region_count")
+                or payload.get("raw_segment_count")
+            ),
+        }
     if not isinstance(raw_segments, list):
         return result, {
             "status": "invalid_result",
@@ -72,11 +87,37 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
             "raw_result_available": True,
         }
 
+    payload_confidence = payload.get("confidence")
+    if payload_confidence is not None:
+        try:
+            payload_confidence = float(payload_confidence)
+        except (TypeError, ValueError, OverflowError):
+            payload_confidence = None
+            return result, {
+                "status": "invalid_result",
+                "segments": [],
+                "error_type": "InvalidConfidence",
+                "error_message": "Provider confidence must be a number between 0 and 1.",
+                "raw_result_available": True,
+            }
+        if not math.isfinite(payload_confidence) or not 0 <= payload_confidence <= 1:
+            return result, {
+                "status": "invalid_result",
+                "segments": [],
+                "error_type": "InvalidConfidence",
+                "error_message": "Provider confidence must be a number between 0 and 1.",
+                "raw_result_available": True,
+            }
+
     normalized = []
     try:
         invalid = int(payload.get("invalid_segment_count") or 0)
         raw_segment_count = int(payload.get("raw_segment_count", len(raw_segments)))
-        if invalid < 0 or raw_segment_count < 0:
+        if (
+            invalid < 0
+            or raw_segment_count < 0
+            or invalid + len(raw_segments) > raw_segment_count
+        ):
             raise ValueError
     except (TypeError, ValueError, OverflowError):
         return result, {
@@ -90,7 +131,15 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
         if not isinstance(segment, dict):
             invalid += 1
             continue
-        chord = str(segment.get("chord") or segment.get("symbol") or segment.get("label") or "").strip()
+        chord_field = next(
+            (
+                field
+                for field in ("chord", "symbol", "label")
+                if segment.get(field)
+            ),
+            None,
+        )
+        chord = str(segment.get(chord_field) if chord_field else "").strip()
         try:
             start = float(segment.get("start_sec", segment.get("start")))
             end = float(segment.get("end_sec", segment.get("end")))
@@ -124,7 +173,9 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
                 "start_sec": start,
                 "end_sec": end,
                 "chord": chord,
+                "chord_source_field": chord_field,
                 "confidence": confidence,
+                "provider_method": payload.get("method") or provider,
                 "method": segment.get("method") or payload.get("method") or provider,
             }
         )
@@ -144,17 +195,42 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
     result_payload = dict(payload)
     result_payload["segments"] = unique
     result_payload["segment_count"] = len(unique)
+    result_payload["confidence"] = payload_confidence
     result_payload["parser_version"] = (
         result_payload.get("parser_version") or PARSER_VERSION
     )
     result["harmony_payload"] = result_payload
-    source_status = str(payload.get("status") or result.get("status") or "").lower()
+    result_status = str(result.get("status") or "").lower()
+    payload_status = str(payload.get("status") or "").lower()
+    source_status = payload_status or result_status
     if unique:
         state = "success_with_data"
-    elif invalid or duplicate_count or (
+    elif invalid or duplicate_count or raw_segment_count or (
         provider == "chordidentifier" and payload.get("raw_region_count", 0)
     ):
         state = "invalid_result"
+    elif result_status in {"timeout", "poll_timeout"}:
+        state = "timeout"
+    elif result_status in {
+        "exception",
+        "failed",
+        "rate_limited",
+        "result_fetch_error",
+        "provider_error_or_rejection",
+    }:
+        state = "failed"
+    elif result_status in {"invalid_result", "parse_error"}:
+        state = "invalid_result"
+    elif payload_status in {"timeout", "poll_timeout"}:
+        state = "timeout"
+    elif payload_status in {
+        "exception",
+        "failed",
+        "rate_limited",
+        "result_fetch_error",
+        "provider_error_or_rejection",
+    }:
+        state = "failed"
     elif source_status in {"success", "completed", "complete", "done"}:
         state = "success_empty"
     elif source_status in {"accepted_or_processing", "submitted_unknown_result"}:

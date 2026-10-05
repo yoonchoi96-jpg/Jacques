@@ -1,6 +1,8 @@
 import json
 import sqlite3
+import unittest
 
+from music_db.harmony.provider_results import normalize_provider_result
 from src.music_db.harmony.pipeline import (
     _chord_ambiguity,
     _split,
@@ -151,6 +153,9 @@ def test_structure_map_is_bar_aware_and_never_invents_semantics():
     assert structure[0]["start_bar"] == 1
     assert structure[0]["end_bar"] == 4
     assert structure[0]["semantic_label_evidence"] is False
+    assert structure[0]["source"] == "neutral_fallback"
+    assert structure[0]["confidence"] is None
+    assert structure[0]["evidence_class"] == "fallback_placeholder"
     assert "[Section 01] Bars 01-04" in profile["prompt_harmony"]
 
 
@@ -263,3 +268,155 @@ def test_strict_coverage_uses_known_track_duration():
     assert profile["consensus_policy"]["strict_consensus_coverage"] == 0.04
     assert profile["analysis_status"] == "provisional_insufficient_evidence"
     assert profile["progression"] == []
+
+
+class HarmonyPipelineHardeningTests(unittest.TestCase):
+    def test_valid_provider_timeline_has_data_success(self):
+        _, state = normalize_provider_result(
+            "source_a",
+            {
+                "status": "success",
+                "harmony_payload": {
+                    "status": "success",
+                    "segments": [{"start_sec": 0, "end_sec": 4, "chord": "Am7"}],
+                },
+            },
+        )
+        self.assertEqual(state["status"], "success_with_data")
+        self.assertEqual(len(state["segments"]), 1)
+
+    def test_explicit_empty_provider_timeline_is_not_failure(self):
+        _, state = normalize_provider_result(
+            "source_a",
+            {
+                "status": "success",
+                "harmony_payload": {"status": "success", "segments": []},
+            },
+        )
+        self.assertEqual(state["status"], "success_empty")
+
+    def test_provider_timeout_is_not_empty_success(self):
+        _, state = normalize_provider_result(
+            "source_a", {"status": "poll_timeout"}
+        )
+        self.assertEqual(state["status"], "timeout")
+
+    def test_missing_timeline_is_a_parse_failure(self):
+        _, state = normalize_provider_result(
+            "source_a",
+            {"status": "success", "harmony_payload": {"status": "success"}},
+        )
+        self.assertEqual(state["status"], "invalid_result")
+        self.assertEqual(state["error_type"], "MissingTimeline")
+
+    def test_malformed_segment_is_rejected(self):
+        _, state = normalize_provider_result(
+            "source_a",
+            {
+                "status": "success",
+                "harmony_payload": {
+                    "status": "success",
+                    "segments": [{"start_sec": 0, "end_sec": 3, "chord": "H"}],
+                },
+            },
+        )
+        self.assertEqual(state["status"], "invalid_result")
+        self.assertEqual(state["invalid_segment_count"], 1)
+
+    def test_invalid_provider_confidence_is_rejected(self):
+        _, state = normalize_provider_result(
+            "source_a",
+            {
+                "status": "success",
+                "harmony_payload": {
+                    "status": "success",
+                    "confidence": 1.5,
+                    "segments": [{"start_sec": 0, "end_sec": 4, "chord": "C"}],
+                },
+            },
+        )
+        self.assertEqual(state["status"], "invalid_result")
+        self.assertEqual(state["error_type"], "InvalidConfidence")
+
+    def test_single_source_does_not_become_consensus(self):
+        conn = _conn()
+        conn.execute(
+            "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("single-unit", "source_a", None, 0, 10, "Am7", 0.9),
+        )
+        profile = fuse_track_harmony(conn, "single-unit")
+        self.assertEqual(profile["analysis_status"], "provisional_insufficient_evidence")
+        self.assertEqual(profile["segments"], [])
+        self.assertIsNone(profile["confidence"])
+
+    def test_two_matching_sources_form_consensus(self):
+        conn = _conn()
+        conn.executemany(
+            "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                ("two-unit", "source_a", None, 0, 4, "C", 0.9),
+                ("two-unit", "source_b", None, 0, 4, "C", 0.8),
+            ],
+        )
+        profile = fuse_track_harmony(conn, "two-unit")
+        self.assertEqual(profile["analysis_status"], "strict_consensus")
+        self.assertEqual(profile["progression"], ["C"])
+
+    def test_disagreeing_sources_remain_provisional(self):
+        conn = _conn()
+        conn.executemany(
+            "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                ("conflict-unit", "source_a", None, 0, 10, "Am7", 0.9),
+                ("conflict-unit", "source_b", None, 0, 10, "C6", 0.9),
+            ],
+        )
+        profile = fuse_track_harmony(conn, "conflict-unit")
+        self.assertEqual(profile["analysis_status"], "provisional_insufficient_evidence")
+        self.assertEqual(profile["progression"], [])
+
+    def test_fallback_source_never_contributes_consensus(self):
+        conn = _conn()
+        conn.execute(
+            "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("fallback-unit", "neutral_fallback", None, 0, 10, "C", 1.0),
+        )
+        self.assertIsNone(fuse_track_harmony(conn, "fallback-unit"))
+
+    def test_strict_consensus_coverage_uses_track_duration(self):
+        conn = _conn()
+        conn.execute(
+            "CREATE TABLE tracks (track_id TEXT PRIMARY KEY, duration_ms INTEGER)"
+        )
+        conn.execute("INSERT INTO tracks VALUES ('coverage-unit', 100000)")
+        conn.executemany(
+            "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                ("coverage-unit", "source_a", None, 0, 4, "C", 0.9),
+                ("coverage-unit", "source_b", None, 0, 4, "C", 0.9),
+            ],
+        )
+        profile = fuse_track_harmony(conn, "coverage-unit")
+        self.assertEqual(profile["consensus_policy"]["strict_consensus_coverage"], 0.04)
+        self.assertEqual(profile["analysis_status"], "provisional_insufficient_evidence")
+
+    def test_confidence_without_evidence_fails_profile_qc(self):
+        conn = _conn()
+        issues = _validate_harmony_profile(
+            conn,
+            "no-evidence-unit",
+            {
+                "analysis_status": "provisional_insufficient_evidence",
+                "confidence": 0.8,
+                "evidence_count": 0,
+                "segments": [],
+                "strict_consensus_segments": [],
+                "provider_coverage": {},
+                "consensus_policy": {
+                    "strict_consensus_coverage": 0,
+                    "strict_consensus_segment_count": 0,
+                    "evidence_duration_sec": 0,
+                },
+            },
+        )
+        self.assertIn("confidence_without_evidence", issues)

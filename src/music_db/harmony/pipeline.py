@@ -755,7 +755,11 @@ def fuse_track_harmony(conn, track_id):
                 overlaps,
                 key=lambda item: (
                     max(0.0, min(right, float(item["end_sec"])) - max(left, float(item["start_sec"]))),
-                    float(item.get("confidence") or 0.5),
+                    float(
+                        item["confidence"]
+                        if item.get("confidence") is not None
+                        else 0.5
+                    ),
                 ),
             )
             active.append(chosen)
@@ -774,7 +778,14 @@ def fuse_track_harmony(conn, track_id):
             groups.items(),
             key=lambda pair: (
                 len({item["source"] for item in pair[1]}),
-                sum(float(item.get("confidence") or 0.5) for item in pair[1]),
+                sum(
+                    float(
+                        item["confidence"]
+                        if item.get("confidence") is not None
+                        else 0.5
+                    )
+                    for item in pair[1]
+                ),
             ),
         )
         supporting_sources = {item["source"] for item in winner_items}

@@ -90,3 +90,89 @@ def test_provider_count_metadata_must_be_valid():
 
     assert state["status"] == "invalid_result"
     assert state["error_type"] == "InvalidTimelineMetadata"
+
+
+def test_completed_magic_response_with_unusable_raw_segments_is_not_empty_success():
+    _, state = normalize_provider_result(
+        "magic_chords",
+        {
+            "status": "success",
+            "harmony_payload": {
+                "status": "completed",
+                "raw_segment_count": 2,
+                "invalid_segment_count": 2,
+                "segments": [],
+            },
+        },
+    )
+
+    assert state["status"] == "invalid_result"
+    assert state["raw_result_available"] is True
+
+
+def test_execution_timeout_overrides_empty_completed_payload():
+    _, state = normalize_provider_result(
+        "magic_chords",
+        {
+            "status": "poll_timeout",
+            "harmony_payload": {
+                "status": "completed",
+                "raw_segment_count": 0,
+                "segments": [],
+            },
+        },
+    )
+
+    assert state["status"] == "timeout"
+
+
+def test_empty_unrecognized_payload_is_not_reported_as_raw_data():
+    _, state = normalize_provider_result(
+        "methodic_truth",
+        {"status": "invalid_result", "harmony_payload": {"status": "success"}},
+    )
+
+    assert state["status"] == "invalid_result"
+    assert state["raw_result_available"] is False
+
+
+def test_inconsistent_raw_and_invalid_counts_are_rejected():
+    _, state = normalize_provider_result(
+        "magic_chords",
+        {
+            "status": "success",
+            "harmony_payload": {
+                "status": "completed",
+                "raw_segment_count": 1,
+                "invalid_segment_count": 2,
+                "segments": [],
+            },
+        },
+    )
+
+    assert state["status"] == "invalid_result"
+    assert state["error_type"] == "InvalidTimelineMetadata"
+
+
+def test_non_object_provider_result_is_rejected():
+    _, state = normalize_provider_result("magic_chords", ["not", "an", "object"])
+
+    assert state["status"] == "invalid_result"
+    assert state["error_type"] == "InvalidProviderResult"
+
+
+def test_invalid_provider_confidence_is_rejected():
+    _, state = normalize_provider_result(
+        "magic_chords",
+        {
+            "status": "success",
+            "harmony_payload": {
+                "status": "completed",
+                "confidence": 1.4,
+                "segments": [{"start_sec": 0, "end_sec": 4, "chord": "C"}],
+            },
+        },
+    )
+
+    assert state["status"] == "invalid_result"
+    assert state["error_type"] == "InvalidConfidence"

@@ -1,6 +1,14 @@
 import unittest
 
-from tools.magic_chords_provider import MagicChordsJobError, MagicChordsResultError, MagicChordsTimeout, _segments, analyze
+from tools.magic_chords_provider import (
+    MagicChordsJobError,
+    MagicChordsParseError,
+    MagicChordsResultError,
+    MagicChordsTimeout,
+    _parse_segments,
+    _segments,
+    analyze,
+)
 
 
 class FakePage:
@@ -54,6 +62,13 @@ class MagicChordsProviderTests(unittest.TestCase):
 
         self.assertEqual(rows, [])
 
+    def test_unknown_result_shape_is_not_mistaken_for_empty_timeline(self):
+        with self.assertRaises(MagicChordsParseError):
+            _parse_segments({"data": {"analysis_id": "job-123"}})
+
+    def test_explicit_empty_timeline_is_valid_empty_result(self):
+        self.assertEqual(_parse_segments({"segments": []}), ([], 0, 0))
+
     def test_completed_job_returns_result(self):
         page = FakePage(["processing", "completed"])
         result = analyze(page, "https://www.youtube.com/watch?v=test", polls=3, wait=1)
@@ -93,6 +108,16 @@ class MagicChordsProviderTests(unittest.TestCase):
         with self.assertRaises(MagicChordsResultError) as ctx:
             analyze(page, "https://www.youtube.com/watch?v=test", polls=1, wait=1)
         self.assertEqual(ctx.exception.job_id, "job-123")
+
+    def test_completed_unrecognized_result_shape_is_parse_failure(self):
+        class ParseErrorPage(FakePage):
+            def evaluate(self, script, arg=None):
+                if "/result" in script:
+                    return {"data": {"analysis_id": "job-123"}}
+                return super().evaluate(script, arg)
+
+        with self.assertRaises(MagicChordsParseError):
+            analyze(ParseErrorPage(["completed"]), "https://www.youtube.com/watch?v=test")
 
     def test_reusing_job_skips_submit(self):
         class ReusePage(FakePage):

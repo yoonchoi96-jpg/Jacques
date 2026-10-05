@@ -95,6 +95,7 @@ def build_harmony_payload(
         "segments": segments,
         "raw_region_count": region_count,
         "raw_marker_count": marker_count,
+        "raw_segment_count": region_count,
         "invalid_segment_count": rejected_region_count,
         "error_type": "ChordIdentifierParseError" if rejected_region_count else None,
         "error_message": error_message,

@@ -8,10 +8,44 @@ from music_db.enrichment.sources.songbpm import _set_status
 from music_db.enrichment.merge import refresh_canonical_audio_features
 from music_db.schema.migrations import apply_migrations
 from music_db.spotify_preview import collect_spotify_tracks, preview_enrichment
+from tools.analyze_top_tracks import _record_provider_status
 from tools.safe_merge_database import safe_merge
 
 
 class PhaseOneStabilityTests(unittest.TestCase):
+    def test_provider_not_found_status_keeps_video_mismatch_explicit(self):
+        conn = sqlite3.connect(":memory:")
+        conn.execute(
+            """
+            CREATE TABLE harmony_provider_runs (
+                track_id TEXT, provider TEXT, source_url TEXT, matched_video_url TEXT,
+                submitted_at TEXT, completed_at TEXT, status TEXT,
+                raw_result_available INTEGER, normalized_segment_count INTEGER,
+                error_type TEXT, error_message TEXT, parser_version TEXT,
+                confidence REAL, raw_result_json TEXT
+            )
+            """
+        )
+
+        result = _record_provider_status(
+            conn,
+            "track-1",
+            "chordidentifier",
+            "not_found",
+            error_type="YouTubeMatchError",
+            error_message="No strong candidate.",
+        )
+
+        row = conn.execute(
+            "SELECT status, matched_video_url, raw_result_available, "
+            "normalized_segment_count, error_type FROM harmony_provider_runs"
+        ).fetchone()
+        self.assertEqual(
+            row, ("not_found", None, 0, 0, "YouTubeMatchError")
+        )
+        self.assertIsNone(result["matched_video_url"])
+        conn.close()
+
     def test_migration_adds_priorities_and_normalizes_songbpm_status(self):
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row

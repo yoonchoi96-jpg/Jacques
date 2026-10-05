@@ -1,4 +1,6 @@
-from tools.analyze_top_tracks import _youtube_candidate_score
+import sqlite3
+
+from tools.analyze_top_tracks import _record_provider_status, _youtube_candidate_score
 
 
 def test_generic_title_still_matches_exact_artist_channel():
@@ -51,3 +53,38 @@ def test_duration_match_adds_signal():
         },
     )
     assert close > short
+
+
+def test_unmatched_youtube_video_is_persisted_as_provider_not_found():
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        """
+        CREATE TABLE harmony_provider_runs (
+            track_id TEXT, provider TEXT, source_url TEXT, matched_video_url TEXT,
+            submitted_at TEXT, completed_at TEXT, status TEXT,
+            raw_result_available INTEGER, normalized_segment_count INTEGER,
+            error_type TEXT, error_message TEXT, parser_version TEXT,
+            confidence REAL, raw_result_json TEXT
+        )
+        """
+    )
+
+    result = _record_provider_status(
+        conn,
+        "track-1",
+        "chordidentifier",
+        "not_found",
+        error_type="YouTubeMatchError",
+        error_message="No strong YouTube candidate.",
+    )
+
+    row = conn.execute(
+        "SELECT status, raw_result_available, normalized_segment_count, error_type "
+        "FROM harmony_provider_runs"
+    ).fetchone()
+    assert row == ("not_found", 0, 0, "YouTubeMatchError")
+    assert result["matched_video_url"] is None
+    assert result["source_url"] == (
+        "https://chordidentifier.com/chord-finder-from-youtube/"
+    )
+    conn.close()

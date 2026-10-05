@@ -26,6 +26,14 @@ PROVIDER_SOURCE_URLS = {
 }
 
 
+class YouTubeCandidateNotFound(RuntimeError):
+    status = "not_found"
+
+
+class YouTubeCandidateRejected(RuntimeError):
+    status = "invalid_result"
+
+
 def _record_provider_status(
     conn,
     track_id: str,
@@ -237,7 +245,7 @@ def youtube_search(title: str, artists: list[str], duration_ms: int | None) -> d
     payload = json.loads(proc.stdout)
     entries = [x for x in (payload.get("entries") or []) if x]
     if not entries:
-        raise RuntimeError(f"No YouTube result for: {query}")
+        raise YouTubeCandidateNotFound(f"No YouTube result for: {query}")
 
     ranked = sorted(
         (
@@ -278,17 +286,17 @@ def youtube_search(title: str, artists: list[str], duration_ms: int | None) -> d
     margin = best["score"] - distinct_second["score"] if distinct_second else best["score"]
 
     if not best["url"]:
-        raise RuntimeError(f"Best YouTube result has no URL: {best}")
+        raise YouTubeCandidateRejected(f"Best YouTube result has no URL: {best}")
 
     strong_exception = _candidate_is_strong(title, artists, duration_ms, best)
     if best["score"] < YOUTUBE_MIN_MATCH_SCORE and not strong_exception:
-        raise RuntimeError(
+        raise YouTubeCandidateRejected(
             f"YouTube match rejected: score={best['score']:.3f} "
             f"< {YOUTUBE_MIN_MATCH_SCORE:.2f}; candidate={best['title']!r} "
             f"channel={best['channel']!r}"
         )
     if margin < YOUTUBE_MIN_MATCH_MARGIN and not strong_exception:
-        raise RuntimeError(
+        raise YouTubeCandidateRejected(
             f"YouTube match ambiguous: margin={margin:.3f} "
             f"< {YOUTUBE_MIN_MATCH_MARGIN:.2f}; "
             f"best={best['title']!r}; second={second['title'] if second else None!r}"
@@ -426,8 +434,8 @@ def main() -> int:
                             conn,
                             track_id,
                             provider,
-                            "not_found",
-                            error_type="YouTubeMatchError",
+                            getattr(exc, "status", "failed"),
+                            error_type=type(exc).__name__,
                             error_message=error_message[:2_000],
                         )
                     )
@@ -473,6 +481,12 @@ def main() -> int:
         env["PROVIDERS"] = providers
         env.setdefault("PROVIDER_RETRIES", "2")
 
+        initialize_database()
+        with get_connection() as conn:
+            previous_execution_id = conn.execute(
+                "SELECT COALESCE(MAX(execution_id), 0) FROM harmony_provider_runs"
+            ).fetchone()[0]
+
         probe = subprocess.run(
             [sys.executable, "tools/youtube_provider_probe.py"],
             cwd=ROOT,
@@ -498,15 +512,24 @@ def main() -> int:
                 for provider in (item.strip().lower() for item in providers.split(",")):
                     if not provider:
                         continue
-                    _record_provider_status(
-                        conn,
-                        track_id,
-                        provider,
-                        "failed",
-                        matched_video_url=youtube_url,
-                        error_type="ProviderProbeError",
-                        error_message=error_message[:2_000],
-                    )
+                    was_recorded = conn.execute(
+                        """
+                        SELECT 1 FROM harmony_provider_runs
+                        WHERE track_id=? AND provider=? AND execution_id>?
+                        LIMIT 1
+                        """,
+                        (track_id, provider, previous_execution_id),
+                    ).fetchone()
+                    if not was_recorded:
+                        _record_provider_status(
+                            conn,
+                            track_id,
+                            provider,
+                            "failed",
+                            matched_video_url=youtube_url,
+                            error_type="ProviderProbeError",
+                            error_message=error_message[:2_000],
+                        )
                 profile = fuse_track_harmony(conn, track_id)
                 conn.commit()
             _save_track_result(
