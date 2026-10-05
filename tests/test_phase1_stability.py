@@ -314,6 +314,53 @@ class PhaseOneStabilityTests(unittest.TestCase):
                     "Latest update",
                 )
 
+    def test_safe_merge_aborts_on_delete_update_conflicts(self):
+        for runner_value, latest_value in (
+            (None, "Latest update"),
+            ("Runner update", None),
+        ):
+            with self.subTest(runner_value=runner_value, latest_value=latest_value):
+                with tempfile.TemporaryDirectory() as directory:
+                    base = Path(directory) / "base.db"
+                    runner = Path(directory) / "runner.db"
+                    latest = Path(directory) / "latest.db"
+                    merged = Path(directory) / "merged.db"
+                    for path, value in (
+                        (base, "Original"),
+                        (runner, runner_value),
+                        (latest, latest_value),
+                    ):
+                        with sqlite3.connect(path) as conn:
+                            conn.execute(
+                                "CREATE TABLE tracks "
+                                "(track_id TEXT PRIMARY KEY, title TEXT)"
+                            )
+                            conn.execute(
+                                "INSERT INTO tracks VALUES ('track-1', 'Original')"
+                            )
+                            if value is None:
+                                conn.execute(
+                                    "DELETE FROM tracks WHERE track_id='track-1'"
+                                )
+                            else:
+                                conn.execute(
+                                    "UPDATE tracks SET title=? WHERE track_id='track-1'",
+                                    (value,),
+                                )
+
+                    with self.assertRaisesRegex(
+                        RuntimeError, "deletion conflicts with an update"
+                    ):
+                        safe_merge(base, runner, latest, merged)
+
+                    with sqlite3.connect(latest) as conn:
+                        row = conn.execute(
+                            "SELECT title FROM tracks WHERE track_id='track-1'"
+                        ).fetchone()
+                    self.assertEqual(
+                        row, None if latest_value is None else (latest_value,)
+                    )
+
     def test_safe_merge_aborts_on_distinct_concurrent_inserts_with_same_key(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory) / "base.db"

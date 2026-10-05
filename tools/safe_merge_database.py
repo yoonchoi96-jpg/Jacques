@@ -220,6 +220,15 @@ def safe_merge(base_path, runner_path, latest_path, output_path):
                     )
                 latest_unchanged = _same_on(current, before, comparable)
 
+                if before is not None and (
+                    (generated is None and current is not None and not latest_unchanged)
+                    or (current is None and generated is not None and not runner_unchanged)
+                ):
+                    raise RuntimeError(
+                        "Concurrent database deletion conflicts with an update. "
+                        f"Refusing to discard either change in {table}: {key!r}."
+                    )
+
                 if runner_unchanged:
                     chosen = current
                 elif latest_unchanged:
