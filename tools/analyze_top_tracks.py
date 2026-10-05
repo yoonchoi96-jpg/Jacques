@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import spotipy
@@ -15,6 +16,73 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from music_db.database import get_connection, initialize_database
+from music_db.harmony.pipeline import fuse_track_harmony
+
+
+PROVIDER_SOURCE_URLS = {
+    "chordidentifier": "https://chordidentifier.com/chord-finder-from-youtube/",
+    "methodic_truth": "https://methodictruth.com/song-analyzer",
+    "magic_chords": "https://magic-chords.dev/api/v1",
+}
+
+
+def _record_provider_status(
+    conn,
+    track_id: str,
+    provider: str,
+    status: str,
+    *,
+    matched_video_url: str | None = None,
+    error_type: str | None = None,
+    error_message: str | None = None,
+    submitted_at: str | None = None,
+    completed_at: str | None = None,
+) -> dict:
+    submitted_at = submitted_at or datetime.now(timezone.utc).isoformat()
+    completed_at = completed_at or datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO harmony_provider_runs (
+            track_id, provider, source_url, matched_video_url, submitted_at,
+            completed_at, status, raw_result_available,
+            normalized_segment_count, error_type, error_message, parser_version,
+            confidence, raw_result_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'youtube-match-v1', NULL, NULL)
+        """,
+        (
+            track_id,
+            provider,
+            PROVIDER_SOURCE_URLS.get(provider),
+            matched_video_url,
+            submitted_at,
+            completed_at,
+            status,
+            error_type,
+            error_message,
+        ),
+    )
+    return {
+        "provider": provider,
+        "status": status,
+        "normalized_segment_count": 0,
+        "raw_result_available": False,
+        "source_url": PROVIDER_SOURCE_URLS.get(provider),
+        "matched_video_url": matched_video_url,
+        "submitted_at": submitted_at,
+        "completed_at": completed_at,
+        "error_type": error_type,
+        "error": error_message,
+    }
+
+
+def _save_track_result(track_id: str, payload: dict) -> None:
+    artifact_dir = ROOT / "probe_artifacts"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    stem = re.sub(r"[^a-zA-Z0-9_-]+", "_", track_id).strip("_") or "unknown_track"
+    (artifact_dir / f"result_{stem}.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def _norm_text(value: str) -> str:
@@ -346,6 +414,35 @@ def main() -> int:
             youtube_url = candidate["url"]
         except Exception as exc:
             print(f"YouTube resolution FAILED: {type(exc).__name__}: {exc}")
+            error_message = f"{type(exc).__name__}: {exc}"
+            outcomes = []
+            initialize_database()
+            with get_connection() as conn:
+                for provider in (item.strip().lower() for item in providers.split(",")):
+                    if not provider:
+                        continue
+                    outcomes.append(
+                        _record_provider_status(
+                            conn,
+                            track_id,
+                            provider,
+                            "not_found",
+                            error_type="YouTubeMatchError",
+                            error_message=error_message[:2_000],
+                        )
+                    )
+                profile = fuse_track_harmony(conn, track_id)
+                conn.commit()
+            _save_track_result(
+                track_id,
+                {
+                    "track_id": track_id,
+                    "youtube_url": None,
+                    "results": outcomes,
+                    "harmony_profile": profile,
+                    "imported": [],
+                },
+            )
             continue
 
         print(f"YouTube: {youtube_url}")
@@ -381,11 +478,46 @@ def main() -> int:
             cwd=ROOT,
             env=env,
             check=False,
+            capture_output=True,
+            text=True,
         )
+        if probe.stdout:
+            print(probe.stdout, end="")
+        if probe.stderr:
+            print(probe.stderr, end="", file=sys.stderr)
         if probe.returncode:
             print(
                 f"Provider probe failed for {title}: "
                 f"exit_code={probe.returncode}"
+            )
+            error_message = (
+                probe.stderr.strip() or f"Provider probe exited with code {probe.returncode}."
+            )
+            initialize_database()
+            with get_connection() as conn:
+                for provider in (item.strip().lower() for item in providers.split(",")):
+                    if not provider:
+                        continue
+                    _record_provider_status(
+                        conn,
+                        track_id,
+                        provider,
+                        "failed",
+                        matched_video_url=youtube_url,
+                        error_type="ProviderProbeError",
+                        error_message=error_message[:2_000],
+                    )
+                profile = fuse_track_harmony(conn, track_id)
+                conn.commit()
+            _save_track_result(
+                track_id,
+                {
+                    "track_id": track_id,
+                    "youtube_url": youtube_url,
+                    "results": [],
+                    "harmony_profile": profile,
+                    "imported": [],
+                },
             )
         else:
             print(f"Completed provider probe for: {title}")

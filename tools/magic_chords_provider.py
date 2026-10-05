@@ -22,12 +22,45 @@ class MagicChordsResultError(MagicChordsJobError):
     def __init__(self, job_id: str, message: str):
         super().__init__(job_id, "result fetch", message)
 
+
+class MagicChordsParseError(ValueError):
+    """The completed response did not match a supported result schema."""
+
+
 def _parse_segments(result):
-    raw = result.get("chords") or result.get("segments") or result.get("timeline") or []
+    raw = None
+    found = False
+    if isinstance(result, dict):
+        for key in ("chords", "segments", "timeline"):
+            if key in result:
+                raw = result[key]
+                found = True
+                break
+        if not found:
+            for key in ("data", "result", "analysis"):
+                nested = result.get(key)
+                if isinstance(nested, dict):
+                    try:
+                        rows, raw_count, invalid_count = _parse_segments(nested)
+                    except MagicChordsParseError:
+                        continue
+                    return rows, raw_count, invalid_count
+    if not found:
+        raise MagicChordsParseError(
+            "Magic Chords response has no supported chord timeline field"
+        )
     if isinstance(raw, dict):
-        raw = raw.get("items") or raw.get("chords") or raw.get("segments") or []
+        nested = next(
+            (raw[key] for key in ("items", "chords", "segments") if key in raw),
+            None,
+        )
+        if nested is None:
+            raise MagicChordsParseError(
+                "Magic Chords timeline object has no items, chords, or segments"
+            )
+        raw = nested
     if not isinstance(raw, list):
-        raise ValueError("Magic Chords timeline is not a list")
+        raise MagicChordsParseError("Magic Chords timeline is not a list")
     out = []
     invalid = 0
     for x in raw:
@@ -102,13 +135,17 @@ def analyze(page, youtube_url, polls=24, wait=5, job_id=None):
     except Exception as exc:
         raise MagicChordsResultError(job_id, str(exc)) from exc
 
-    segments, raw_segment_count, invalid_segment_count = _parse_segments(result)
+    try:
+        segments, raw_segment_count, invalid_segment_count = _parse_segments(result)
+    except MagicChordsParseError as exc:
+        raise MagicChordsParseError(f"Magic Chords result parsing failed: {exc}") from exc
     return {
         "source": "magic_chords",
         "source_url": BASE_URL + "/jobs/" + job_id + "/result",
         "youtube_url": youtube_url,
         "job_id": job_id,
         "status": "completed",
+        "raw_result_available": True,
         "confidence": result.get("confidence"),
         "key": result.get("key"),
         "tempo": result.get("tempo") or result.get("bpm"),

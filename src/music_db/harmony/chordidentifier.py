@@ -76,14 +76,29 @@ def build_harmony_payload(
     source_url: str,
     youtube_url: str,
 ) -> dict[str, Any]:
+    html = html or ""
     segments = parse_chordidentifier_html(html)
+    region_count = len(list(_REGION_RE.finditer(html)))
+    marker_count = len(list(_MARKER_RE.finditer(html)))
+    rejected_region_count = max(0, region_count - len(segments))
+    error_message = None
+    if rejected_region_count:
+        error_message = (
+            f"Could not normalize {rejected_region_count} of "
+            f"{region_count} rendered chord timeline region(s)."
+        )
     return {
         "source": "chordidentifier",
         "source_url": source_url,
         "youtube_url": youtube_url,
         "confidence": None,
         "segments": segments,
-        "raw_region_count": len(list(_REGION_RE.finditer(html))),
+        "raw_region_count": region_count,
+        "raw_marker_count": marker_count,
+        "invalid_segment_count": rejected_region_count,
+        "error_type": "ChordIdentifierParseError" if rejected_region_count else None,
+        "error_message": error_message,
+        "raw_result_available": bool(region_count or marker_count),
         "parser_version": "chordidentifier-html-v1",
         "method": "youtube_browser_analysis",
     }

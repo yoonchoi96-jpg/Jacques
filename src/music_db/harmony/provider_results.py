@@ -11,6 +11,14 @@ DATA_STATUSES = {"success_with_data", "success_empty"}
 
 def normalize_provider_result(provider: str, result: dict, duration_sec=None):
     """Validate a provider's parsed timeline and assign a data-aware state."""
+    if not isinstance(result, dict):
+        return {}, {
+            "status": "invalid_result",
+            "segments": [],
+            "error_type": "InvalidProviderResult",
+            "error_message": "Provider result must be an object.",
+            "raw_result_available": False,
+        }
     result = dict(result or {})
     payload = result.get("harmony_payload")
     if payload is None and isinstance(result.get("segments"), list):
@@ -34,7 +42,13 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
             status = "timeout"
         elif source_status in {"accepted_or_processing", "submitted_unknown_result"}:
             status = "timeout"
-        elif source_status in {"exception", "rate_limited", "result_fetch_error", "provider_error_or_rejection"}:
+        elif source_status in {
+            "exception",
+            "failed",
+            "rate_limited",
+            "result_fetch_error",
+            "provider_error_or_rejection",
+        }:
             status = "failed"
         else:
             status = "invalid_result"
@@ -145,26 +159,56 @@ def normalize_provider_result(provider: str, result: dict, duration_sec=None):
         state = "success_empty"
     elif source_status in {"accepted_or_processing", "submitted_unknown_result"}:
         state = "timeout"
+    elif source_status in {"timeout", "poll_timeout"}:
+        state = "timeout"
+    elif source_status in {
+        "exception",
+        "failed",
+        "rate_limited",
+        "result_fetch_error",
+        "provider_error_or_rejection",
+    }:
+        state = "failed"
+    elif source_status in {"unsupported_provider", "not_configured"}:
+        state = "not_configured"
+    elif source_status in {"not_found", "no_match"}:
+        state = "not_found"
     else:
         state = "invalid_result"
 
     error_message = None
     error_type = None
     if invalid:
-        error_type = "InvalidSegments"
-        error_message = f"Rejected {invalid} malformed provider segment(s)."
+        error_type = payload.get("error_type") or "InvalidSegments"
+        error_message = payload.get("error_message") or (
+            f"Rejected {invalid} malformed provider segment(s)."
+        )
     elif duplicate_count:
         error_type = "DuplicateSegments"
         error_message = f"Removed {duplicate_count} duplicate provider segment(s)."
+    else:
+        error_type = payload.get("error_type") or result.get("error_type")
+        error_message = payload.get("error_message") or result.get("error")
+
+    raw_result_available = result.get("raw_result_available")
+    if raw_result_available is None:
+        raw_result_available = payload.get("raw_result_available")
+    if raw_result_available is None:
+        raw_result_available = bool(
+            raw_segment_count > 0
+            or payload.get("raw_region_count", 0)
+            or (
+                source_status in {"success", "completed", "complete", "done"}
+                and ("segments" in payload or "chords" in payload)
+            )
+        )
 
     return result, {
         "status": state,
         "segments": unique,
         "error_type": error_type,
         "error_message": error_message,
-        "raw_result_available": bool(
-            raw_segments is not None or raw_segment_count > 0
-        ),
+        "raw_result_available": bool(raw_result_available),
         "invalid_segment_count": invalid,
         "duplicate_segment_count": duplicate_count,
         "parser_version": PARSER_VERSION,

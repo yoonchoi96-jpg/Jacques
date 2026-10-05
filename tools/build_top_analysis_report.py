@@ -32,9 +32,15 @@ def provider_summary(data):
             "segments": r.get("normalized_segment_count", hp.get("segment_count", 0)),
             "error_type": r.get("error_type"),
             "error": r.get("error"),
+            "source_url": hp.get("source_url") or r.get("source_url") or r.get("provider_url"),
+            "matched_video_url": r.get("matched_video_url") or r.get("youtube_url"),
+            "submitted_at": r.get("submitted_at"),
+            "completed_at": r.get("completed_at"),
+            "confidence": hp.get("confidence"),
+            "parser_version": hp.get("parser_version") or r.get("parser_version"),
             "raw_result_available": (r.get("provider_state") or {}).get(
                 "raw_result_available", False
-            ),
+            ) if r.get("provider_state") else bool(r.get("raw_result_available")),
         })
     return out
 
@@ -96,6 +102,20 @@ def make_report(data, rank):
                 }
             ),
             "qc_issues": p.get("qc_issues") or [],
+            "evidence_classes": sorted(
+                {
+                    item.get("evidence_class")
+                    for item in (p.get("segments") or [])
+                    + (p.get("provisional_segments") or [])
+                    + (p.get("structure_map") or [])
+                    if item.get("evidence_class")
+                }
+                | {
+                    item.get("roman_numeral_evidence_class")
+                    for item in (p.get("segments") or [])
+                    if item.get("roman_numeral_evidence_class")
+                }
+            ),
             "fallback_used": any(
                 item.get("source") == "neutral_fallback"
                 or item.get("evidence_class") == "fallback_placeholder"
@@ -134,6 +154,7 @@ def markdown(r):
         f'- Provisional provider fallback used: {h["provisional_provider_fallback_used"]}',
         f'- Provisional-only progression (not consensus): {", ".join(h["provisional_progression"]) or "none"}',
         f'- Provider results: {provider_results}',
+        f'- Evidence classes: {", ".join(h["evidence_classes"]) or "none"}',
         f'- Harmony segments: {m["segment_count"]}; unique chords: {m["unique_chord_count"]}',
         f'- Harmonic rhythm: {m["harmonic_rhythm_sec"]} sec/chord; change rate: {m["chord_change_rate_per_sec"]}',
         f'- Intra-beat changes: {m["intra_beat_change_count"]}; bars: {m["bar_count"]}; distinct bar patterns: {m["distinct_bar_patterns"]}',

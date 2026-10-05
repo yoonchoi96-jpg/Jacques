@@ -12,7 +12,12 @@ from music_db.harmony.chordidentifier import build_harmony_payload
 from music_db.database import initialize_database, get_connection
 from music_db.harmony.provider_results import normalize_provider_result
 from music_db.harmony.pipeline import import_external_harmony, fuse_track_harmony
-from magic_chords_provider import MagicChordsJobError, MagicChordsTimeout, analyze as analyze_magic_chords
+from magic_chords_provider import (
+    MagicChordsJobError,
+    MagicChordsParseError,
+    MagicChordsTimeout,
+    analyze as analyze_magic_chords,
+)
 
 from playwright.sync_api import sync_playwright
 
@@ -428,6 +433,17 @@ def main() -> None:
                     }
                     if attempt < PROVIDER_RETRIES:
                         page.wait_for_timeout(min(10_000, attempt * 2_000))
+                except MagicChordsParseError as exc:
+                    result = {
+                        "provider": provider,
+                        "youtube_url": YOUTUBE_URL,
+                        "status": "invalid_result",
+                        "attempt": attempt,
+                        "error": str(exc),
+                        "error_type": type(exc).__name__,
+                        "raw_result_available": True,
+                    }
+                    break
                 except Exception as exc:
                     error_text = f"{type(exc).__name__}: {exc}"
                     result = {
@@ -451,10 +467,6 @@ def main() -> None:
                 (PROVIDER_CONFIG.get(provider) or {}).get("url"),
             )
             result.setdefault("parser_version", PARSER_VERSION)
-            try:
-                result["raw_result_available"] = bool(page.content())
-            except Exception:
-                result["raw_result_available"] = False
             normalized_result, normalized = normalize_provider_result(
                 provider,
                 result,
@@ -468,9 +480,7 @@ def main() -> None:
             result["provider_state"] = normalized
             result["status"] = normalized["status"]
             result["normalized_segment_count"] = len(normalized["segments"])
-            normalized["raw_result_available"] = bool(
-                normalized["raw_result_available"] or result["raw_result_available"]
-            )
+            result["raw_result_available"] = normalized["raw_result_available"]
             if normalized["error_type"]:
                 result["error_type"] = normalized["error_type"]
                 result["error"] = normalized["error_message"]
@@ -550,12 +560,12 @@ def main() -> None:
                     (
                         TRACK_ID,
                         result.get("provider", "unknown"),
-                        result.get("provider_url")
-                        or (
+                        (
                             harmony_payload.get("source_url")
                             if isinstance(harmony_payload, dict)
                             else None
-                        ),
+                        )
+                        or result.get("provider_url"),
                         result.get("youtube_url") or YOUTUBE_URL,
                         result.get("submitted_at") or now_utc(),
                         result.get("completed_at"),
