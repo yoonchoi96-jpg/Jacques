@@ -236,6 +236,42 @@ class PhaseOneStabilityTests(unittest.TestCase):
                     ("Latest title", 120, "2026-02-01"),
                 )
 
+    def test_safe_merge_aborts_on_distinct_concurrent_inserts_with_same_key(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "base.db"
+            runner = Path(directory) / "runner.db"
+            latest = Path(directory) / "latest.db"
+            merged = Path(directory) / "merged.db"
+            for path, rows in (
+                (base, []),
+                (runner, [(1, "runner-only")]),
+                (latest, [(1, "latest-only")]),
+            ):
+                with sqlite3.connect(path) as conn:
+                    conn.execute(
+                        """
+                        CREATE TABLE events (
+                            event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            value TEXT NOT NULL
+                        )
+                        """
+                    )
+                    conn.executemany(
+                        "INSERT INTO events(event_id, value) VALUES (?, ?)",
+                        rows,
+                    )
+
+            with self.assertRaisesRegex(
+                RuntimeError, "Concurrent inserts reused the same primary key"
+            ):
+                safe_merge(base, runner, latest, merged)
+
+            with sqlite3.connect(latest) as conn:
+                self.assertEqual(
+                    conn.execute("SELECT value FROM events").fetchone()[0],
+                    "latest-only",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -198,6 +198,16 @@ def safe_merge(base_path, runner_path, latest_path, output_path):
                 before = base_rows.get(key)
                 generated = runner_rows.get(key)
                 current = latest_rows.get(key)
+                if (
+                    before is None
+                    and generated is not None
+                    and current is not None
+                    and not _same_on(generated, current, set(columns))
+                ):
+                    raise RuntimeError(
+                        "Concurrent inserts reused the same primary key "
+                        f"in {table}: {key!r}. Refusing to discard either row."
+                    )
                 runner_unchanged = _same_on(generated, before, comparable)
                 if before and generated:
                     runner_unchanged = runner_unchanged and all(
