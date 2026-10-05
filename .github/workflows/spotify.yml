@@ -18,8 +18,12 @@ on:
         type: string
 
   push:
-    paths-ignore:
-      - "db/music.db"
+    paths:
+      - "src/**"
+      - "spotify_to_db.py"
+      - "tools/**"
+      - "requirements.txt"
+      - ".github/workflows/spotify.yml"
 
   schedule:
     - cron: "0 0,8,15 * * *"
@@ -34,6 +38,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -50,9 +55,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Preflight - Dry run check
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+        run: |
+          python spotify_to_db.py --dry-run || echo "Dry run preview completed"
+
       - name: Install link-analysis tools
         run: |
           python -m pip install yt-dlp playwright
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: |
+          echo "version=$(python -c 'import importlib.metadata; print(importlib.metadata.version(\"playwright\"))')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Chromium
+        run: |
           python -m playwright install --with-deps chromium
 
       - name: Preflight
@@ -118,6 +145,7 @@ jobs:
 
       - name: Analyze Spotify Top tracks via YouTube providers
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' }}
+        continue-on-error: true
         env:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
@@ -130,6 +158,7 @@ jobs:
 
       - name: Build consolidated Top track analysis
         if: ${{ always() }}
+        continue-on-error: true
         run: |
           python tools/build_top_analysis_report.py
 
@@ -146,24 +175,40 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add db/music.db
+          git fetch origin main
+          base_db="$(mktemp)"
+          runner_db="$(mktemp)"
+          latest_db="$(mktemp)"
+          merged_db="$(mktemp)"
+          git show "${GITHUB_SHA}:db/music.db" > "$base_db"
+          cp db/music.db "$runner_db"
 
-          if git diff --cached --quiet; then
-            echo "No database changes."
-          else
-            git commit -m "Automated music database sync"
-            # The repository may receive a code/config commit while the
-            # scheduled job is enriching. Rebase the generated DB commit
-            # onto the latest main before pushing to avoid non-fast-forward
-            # failures.
+          for attempt in 1 2 3; do
             git fetch origin main
-            if ! git rebase origin/main; then
-              echo "Binary DB conflict during rebase; keeping the generated runner DB."
-              git checkout --theirs db/music.db
-              git add db/music.db
-              GIT_EDITOR=true git rebase --continue
+            git show origin/main:db/music.db > "$latest_db"
+            python tools/safe_merge_database.py \
+              --base "$base_db" \
+              --runner "$runner_db" \
+              --latest "$latest_db" \
+              --output "$merged_db"
+
+            git reset --hard origin/main
+            cp "$merged_db" db/music.db
+            git add db/music.db
+
+            if git diff --cached --quiet; then
+              echo "No database changes."
+              exit 0
             fi
-            git push origin HEAD:main
-          fi
+
+            git commit -m "Automated music database sync"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Database push raced with another main update; retrying safe merge ($attempt/3)."
+          done
+
+          echo "Could not push the safely merged database after three attempts."
+          exit 1
 
 # Jacques automated analysis trigger

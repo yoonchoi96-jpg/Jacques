@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -182,6 +183,22 @@ def import_external_harmony(conn, track_id, payload, source="external"):
     source = payload.get("source") or source
     source_url = payload.get("source_url")
     segments = payload.get("segments") or payload.get("chords") or []
+    has_tracks = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tracks'"
+    ).fetchone()
+    track_row = (
+        conn.execute(
+            "SELECT duration_ms FROM tracks WHERE track_id=?",
+            (track_id,),
+        ).fetchone()
+        if has_tracks
+        else None
+    )
+    duration_sec = (
+        float(track_row[0]) / 1000.0
+        if track_row and track_row[0] is not None
+        else None
+    )
 
     # Provider observations are snapshots, not append-only history. Clear the
     # previous observation for this track/source before importing the current
@@ -210,7 +227,18 @@ def import_external_harmony(conn, track_id, payload, source="external"):
         # Never fabricate timing. Beat/bar normalization requires real timestamps.
         # Keep malformed provider evidence in the raw provider record, but do not
         # let it poison the normalized harmony tables.
-        if start_sec is None or end_sec is None or end_sec <= start_sec:
+        identity_key = _chord_identity_key(item.get("chord"))
+        if (
+            start_sec is None
+            or end_sec is None
+            or not math.isfinite(start_sec)
+            or not math.isfinite(end_sec)
+            or start_sec < 0
+            or end_sec <= start_sec
+            or (duration_sec is not None and end_sec > duration_sec + 2.0)
+            or identity_key is None
+            or identity_key[1] not in QUALITY_INTERVALS
+        ):
             skipped_count += 1
             continue
         item["start_sec"] = start_sec
@@ -417,6 +445,118 @@ def _build_prompt_harmony(beat_grid, structure_map=None):
             lines.append(f"[{item['section']}] Bars {item['start_bar']:02d}-{item['end_bar']:02d}")
     return "\n".join(lines)
 
+
+def _validate_harmony_profile(conn, track_id, profile):
+    issues = []
+    segments = profile.get("segments") or []
+    consensus_evidence = profile.get("strict_consensus_segments") or []
+    evidence_count = profile.get("evidence_count", 0)
+    strict_mode = profile.get("analysis_status") == "strict_consensus"
+
+    if profile.get("confidence") is not None and evidence_count == 0:
+        issues.append("confidence_without_evidence")
+    if profile.get("confidence") is not None and not strict_mode:
+        issues.append("confidence_on_non_strict_profile")
+    if any(item.get("source_count", 0) < MIN_CONSENSUS_SOURCES for item in segments):
+        issues.append("single_provider_in_strict_segments")
+
+    track = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tracks'"
+    ).fetchone()
+    duration_sec = None
+    if track:
+        row = conn.execute(
+            "SELECT duration_ms FROM tracks WHERE track_id=?",
+            (track_id,),
+        ).fetchone()
+        if row and row[0] is not None:
+            duration_sec = float(row[0]) / 1000.0
+
+    for item in segments:
+        start = item.get("start_sec")
+        end = item.get("end_sec")
+        if (
+            start is None
+            or end is None
+            or not math.isfinite(float(start))
+            or not math.isfinite(float(end))
+            or start < 0
+            or end <= start
+            or (duration_sec is not None and end > duration_sec + 2.0)
+        ):
+            issues.append("invalid_consensus_segment_interval")
+            break
+
+    for source, coverage in (profile.get("provider_coverage") or {}).items():
+        if coverage.get("duration_sec", 0) <= 0:
+            issues.append(f"empty_provider_coverage:{source}")
+
+    policy = profile.get("consensus_policy") or {}
+    if policy.get("strict_consensus_coverage", 0) > 1:
+        issues.append("consensus_coverage_out_of_range")
+    evidence_duration = policy.get("evidence_duration_sec")
+    if (
+        profile.get("analysis_status") != "quality_rejected"
+        and evidence_duration
+        and evidence_duration > 0
+    ):
+        intervals = sorted(
+            (float(item["start_sec"]), float(item["end_sec"]))
+            for item in consensus_evidence
+            if item.get("start_sec") is not None and item.get("end_sec") is not None
+        )
+        covered = 0.0
+        if intervals:
+            current_start, current_end = intervals[0]
+            for start, end in intervals[1:]:
+                if start <= current_end:
+                    current_end = max(current_end, end)
+                else:
+                    covered += current_end - current_start
+                    current_start, current_end = start, end
+            covered += current_end - current_start
+        actual_coverage = covered / float(evidence_duration)
+        if abs(actual_coverage - float(policy.get("strict_consensus_coverage", 0))) > 0.0002:
+            issues.append("consensus_coverage_mismatch")
+    if (
+        policy.get("fusion_mode") == "strict_multi_source_consensus"
+        and not segments
+    ):
+        issues.append("strict_mode_without_segments")
+
+    exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_quality_issues'"
+    ).fetchone()
+    if exists:
+        issue_type = "harmony_profile_qc"
+        details = json.dumps(
+            {"issues": sorted(set(issues)), "analysis_status": profile.get("analysis_status")},
+            ensure_ascii=False,
+        )
+        if issues:
+            conn.execute(
+                """
+                INSERT INTO data_quality_issues
+                    (entity_type, entity_id, issue_type, severity, details, detected_at)
+                VALUES ('harmony_profile', ?, ?, 'error', ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(entity_type, entity_id, issue_type) DO UPDATE SET
+                    severity='error', details=excluded.details,
+                    detected_at=CURRENT_TIMESTAMP, resolved_at=NULL
+                """,
+                (track_id, issue_type, details),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE data_quality_issues SET resolved_at=CURRENT_TIMESTAMP
+                WHERE entity_type='harmony_profile' AND entity_id=?
+                  AND issue_type=? AND resolved_at IS NULL
+                """,
+                (track_id, issue_type),
+            )
+    return issues
+
+
 def fuse_track_harmony(conn, track_id):
     """Fuse up to five independent observations without collapsing harmonic identity.
 
@@ -425,16 +565,53 @@ def fuse_track_harmony(conn, track_id):
     equivalents such as Am7 and C6 remain distinct candidates and are exposed
     as ambiguity metadata instead of being silently merged.
     """
-    rows = conn.execute(
+    has_provider_runs = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='harmony_provider_runs'"
+    ).fetchone()
+    provider_filter = (
         """
+        AND NOT EXISTS (
+            SELECT 1 FROM harmony_provider_runs latest
+            WHERE latest.track_id = harmony_segments.track_id
+              AND latest.provider = harmony_segments.source
+              AND latest.execution_id = (
+                  SELECT MAX(newer.execution_id)
+                  FROM harmony_provider_runs newer
+                  WHERE newer.track_id = latest.track_id
+                    AND newer.provider = latest.provider
+              )
+              AND latest.status NOT IN ('success_with_data', 'success_empty')
+        )
+        """
+        if has_provider_runs
+        else ""
+    )
+    rows = conn.execute(
+        f"""
         SELECT source, section_name, start_sec, end_sec, chord, confidence
         FROM harmony_segments
         WHERE track_id=? AND chord IS NOT NULL
+        {provider_filter}
         ORDER BY start_sec, source
         """,
         (track_id,),
     ).fetchall()
     if not rows:
+        for table, where in (
+            ("harmony_profiles", "track_id=?"),
+            ("harmony_structures", "track_id=?"),
+            ("harmony_consensus", "track_id=?"),
+            (
+                "music_analysis_evidence",
+                "track_id=? AND domain='harmony' AND source='harmony_consensus'",
+            ),
+        ):
+            exists = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                (table,),
+            ).fetchone()
+            if exists:
+                conn.execute(f"DELETE FROM {table} WHERE {where}", (track_id,))
         return None
 
     by_source = defaultdict(list)
@@ -506,11 +683,16 @@ def fuse_track_harmony(conn, track_id):
 
         anchor = winner_items[0]
         identity = _chord_identity(anchor["chord"])
-        confidence_values = [float(item.get("confidence") or 0.5) for item in winner_items]
+        confidence_values = [
+            float(item["confidence"])
+            for item in winner_items
+            if item.get("confidence") is not None
+        ]
         agreement = len(supporting_sources) / max(1, len(active_sources))
-        confidence = min(
-            1.0,
-            0.5 * agreement + 0.5 * (sum(confidence_values) / len(confidence_values)),
+        confidence = (
+            sum(confidence_values) / len(confidence_values)
+            if confidence_values
+            else None
         )
         competing = [item for item in active if item not in winner_items]
         raw_consensus.append({
@@ -531,6 +713,8 @@ def fuse_track_harmony(conn, track_id):
             "confidence": confidence,
             "agreement": agreement,
             "source_count": len(supporting_sources),
+            "evidence_count": len(winner_items),
+            "sources": sorted(supporting_sources),
             "active_source_count": len(active_sources),
             "evidence": winner_items,
             "competing_evidence": competing,
@@ -541,13 +725,26 @@ def fuse_track_harmony(conn, track_id):
     for item in raw_consensus:
         if consensus and consensus[-1]["end_sec"] == item["start_sec"] and _chord_identity_key(consensus[-1]["chord"]) == _chord_identity_key(item["chord"]):
             prev = consensus[-1]
+            previous_duration = prev["end_sec"] - prev["start_sec"]
+            next_duration = item["end_sec"] - item["start_sec"]
+            if prev["confidence"] is None:
+                merged_confidence = item["confidence"]
+            elif item["confidence"] is None:
+                merged_confidence = prev["confidence"]
+            else:
+                merged_confidence = (
+                    prev["confidence"] * previous_duration
+                    + item["confidence"] * next_duration
+                ) / (previous_duration + next_duration)
             prev["end_sec"] = item["end_sec"]
-            prev["confidence"] = (prev["confidence"] + item["confidence"]) / 2.0
+            prev["confidence"] = merged_confidence
             prev["agreement"] = min(prev["agreement"], item["agreement"])
             prev["source_count"] = max(prev["source_count"], item["source_count"])
             prev["active_source_count"] = max(prev.get("active_source_count", 1), item.get("active_source_count", 1))
             prev["evidence"].extend(item["evidence"])
             prev["competing_evidence"].extend(item["competing_evidence"])
+            prev["evidence_count"] += item["evidence_count"]
+            prev["sources"] = sorted(set(prev["sources"]) | set(item["sources"]))
         else:
             consensus.append(item)
 
@@ -582,9 +779,14 @@ def fuse_track_harmony(conn, track_id):
         strict_duration / evidence_duration
         if evidence_duration > 0 else 0.0
     )
+    has_strict_profile = bool(
+        strict_consensus
+        and strict_coverage >= MIN_CONSENSUS_COVERAGE
+    )
 
     fusion_mode = "strict_multi_source_consensus"
-    if not consensus or strict_coverage < MIN_CONSENSUS_COVERAGE:
+    provisional_segments = []
+    if not has_strict_profile:
         fallback_source = max(
             sources,
             key=lambda source: (
@@ -599,36 +801,62 @@ def fuse_track_harmony(conn, track_id):
             ),
             default=None,
         )
-        fallback = []
         if fallback_source:
-            fallback = [
+            provisional_segments = [
                 {
                     **item,
-                    "agreement": 1.0,
+                    "source": fallback_source,
+                    "agreement": None,
                     "source_count": 1,
                     "evidence": [item],
                     "competing_evidence": [],
-                    "confidence": min(0.55, float(item.get("confidence") or 0.5)),
-                    "fusion_mode": "provisional_provider_baseline",
+                    "confidence": None,
+                    "evidence_class": "provisional_provider_evidence",
+                    "fallback_reason": (
+                        "Fewer than two independent providers agree across "
+                        "the minimum strict-consensus coverage."
+                    ),
+                    "semantic_label_evidence": False,
                 }
                 for item in by_source[fallback_source]
-                if float(item["end_sec"]) > float(item["start_sec"])
+                if (
+                    float(item["end_sec"]) > float(item["start_sec"])
+                    and _chord_identity_key(item.get("chord")) is not None
+                    and _chord_identity_key(item.get("chord"))[1] in QUALITY_INTERVALS
+                )
             ]
-        consensus = fallback
-        fusion_mode = "provisional_provider_baseline" if consensus else "no_usable_harmony"
+        fusion_mode = (
+            "provisional_provider_baseline"
+            if provisional_segments
+            else "insufficient_evidence"
+        )
 
+    consensus = strict_consensus if has_strict_profile else []
     consensus.sort(key=lambda item: (item["start_sec"], item["end_sec"]))
     progression = [item["chord"] for item in consensus]
 
-    key_row = conn.execute(
-        "SELECT key FROM harmony_sources WHERE track_id=? AND key IS NOT NULL "
-        "ORDER BY confidence DESC LIMIT 1",
-        (track_id,),
-    ).fetchone()
+    harmony_source_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(harmony_sources)")
+    }
+    key_sql = (
+        "SELECT key FROM harmony_sources WHERE track_id=? AND key IS NOT NULL"
+    )
+    key_params = [track_id]
+    if "source" in harmony_source_columns:
+        key_sql += " AND source IN (" + ", ".join("?" for _ in sources) + ")"
+        key_params.extend(sources)
+    key_sql += " ORDER BY confidence DESC"
+    if "observed_at" in harmony_source_columns:
+        key_sql += ", observed_at DESC"
+    key_sql += " LIMIT 1"
+    key_row = conn.execute(key_sql, key_params).fetchone()
     resolved_key = key_row[0] if key_row else None
     mode = None
     if resolved_key and " " in resolved_key:
         resolved_key, mode = resolved_key.rsplit(" ", 1)
+    if resolved_key not in CHORD_ROOT_TO_PC:
+        resolved_key = None
+        mode = None
 
     def roman_degree(chord):
         if not resolved_key or resolved_key not in CHORD_ROOT_TO_PC:
@@ -656,9 +884,12 @@ def fuse_track_harmony(conn, track_id):
         (track_id,),
     ).fetchone()
     tempo = float(tempo_row[0]) if tempo_row else None
+    if tempo is not None and (not math.isfinite(tempo) or not 30.0 <= tempo <= 300.0):
+        tempo = None
     if tempo is None:
         tempo_rows = conn.execute(
-            "SELECT raw_data FROM harmony_sources WHERE track_id=? ORDER BY observed_at DESC",
+            "SELECT raw_data FROM harmony_sources WHERE track_id=? "
+            "ORDER BY confidence DESC, observed_at DESC",
             (track_id,),
         ).fetchall()
         for row in tempo_rows:
@@ -668,8 +899,9 @@ def fuse_track_harmony(conn, track_id):
                 continue
             candidate = raw.get("provider_tempo")
             try:
-                if candidate is not None and float(candidate) > 0:
-                    tempo = float(candidate)
+                candidate_tempo = float(candidate)
+                if math.isfinite(candidate_tempo) and 30.0 <= candidate_tempo <= 300.0:
+                    tempo = candidate_tempo
                     break
             except (TypeError, ValueError):
                 continue
@@ -686,10 +918,27 @@ def fuse_track_harmony(conn, track_id):
     ) if consensus else None
 
     time_signature = "4/4"
-    time_rows = conn.execute(
-        "SELECT raw_data FROM harmony_sources WHERE track_id=? ORDER BY observed_at DESC",
-        (track_id,),
-    ).fetchall()
+    source_clause = ""
+    source_params = [track_id]
+    if "source" in harmony_source_columns:
+        placeholders = ", ".join("?" for _ in sources)
+        source_clause = f" AND source IN ({placeholders})"
+        source_params.extend(sources)
+    raw_data_column = "raw_data" in harmony_source_columns
+    time_rows = (
+        conn.execute(
+            "SELECT raw_data FROM harmony_sources WHERE track_id=?"
+            + source_clause
+            + (
+                " ORDER BY observed_at DESC"
+                if "observed_at" in harmony_source_columns
+                else ""
+            ),
+            source_params,
+        ).fetchall()
+        if raw_data_column
+        else []
+    )
     for row in time_rows:
         try:
             raw = json.loads(row[0] or "{}")
@@ -715,10 +964,7 @@ def fuse_track_harmony(conn, track_id):
     )
 
     chart_bars = []
-    chart_rows = conn.execute(
-        "SELECT raw_data FROM harmony_sources WHERE track_id=? ORDER BY observed_at DESC",
-        (track_id,),
-    ).fetchall()
+    chart_rows = time_rows
     for row in chart_rows:
         try:
             raw = json.loads(row[0] or "{}")
@@ -738,9 +984,23 @@ def fuse_track_harmony(conn, track_id):
             explicit_sections = raw.get("sections") or raw.get("_provider_sections")
             break
 
+    analysis_status = (
+        "strict_consensus"
+        if consensus and strict_coverage >= MIN_CONSENSUS_COVERAGE
+        else (
+            "provisional_insufficient_evidence"
+            if provisional_segments
+            else "insufficient_evidence"
+        )
+    )
+    has_strict_profile = analysis_status == "strict_consensus"
     structure_map = _build_structure_map(consensus, beat_grid, explicit_sections)
-    prompt_harmony = _build_prompt_harmony(beat_grid, structure_map)
-    if chart_bars:
+    prompt_harmony = (
+        _build_prompt_harmony(beat_grid, structure_map)
+        if has_strict_profile
+        else None
+    )
+    if chart_bars and has_strict_profile:
         chart_lines = ["CHORD CHART BARS:"]
         for chart in chart_bars:
             chart_lines.append(
@@ -761,16 +1021,54 @@ def fuse_track_harmony(conn, track_id):
                 "segment_count": len(source_items),
             }
 
+    unique_evidence = {
+        (
+            item.get("source"),
+            item.get("start_sec"),
+            item.get("end_sec"),
+            item.get("chord"),
+        )
+        for segment in strict_consensus
+        for item in segment.get("evidence", [])
+    }
+    confidence_segments = [
+        item
+        for item in strict_consensus
+        if item.get("confidence") is not None
+        and float(item["end_sec"]) > float(item["start_sec"])
+    ]
+    confidence_duration = sum(
+        float(item["end_sec"]) - float(item["start_sec"])
+        for item in confidence_segments
+    )
+    weighted_confidence = (
+        sum(
+            float(item["confidence"])
+            * (float(item["end_sec"]) - float(item["start_sec"]))
+            for item in confidence_segments
+        )
+        / confidence_duration
+        if has_strict_profile and confidence_duration > 0
+        else None
+    )
     profile = {
+        "analysis_status": analysis_status,
         "key": resolved_key,
+        "mode": mode,
         "tempo": tempo,
         "time_signature": time_signature,
         "progression": progression,
+        "provisional_progression": [
+            item["chord"] for item in provisional_segments
+        ],
         "roman_progression": [item["roman_numeral"] for item in consensus],
         "segments": consensus,
+        "strict_consensus_segments": strict_consensus,
+        "provisional_segments": provisional_segments,
         "beat_grid": beat_grid,
         "prompt_harmony": prompt_harmony,
-        "chart_bars": chart_bars,
+        "chart_bars": chart_bars if has_strict_profile else [],
+        "provisional_chart_bars": chart_bars if not has_strict_profile else [],
         "structure_map": structure_map,
         "harmonic_rhythm_sec": harmonic_rhythm,
         "chord_change_rate_per_sec": change_rate,
@@ -778,10 +1076,13 @@ def fuse_track_harmony(conn, track_id):
             chord for chord in progression
             if any(token in chord for token in ("7", "sus", "dim", "aug", "6", "add"))
         }),
-        "confidence": (
-            sum(item["confidence"] for item in consensus) / len(consensus)
-            if consensus else 0
-        ),
+        "confidence": weighted_confidence,
+        "confidence_calculation": {
+            "method": "duration_weighted_reported_provider_confidence",
+            "confidence_duration_sec": round(confidence_duration, 4),
+            "confidence_segment_count": len(confidence_segments),
+        },
+        "evidence_count": len(unique_evidence),
         "provider_coverage": provider_coverage,
         "consensus_policy": {
             "max_sources": MAX_HARMONY_SOURCES,
@@ -791,9 +1092,21 @@ def fuse_track_harmony(conn, track_id):
             "fusion_mode": fusion_mode,
             "strict_consensus_segment_count": len(strict_consensus),
             "strict_consensus_coverage": round(strict_coverage, 4),
+            "evidence_duration_sec": round(evidence_duration, 4),
             "minimum_consensus_coverage": MIN_CONSENSUS_COVERAGE,
         },
     }
+    profile["qc_issues"] = _validate_harmony_profile(conn, track_id, profile)
+    if profile["qc_issues"]:
+        profile["analysis_status"] = "quality_rejected"
+        profile["confidence"] = None
+        profile["progression"] = []
+        profile["roman_progression"] = []
+        profile["segments"] = []
+        profile["prompt_harmony"] = None
+        profile["harmonic_rhythm_sec"] = None
+        profile["chord_change_rate_per_sec"] = None
+        profile["qc_issues"] = _validate_harmony_profile(conn, track_id, profile)
 
     loop_bars = None
     if tempo and harmonic_rhythm:
@@ -823,6 +1136,13 @@ def fuse_track_harmony(conn, track_id):
     # UST fields are only populated when evidence explicitly supplies them;
     # a slash chord/inversion is never silently reinterpreted as a UST.
     conn.execute("DELETE FROM harmony_structures WHERE track_id=?", (track_id,))
+    conn.execute(
+        """
+        DELETE FROM music_analysis_evidence
+        WHERE track_id=? AND domain='harmony' AND source='harmony_consensus'
+        """,
+        (track_id,),
+    )
     for item in consensus:
         identity = _chord_identity(item["chord"]) or {}
         bass = identity.get("bass") or identity.get("root")
