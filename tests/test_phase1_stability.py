@@ -203,7 +203,7 @@ class PhaseOneStabilityTests(unittest.TestCase):
         self.assertEqual(len(candidates[0]["missing_fields"]), 10)
         conn.close()
 
-    def test_safe_merge_preserves_disjoint_changes_and_latest_conflicts(self):
+    def test_safe_merge_preserves_disjoint_row_updates(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory) / "base.db"
             runner = Path(directory) / "runner.db"
@@ -211,8 +211,8 @@ class PhaseOneStabilityTests(unittest.TestCase):
             merged = Path(directory) / "merged.db"
             for path, values in (
                 (base, ("Original", 100, "2026-01-01")),
-                (runner, ("Runner title", 120, "2026-01-01")),
-                (latest, ("Latest title", 100, "2026-02-01")),
+                (runner, ("Original", 120, "2026-01-01")),
+                (latest, ("Original", 100, "2026-02-01")),
             ):
                 with sqlite3.connect(path) as conn:
                     conn.execute(
@@ -233,7 +233,33 @@ class PhaseOneStabilityTests(unittest.TestCase):
             with sqlite3.connect(merged) as conn:
                 self.assertEqual(
                     conn.execute("SELECT title, tempo, last_played FROM tracks").fetchone(),
-                    ("Latest title", 120, "2026-02-01"),
+                    ("Original", 120, "2026-02-01"),
+                )
+
+    def test_safe_merge_aborts_on_divergent_updates_to_same_field(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "base.db"
+            runner = Path(directory) / "runner.db"
+            latest = Path(directory) / "latest.db"
+            merged = Path(directory) / "merged.db"
+            for path, title in (
+                (base, "Original"),
+                (runner, "Runner update"),
+                (latest, "Latest update"),
+            ):
+                with sqlite3.connect(path) as conn:
+                    conn.execute(
+                        "CREATE TABLE tracks (track_id TEXT PRIMARY KEY, title TEXT)"
+                    )
+                    conn.execute("INSERT INTO tracks VALUES ('track-1', ?)", (title,))
+
+            with self.assertRaisesRegex(RuntimeError, "changed the same field"):
+                safe_merge(base, runner, latest, merged)
+
+            with sqlite3.connect(latest) as conn:
+                self.assertEqual(
+                    conn.execute("SELECT title FROM tracks").fetchone()[0],
+                    "Latest update",
                 )
 
     def test_safe_merge_aborts_on_distinct_concurrent_inserts_with_same_key(self):

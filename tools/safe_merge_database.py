@@ -56,14 +56,18 @@ def _merge_value(base, runner, latest):
             return runner
         if runner is None:
             return latest
-        return latest
+        raise RuntimeError(
+            "Concurrent schema changes produced different values for a field "
+            "that did not exist in the base database."
+        )
     if runner == base:
         return latest
     if latest == base:
         return runner
-    if latest is None:
-        return runner
-    return latest
+    raise RuntimeError(
+        "Concurrent database updates changed the same field differently. "
+        "Refusing to discard either value."
+    )
 
 
 def _ensure_runner_schema(output, runner, table):
