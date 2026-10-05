@@ -83,5 +83,7 @@ def build_harmony_payload(
         "youtube_url": youtube_url,
         "confidence": None,
         "segments": segments,
+        "raw_region_count": len(list(_REGION_RE.finditer(html))),
+        "parser_version": "chordidentifier-html-v1",
         "method": "youtube_browser_analysis",
     }

@@ -97,6 +97,34 @@ def apply_migrations(conn):
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS harmony_provider_runs (
+            execution_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_id TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            source_url TEXT,
+            matched_video_url TEXT,
+            submitted_at TEXT NOT NULL,
+            completed_at TEXT,
+            status TEXT NOT NULL,
+            raw_result_available INTEGER NOT NULL DEFAULT 0,
+            normalized_segment_count INTEGER NOT NULL DEFAULT 0,
+            error_type TEXT,
+            error_message TEXT,
+            parser_version TEXT,
+            confidence REAL,
+            raw_result_json TEXT,
+            FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_harmony_provider_runs_latest
+        ON harmony_provider_runs(track_id, provider, execution_id)
+        """
+    )
 
     now = datetime.now(timezone.utc).isoformat()
     for field in AUDIO_FEATURE_FIELDS:

@@ -372,16 +372,23 @@ def main() -> int:
         env = os.environ.copy()
         env["YOUTUBE_URL"] = youtube_url
         env["TRACK_ID"] = track_id
+        env["TRACK_DURATION_MS"] = str(duration_ms or "")
         env["PROVIDERS"] = providers
         env.setdefault("PROVIDER_RETRIES", "2")
 
-        subprocess.run(
+        probe = subprocess.run(
             [sys.executable, "tools/youtube_provider_probe.py"],
             cwd=ROOT,
             env=env,
             check=False,
         )
-        print(f"Completed provider probe for: {title}")
+        if probe.returncode:
+            print(
+                f"Provider probe failed for {title}: "
+                f"exit_code={probe.returncode}"
+            )
+        else:
+            print(f"Completed provider probe for: {title}")
 
     return 0
 

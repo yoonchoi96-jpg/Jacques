@@ -4,11 +4,13 @@ import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from music_db.harmony.chordidentifier import build_harmony_payload
 from music_db.database import initialize_database, get_connection
+from music_db.harmony.provider_results import normalize_provider_result
 from music_db.harmony.pipeline import import_external_harmony, fuse_track_harmony
 from magic_chords_provider import MagicChordsJobError, MagicChordsTimeout, analyze as analyze_magic_chords
 
@@ -16,8 +18,10 @@ from playwright.sync_api import sync_playwright
 
 ARTIFACT_DIR = Path("probe_artifacts")
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+PARSER_VERSION = "youtube-provider-probe-v2"
 YOUTUBE_URL = os.environ["YOUTUBE_URL"].strip()
 TRACK_ID = os.environ.get("TRACK_ID", "").strip()
+TRACK_DURATION_MS = os.environ.get("TRACK_DURATION_MS", "").strip()
 PROVIDERS = [x.strip().lower() for x in os.environ.get("PROVIDERS", "").split(",") if x.strip()]
 PROVIDER_RETRIES = max(1, int(os.environ.get("PROVIDER_RETRIES", "2")))
 
@@ -46,6 +50,11 @@ PROVIDER_CONFIG = {
 
 def safe_name(value: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]+", "_", value).strip("_") or "provider"
+
+
+def now_utc() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
 
 def extract_visible_text(page) -> str:
     return page.locator("body").inner_text(timeout=15_000)
@@ -189,7 +198,7 @@ def run_provider(page, provider: str) -> dict:
                     else None
                 )
             result["harmony"] = chord_rows
-                # Parse Methodic Truth's numbered CHORD CHART so bar-level structure
+            # Parse Methodic Truth's numbered CHORD CHART so bar-level structure
             # survives independently from the finer PLAY ALONG timestamps.
             chart_bars = []
             try:
@@ -229,9 +238,24 @@ def run_provider(page, provider: str) -> dict:
                 "method": "youtube_browser_analysis",
             }
             result["status"] = "success"
+            result["harmony_payload"]["status"] = "success"
+            result["harmony_payload"]["parser_version"] = PARSER_VERSION
         else:
-            result["status"] = "accepted_or_processing"
-        return result
+            if any(term in text.lower() for term in ("no chords found", "no chord data")):
+                result["status"] = "success"
+                result["harmony_payload"] = {
+                    "source": "methodic_truth",
+                    "source_url": result.get("final_url"),
+                    "youtube_url": YOUTUBE_URL,
+                    "status": "success",
+                    "segments": [],
+                    "parser_version": PARSER_VERSION,
+                }
+            else:
+                result["status"] = "invalid_result"
+                result["error_type"] = "MethodicTruthParseError"
+                result["error"] = "Provider result page did not contain a parseable chord timeline."
+            return result
 
     if provider == "mazmazika":
         # Mazmazika accepts a YouTube URL and exposes a timestamped chord timeline.
@@ -324,14 +348,21 @@ def run_provider(page, provider: str) -> dict:
         result["poll_elapsed_seconds"] = elapsed_ms / 1_000
         result["stable_polls"] = stable_polls
         result["timeline_segment_count"] = payload.get("segment_count", 0)
+        result["harmony_payload"]["parser_version"] = PARSER_VERSION
 
         lower = text.lower()
         if payload.get("segment_count", 0) > 0 and stable_polls >= stable_polls_required:
             result["status"] = "success"
+            result["harmony_payload"]["status"] = "success"
+        elif any(x in lower for x in ("no chords found", "no chord data")):
+            result["status"] = "success"
+            result["harmony_payload"]["status"] = "success"
         elif any(x in lower for x in ("error", "failed", "invalid", "not found", "unable")):
             result["status"] = "provider_error_or_rejection"
         else:
-            result["status"] = "accepted_or_processing"
+            result["status"] = "timeout"
+            result["error_type"] = "TimelineTimeout"
+            result["error"] = "Provider did not produce a stable normalized timeline before its deadline."
     else:
         page.wait_for_timeout(cfg["wait_seconds"] * 1_000)
         text = extract_visible_text(page)
@@ -366,6 +397,7 @@ def main() -> None:
         for provider in PROVIDERS:
             result = None
             magic_job_id = None
+            submitted_at = now_utc()
             for attempt in range(1, PROVIDER_RETRIES + 1):
                 try:
                     if provider == "magic_chords" and magic_job_id:
@@ -391,6 +423,7 @@ def main() -> None:
                         "status": "poll_timeout" if isinstance(exc, MagicChordsTimeout) else "result_fetch_error",
                         "attempt": attempt,
                         "error": str(exc),
+                        "error_type": type(exc).__name__,
                         "job_id": magic_job_id,
                     }
                     if attempt < PROVIDER_RETRIES:
@@ -403,6 +436,7 @@ def main() -> None:
                         "status": "rate_limited" if "429" in error_text else "exception",
                         "attempt": attempt,
                         "error": error_text,
+                        "error_type": type(exc).__name__,
                     }
                     # A provider-side 429 must never cause a second heavy submission.
                     # Preserve the evidence and move on to the next provider.
@@ -410,6 +444,36 @@ def main() -> None:
                         break
                     if attempt < PROVIDER_RETRIES:
                         page.wait_for_timeout(min(10_000, attempt * 2_000))
+            result["submitted_at"] = submitted_at
+            result["completed_at"] = now_utc()
+            result.setdefault(
+                "provider_url",
+                (PROVIDER_CONFIG.get(provider) or {}).get("url"),
+            )
+            result.setdefault("parser_version", PARSER_VERSION)
+            try:
+                result["raw_result_available"] = bool(page.content())
+            except Exception:
+                result["raw_result_available"] = False
+            normalized_result, normalized = normalize_provider_result(
+                provider,
+                result,
+                duration_sec=(
+                    float(TRACK_DURATION_MS) / 1000
+                    if TRACK_DURATION_MS
+                    else None
+                ),
+            )
+            result.update(normalized_result)
+            result["provider_state"] = normalized
+            result["status"] = normalized["status"]
+            result["normalized_segment_count"] = len(normalized["segments"])
+            normalized["raw_result_available"] = bool(
+                normalized["raw_result_available"] or result["raw_result_available"]
+            )
+            if normalized["error_type"]:
+                result["error_type"] = normalized["error_type"]
+                result["error"] = normalized["error_message"]
             results.append(result)
             stem = safe_name(provider)
             try:
@@ -427,6 +491,94 @@ def main() -> None:
         imported = []
         with get_connection() as conn:
             for result in results:
+                state = result["provider_state"]
+                harmony_payload = result.get("harmony_payload")
+                payload_segments = (
+                    harmony_payload.get("segments", [])
+                    if isinstance(harmony_payload, dict)
+                    else []
+                )
+                confidence_values = [
+                    float(segment["confidence"])
+                    for segment in payload_segments
+                    if isinstance(segment, dict)
+                    and segment.get("confidence") is not None
+                ]
+                provider_confidence = (
+                    sum(confidence_values) / len(confidence_values)
+                    if confidence_values
+                    else (
+                        harmony_payload.get("confidence")
+                        if isinstance(harmony_payload, dict)
+                        else None
+                    )
+                )
+                safe_payload = None
+                if isinstance(harmony_payload, dict):
+                    safe_payload = dict(harmony_payload)
+                    safe_payload["segments"] = [
+                        {
+                            key: value
+                            for key, value in segment.items()
+                            if key not in {"raw", "raw_region"}
+                        }
+                        for segment in payload_segments
+                        if isinstance(segment, dict)
+                    ]
+                raw_result_json = json.dumps(
+                    {
+                        "harmony_payload": safe_payload,
+                        "final_text_excerpt": (
+                            result.get("final_text_excerpt") or ""
+                        )[:2_000],
+                        "initial_text_excerpt": (
+                            result.get("initial_text_excerpt") or ""
+                        )[:1_000],
+                    },
+                    ensure_ascii=False,
+                )
+                conn.execute(
+                    """
+                    INSERT INTO harmony_provider_runs (
+                        track_id, provider, source_url, matched_video_url,
+                        submitted_at, completed_at, status, raw_result_available,
+                        normalized_segment_count, error_type, error_message,
+                        parser_version, confidence, raw_result_json
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        TRACK_ID,
+                        result.get("provider", "unknown"),
+                        result.get("provider_url")
+                        or (
+                            harmony_payload.get("source_url")
+                            if isinstance(harmony_payload, dict)
+                            else None
+                        ),
+                        result.get("youtube_url") or YOUTUBE_URL,
+                        result.get("submitted_at") or now_utc(),
+                        result.get("completed_at"),
+                        state["status"],
+                        int(state["raw_result_available"]),
+                        len(state["segments"]),
+                        result.get("error_type") or state.get("error_type"),
+                        (
+                            result.get("error")
+                            or state.get("error_message")
+                            or ""
+                        )[:2_000] or None,
+                        (
+                            harmony_payload.get("parser_version")
+                            if isinstance(harmony_payload, dict)
+                            else None
+                        )
+                        or result.get("parser_version")
+                        or PARSER_VERSION,
+                        provider_confidence,
+                        raw_result_json,
+                    ),
+                )
                 conn.execute(
                     "INSERT INTO music_analysis_evidence "
                     "(track_id, domain, source, source_type, method, payload_json, confidence, observed_at, created_at) "
@@ -437,20 +589,20 @@ def main() -> None:
                         "youtube_provider_probe",
                         json.dumps({
                             "youtube_url": YOUTUBE_URL,
-                            "status": result.get("status"),
+                            "status": state["status"],
                             "attempt": result.get("attempt"),
                             "error": result.get("error"),
                             "provider_url": result.get("provider_url"),
+                            "normalized_segment_count": len(state["segments"]),
+                            "raw_result_available": state["raw_result_available"],
                         }, ensure_ascii=False),
-                        1.0 if result.get("status") == "accepted_or_processing" else 0.0,
+                        provider_confidence,
                     ),
                 )
-                harmony_payload = result.get("harmony_payload")
-                # Treat every provider payload as the current snapshot, including
-                # an empty/processing payload. import_external_harmony() clears the
-                # previous provider observation before importing, so empty results
-                # must also reach it to prevent stale evidence from surviving runs.
-                if harmony_payload is not None:
+                # Only actual data and explicit completed-empty results replace the
+                # current snapshot. Failures remain in the execution history and
+                # never erase usable prior evidence.
+                if state["status"] in {"success_with_data", "success_empty"}:
                     count = import_external_harmony(
                         conn, TRACK_ID, harmony_payload,
                         source=harmony_payload.get("source", result["provider"]),
@@ -458,6 +610,7 @@ def main() -> None:
                     imported.append({
                         "provider": result["provider"],
                         "harmony_segments": count,
+                        "status": state["status"],
                     })
                     conn.execute(
                         "INSERT INTO music_analysis_evidence "
@@ -468,7 +621,7 @@ def main() -> None:
                             result["provider"],
                             harmony_payload.get("method", "youtube_browser_analysis"),
                             json.dumps(harmony_payload, ensure_ascii=False),
-                            harmony_payload.get("confidence"),
+                            provider_confidence,
                         ),
                     )
             profile = fuse_track_harmony(conn, TRACK_ID)

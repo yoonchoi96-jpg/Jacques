@@ -22,24 +22,40 @@ class MagicChordsResultError(MagicChordsJobError):
     def __init__(self, job_id: str, message: str):
         super().__init__(job_id, "result fetch", message)
 
-def _segments(result):
+def _parse_segments(result):
     raw = result.get("chords") or result.get("segments") or result.get("timeline") or []
     if isinstance(raw, dict):
         raw = raw.get("items") or raw.get("chords") or raw.get("segments") or []
+    if not isinstance(raw, list):
+        raise ValueError("Magic Chords timeline is not a list")
     out = []
+    invalid = 0
     for x in raw:
         if not isinstance(x, dict):
+            invalid += 1
             continue
         chord = x.get("chord") or x.get("symbol") or x.get("label")
         start = x.get("start_sec", x.get("start", x.get("startTime", 0)))
         end = x.get("end_sec", x.get("end", x.get("endTime")))
-        if chord and end is not None and float(end) > float(start):
+        try:
+            start = float(start)
+            end = float(end)
+        except (TypeError, ValueError):
+            invalid += 1
+            continue
+        if chord and end > start:
             out.append({
-                "start_sec": float(start), "end_sec": float(end),
+                "start_sec": start, "end_sec": end,
                 "chord": str(chord), "confidence": x.get("confidence"),
                 "section": x.get("section") or x.get("section_name"), "raw": x,
             })
-    return out
+        else:
+            invalid += 1
+    return out, len(raw), invalid
+
+
+def _segments(result):
+    return _parse_segments(result)[0]
 
 
 def _poll(page, job_id, polls, wait):
@@ -86,6 +102,7 @@ def analyze(page, youtube_url, polls=24, wait=5, job_id=None):
     except Exception as exc:
         raise MagicChordsResultError(job_id, str(exc)) from exc
 
+    segments, raw_segment_count, invalid_segment_count = _parse_segments(result)
     return {
         "source": "magic_chords",
         "source_url": BASE_URL + "/jobs/" + job_id + "/result",
@@ -95,6 +112,9 @@ def analyze(page, youtube_url, polls=24, wait=5, job_id=None):
         "confidence": result.get("confidence"),
         "key": result.get("key"),
         "tempo": result.get("tempo") or result.get("bpm"),
-        "segments": _segments(result),
+        "segments": segments,
+        "raw_segment_count": raw_segment_count,
+        "invalid_segment_count": invalid_segment_count,
+        "parser_version": "magic-chords-api-v1",
         "method": "magic_chords_url_api",
     }
