@@ -18,7 +18,8 @@ def _conn():
             start_sec REAL, end_sec REAL, chord TEXT, confidence REAL
         );
         CREATE TABLE harmony_sources (
-            track_id TEXT, key TEXT, confidence REAL
+            track_id TEXT, key TEXT, confidence REAL,
+            raw_data TEXT DEFAULT '{}', observed_at TEXT
         );
         CREATE TABLE audio_features (track_id TEXT, tempo REAL);
         CREATE TABLE harmony_consensus (
@@ -72,7 +73,10 @@ def test_consensus_requires_two_sources_and_preserves_competing_label():
     conn.executemany(
         "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows
     )
-    conn.execute("INSERT INTO harmony_sources VALUES ('t1', 'C major', 0.9)")
+    conn.execute(
+        "INSERT INTO harmony_sources(track_id, key, confidence) "
+        "VALUES ('t1', 'C major', 0.9)"
+    )
     conn.commit()
 
     profile = fuse_track_harmony(conn, "t1")
@@ -126,7 +130,10 @@ def test_enharmonic_spelling_can_reach_consensus_without_collapsing_source_text(
     conn.executemany(
         "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows
     )
-    conn.execute("INSERT INTO harmony_sources VALUES ('t2', 'Db major', 0.9)")
+    conn.execute(
+        "INSERT INTO harmony_sources(track_id, key, confidence) "
+        "VALUES ('t2', 'Db major', 0.9)"
+    )
     conn.commit()
 
     profile = fuse_track_harmony(conn, "t2")
@@ -147,7 +154,10 @@ def test_beat_grid_is_available_and_prompt_ready():
     conn.executemany(
         "INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows
     )
-    conn.execute("INSERT INTO harmony_sources VALUES ('t3', 'C major', 0.9)")
+    conn.execute(
+        "INSERT INTO harmony_sources(track_id, key, confidence) "
+        "VALUES ('t3', 'C major', 0.9)"
+    )
     conn.execute("INSERT INTO audio_features VALUES ('t3', 120.0)")
     conn.commit()
 
@@ -173,7 +183,10 @@ def test_structure_map_is_bar_aware_and_never_invents_semantics():
         ("t4", "source_b", None, 4.0, 8.0, "F", 0.9),
     ]
     conn.executemany("INSERT INTO harmony_segments VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
-    conn.execute("INSERT INTO harmony_sources VALUES ('t4', 'C major', 0.9)")
+    conn.execute(
+        "INSERT INTO harmony_sources(track_id, key, confidence) "
+        "VALUES ('t4', 'C major', 0.9)"
+    )
     conn.execute("INSERT INTO audio_features VALUES ('t4', 120.0)")
     conn.commit()
     profile = fuse_track_harmony(conn, "t4")
