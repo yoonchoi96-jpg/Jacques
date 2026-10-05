@@ -55,6 +55,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Verify Spotify credentials are available
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          required = [
+              "SPOTIFY_CLIENT_ID",
+              "SPOTIFY_CLIENT_SECRET",
+              "SPOTIFY_REFRESH_TOKEN",
+          ]
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              raise SystemExit("Missing required Spotify Actions secrets: " + ", ".join(missing))
+          print("Spotify Actions credentials present (values not printed).")
+          PY
+
       - name: Preflight - Dry run check
         env:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
