@@ -10,7 +10,7 @@ on:
       providers:
         description: "Comma-separated providers"
         required: true
-        default: "methodic_truth,essentia_local,mazmazika,chordidentifier,magic_chords"
+        default: "methodic_truth,btc_local"
       track_id:
         description: "Optional Jacques track_id; persists returned provider evidence when supplied"
         required: false
