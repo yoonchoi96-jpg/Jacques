@@ -267,7 +267,6 @@ def run_provider(page, provider: str) -> dict:
     if provider == "methodic_truth":
         # Methodic Truth accepts public YouTube URLs and renders chord/timestamp pairs.
         # Re-open the result URL first so cached analyses do not submit repeatedly.
-        import re
         video_match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", YOUTUBE_URL)
         result_url = (
             f"https://methodictruth.com/song-analyzer?v={video_match.group(1)}"
