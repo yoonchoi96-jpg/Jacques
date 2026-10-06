@@ -133,6 +133,7 @@ def extract_methodic_metadata(text: str) -> dict:
 
 def run_provider(page, provider: str) -> dict:
     cfg = PROVIDER_CONFIG[provider]
+    result = {"provider": provider, "youtube_url": YOUTUBE_URL, "provider_url": cfg["url"], "status": "unknown"}
     if provider == "essentia_local":
         output_path = ARTIFACT_DIR / "essentia_local.json"
         proc = subprocess.run(
@@ -259,8 +260,6 @@ def run_provider(page, provider: str) -> dict:
         return {"provider": "magic_chords", "youtube_url": YOUTUBE_URL,
                 "provider_url": PROVIDER_CONFIG["magic_chords"]["url"],
                 "status": "accepted_or_processing", "harmony_payload": payload}
-    result = {"provider": provider, "youtube_url": YOUTUBE_URL, "provider_url": cfg["url"], "status": "unknown"}
-
     page.goto(cfg["url"], wait_until="domcontentloaded", timeout=30_000)
     page.wait_for_timeout(3_000)
     result["initial_text_excerpt"] = extract_visible_text(page)[:4_000]
