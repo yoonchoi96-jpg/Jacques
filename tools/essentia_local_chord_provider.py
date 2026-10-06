@@ -15,14 +15,18 @@ HOP_SIZE = 2048
 
 def download_audio(url: str, output_dir: Path) -> Path:
     output = output_dir / "audio.%(ext)s"
-    subprocess.run(
+    proc = subprocess.run(
         [
             "yt-dlp", "--no-playlist", "--no-warnings",
             "--extract-audio", "--audio-format", "wav", "--audio-quality", "0",
+            "--extractor-args", "youtube:player_client=android",
             "--output", str(output), url,
         ],
-        check=True, capture_output=True, text=True,
+        check=False, capture_output=True, text=True,
     )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        raise RuntimeError(f"yt-dlp failed ({proc.returncode}): {detail[-5000:]}")
     candidates = sorted(output_dir.glob("audio.*"))
     if not candidates:
         raise RuntimeError("yt-dlp completed without producing an audio file")
