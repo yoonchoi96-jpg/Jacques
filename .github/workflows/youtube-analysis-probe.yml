@@ -35,6 +35,30 @@ jobs:
           pip install -r requirements.txt yt-dlp playwright
           python -m playwright install --with-deps chromium
 
+      - name: TEMP BTC API smoke test
+        run: |
+          python - <<'PY'
+          import librosa, requests, time
+          path = librosa.ex('trumpet')
+          with open(path, 'rb') as f:
+              r = requests.post('https://jeremyszs-chord-engine.hf.space/api/v1/jobs', files={'audio': ('sample.wav', f, 'audio/wav')}, timeout=90)
+          print('SUBMIT', r.status_code, r.text[:2000])
+          r.raise_for_status()
+          job = r.json()['job_id']
+          for _ in range(36):
+              time.sleep(5)
+              s = requests.get(f'https://jeremyszs-chord-engine.hf.space/api/v1/jobs/{job}/status', timeout=30)
+              print('STATUS', s.status_code, s.text[:1000])
+              s.raise_for_status()
+              if s.json().get('status') == 'completed':
+                  out = requests.get(f'https://jeremyszs-chord-engine.hf.space/api/v1/jobs/{job}/result', timeout=30)
+                  print('RESULT', out.status_code, out.text[:12000])
+                  out.raise_for_status()
+                  break
+          else:
+              raise RuntimeError('BTC probe timed out')
+          PY
+
       - name: Run provider probe
         env:
           YOUTUBE_URL: ${{ inputs.youtube_url }}
