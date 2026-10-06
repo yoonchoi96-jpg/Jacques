@@ -25,10 +25,14 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+      - name: Set up Deno for yt-dlp YouTube EJS
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt yt-dlp playwright
+          pip install -r requirements.txt "yt-dlp[default]" playwright
           python -m playwright install --with-deps chromium
       - name: Run Methodic Truth + Essentia
         env:
