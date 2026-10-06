@@ -47,6 +47,7 @@ SOURCE_PRIORITY = {
     "essentia_local": 18,
     "essentia": 30,
     "librosa_chroma_template": 40,
+    "btc_local": 12,
     "methodic_truth": 15,
 }
 
