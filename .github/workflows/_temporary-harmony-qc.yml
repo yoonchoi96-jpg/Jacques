@@ -35,6 +35,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt "yt-dlp[default]" playwright
           python -m playwright install --with-deps chromium
+      - name: Diagnose direct YouTube browser access
+        env:
+          YOUTUBE_URL: ${{ matrix.youtube_url }}
+        run: |
+          python - <<'PY'
+          import os
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              b = p.chromium.launch(headless=True)
+              page = b.new_page()
+              page.goto(os.environ["YOUTUBE_URL"], wait_until="domcontentloaded", timeout=30000)
+              print("TITLE:", page.title())
+              print("URL:", page.url)
+              print("BODY:", page.locator("body").inner_text(timeout=10000)[:1200])
+              b.close()
+          PY
+
       - name: Run Methodic Truth + Essentia
         env:
           YOUTUBE_URL: ${{ matrix.youtube_url }}
