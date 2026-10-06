@@ -38,10 +38,6 @@ PROVIDER_CONFIG = {
         "url": "https://www.mazmazika.com/chordanalyzer",
         "wait_seconds": 60,
     },
-    "mazmazika": {
-        "url": "https://www.mazmazika.com/chordanalyzer",
-        "wait_seconds": 60,
-    },
     "methodic_truth": {
         "url": "https://methodictruth.com/song-analyzer",
         "wait_seconds": 35,
