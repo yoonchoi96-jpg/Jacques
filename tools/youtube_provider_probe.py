@@ -43,6 +43,10 @@ PROVIDER_CONFIG = {
         "url": "https://methodictruth.com/song-analyzer",
         "wait_seconds": 35,
     },
+    "btc_local": {
+        "url": "https://huggingface.co/puar-playground/btc-chord",
+        "wait_seconds": 0,
+    },
     "essentia_local": {
         "url": "local://essentia",
         "wait_seconds": 0,
@@ -134,6 +138,72 @@ def extract_methodic_metadata(text: str) -> dict:
 def run_provider(page, provider: str) -> dict:
     cfg = PROVIDER_CONFIG[provider]
     result = {"provider": provider, "youtube_url": YOUTUBE_URL, "provider_url": cfg["url"], "status": "unknown"}
+    if provider == "btc_local":
+        # BTC is an independent local model. Audio is acquired through the
+        # Methodic Truth analysis page's already-used backend media asset;
+        # no YouTube download is performed by the runner.
+        page.goto("https://methodictruth.com/song-analyzer", wait_until="domcontentloaded", timeout=30_000)
+        page.wait_for_timeout(2_000)
+        inputs = page.locator("input")
+        target = None
+        for idx in range(inputs.count()):
+            item = inputs.nth(idx)
+            placeholder = (item.get_attribute("placeholder") or "").lower()
+            if "youtube" in placeholder or (item.get_attribute("type") or "").lower() == "url":
+                target = item
+                break
+        if target is None:
+            raise RuntimeError("Methodic Truth YouTube input not found for BTC acquisition")
+        target.fill(YOUTUBE_URL)
+        buttons = page.get_by_role("button")
+        clicked = False
+        for idx in range(buttons.count()):
+            b = buttons.nth(idx)
+            if "analyze" in (b.inner_text() or "").strip().lower():
+                b.click()
+                clicked = True
+                break
+        if not clicked:
+            raise RuntimeError("Methodic Truth analyze button not found for BTC acquisition")
+        audio_url = None
+        for _ in range(24):
+            page.wait_for_timeout(5_000)
+            urls = page.evaluate("""() => Array.from(document.querySelectorAll('audio,source')).map(x => x.currentSrc || x.src).filter(Boolean)""")
+            audio_url = next((u for u in urls if u.startswith("http")), None)
+            if audio_url:
+                break
+        if not audio_url:
+            raise RuntimeError("No backend audio asset exposed for BTC")
+        import requests
+        with tempfile.TemporaryDirectory() as td:
+            audio_path = Path(td) / "track.bin"
+            response = requests.get(audio_url, timeout=90)
+            response.raise_for_status()
+            audio_path.write_bytes(response.content)
+            if audio_path.stat().st_size < 100_000:
+                raise RuntimeError("Downloaded backend audio asset is unexpectedly small")
+            output_path = ARTIFACT_DIR / "btc_local.json"
+            proc = subprocess.run(
+                [sys.executable, "tools/btc_local_chord_provider.py",
+                 "--audio", str(audio_path), "--output", str(output_path)],
+                check=False, capture_output=True, text=True,
+            )
+            result = {
+                "provider": "btc_local",
+                "youtube_url": YOUTUBE_URL,
+                "provider_url": PROVIDER_CONFIG["btc_local"]["url"],
+                "status": "success" if proc.returncode == 0 else "exception",
+                "returncode": proc.returncode,
+                "audio_acquisition": "methodic_truth_backend_asset",
+            }
+            if proc.stdout:
+                result["stdout_excerpt"] = proc.stdout[-8000:]
+            if proc.stderr:
+                result["stderr_excerpt"] = proc.stderr[-8000:]
+            if proc.returncode == 0 and output_path.exists():
+                result["harmony_payload"] = json.loads(output_path.read_text(encoding="utf-8"))
+            return result
+
     if provider == "essentia_local":
         output_path = ARTIFACT_DIR / "essentia_local.json"
         proc = subprocess.run(
