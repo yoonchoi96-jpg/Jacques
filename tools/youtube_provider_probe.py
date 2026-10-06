@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -41,6 +42,10 @@ PROVIDER_CONFIG = {
     "methodic_truth": {
         "url": "https://methodictruth.com/song-analyzer",
         "wait_seconds": 35,
+    },
+    "essentia_local": {
+        "url": "local://essentia",
+        "wait_seconds": 0,
     },
 }
 
@@ -127,6 +132,27 @@ def extract_methodic_metadata(text: str) -> dict:
 
 
 def run_provider(page, provider: str) -> dict:
+    if provider == "essentia_local":
+        output_path = ARTIFACT_DIR / "essentia_local.json"
+        proc = subprocess.run(
+            [sys.executable, "tools/essentia_local_chord_provider.py",
+             "--url", YOUTUBE_URL, "--output", str(output_path)],
+            check=False, capture_output=True, text=True,
+        )
+        result = {
+            "provider": "essentia_local",
+            "youtube_url": YOUTUBE_URL,
+            "provider_url": PROVIDER_CONFIG["essentia_local"]["url"],
+            "status": "success" if proc.returncode == 0 else "exception",
+            "returncode": proc.returncode,
+        }
+        if proc.stdout:
+            result["stdout_excerpt"] = proc.stdout[-8_000:]
+        if proc.stderr:
+            result["stderr_excerpt"] = proc.stderr[-8_000:]
+        if proc.returncode == 0 and output_path.exists():
+            result["harmony_payload"] = json.loads(output_path.read_text(encoding="utf-8"))
+        return result
     if provider == "magic_chords":
         payload = analyze_magic_chords(page, YOUTUBE_URL)
         return {"provider": "magic_chords", "youtube_url": YOUTUBE_URL,
