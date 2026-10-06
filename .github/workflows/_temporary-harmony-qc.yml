@@ -35,7 +35,6 @@ jobs:
           YOUTUBE_URL: ${{ matrix.youtube_url }}
           PROVIDERS: "methodic_truth,essentia_local"
           PROVIDER_RETRIES: "1"
-          TRACK_ID: ${{ matrix.id }}
         run: python tools/youtube_provider_probe.py
       - name: Upload evidence
         if: always()
