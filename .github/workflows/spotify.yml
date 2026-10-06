@@ -14,7 +14,7 @@ on:
       analysis_providers:
         description: "External link-analysis providers"
         required: true
-        default: "chordidentifier,methodic_truth,magic_chords"
+        default: "chordidentifier,methodic_truth,mazmazika,magic_chords"
         type: string
 
   push:
