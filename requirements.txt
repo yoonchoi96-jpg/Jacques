@@ -5,3 +5,4 @@ python-dotenv>=1.0,<2
 requests>=2.31,<3
 
 requests>=2.31,<3
+essentia>=2.1b6.dev184,<3
