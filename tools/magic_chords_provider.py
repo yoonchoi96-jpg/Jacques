@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 BASE_URL = "https://magic-chords.dev/api/v1"
 
 
@@ -60,21 +62,45 @@ def _poll(page, job_id, polls, wait):
         page.wait_for_timeout(wait * 1000)
     raise MagicChordsTimeout(job_id)
 
-def analyze(page, youtube_url, polls=24, wait=5, job_id=None):
+def analyze(page, youtube_url, polls=24, wait=5, job_id=None, submit_retries=2):
+    """Analyze a public media URL without downloading the media locally.
+
+    Magic Chords performs the media fetch/decoding server-side.  Jacques keeps
+    the input URL and returned evidence only.  A 429 caused by the provider's
+    concurrent-job cap is retried using Retry-After when available; we never
+    submit duplicate heavy jobs while an existing job id is usable.
+    """
     page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
     if not job_id:
-        job = page.evaluate("""async ({url}) => {
-            const r = await fetch("%s/analyze/url", {
-                method:"POST",
-                headers:{"Content-Type":"application/json"},
-                body:JSON.stringify({url})
-            });
-            if (!r.ok) throw new Error("submit " + r.status);
-            return await r.json();
-        }""" % BASE_URL, {"url": youtube_url})
-        job_id = job.get("job_id") or job.get("id")
-        if not job_id:
-            raise RuntimeError("Magic Chords returned no job id")
+        last_error = None
+        for attempt in range(max(1, submit_retries)):
+            try:
+                job = page.evaluate("""async ({url}) => {
+                    const r = await fetch("%s/analyze/url", {
+                        method:"POST",
+                        headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({url})
+                    });
+                    if (!r.ok) {
+                        const retryAfter = r.headers.get("Retry-After");
+                        throw new Error("submit " + r.status + (retryAfter ? " retry-after=" + retryAfter : ""));
+                    }
+                    return await r.json();
+                }""" % BASE_URL, {"url": youtube_url})
+                job_id = job.get("job_id") or job.get("id")
+                if not job_id:
+                    raise RuntimeError("Magic Chords returned no job id")
+                break
+            except Exception as exc:
+                last_error = exc
+                message = str(exc)
+                if "submit 429" not in message or attempt + 1 >= submit_retries:
+                    raise
+                match = re.search(r"retry-after=(\\d+(?:\\.\\d+)?)", message)
+                delay = float(match.group(1)) if match else 15.0
+                page.wait_for_timeout(int(min(120.0, max(1.0, delay)) * 1000))
+        if not job_id and last_error:
+            raise last_error
 
     _poll(page, job_id, polls, wait)
     try:
