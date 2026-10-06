@@ -52,6 +52,25 @@ jobs:
               b.close()
           PY
 
+      - name: Diagnose Chordify URL search
+        env:
+          YOUTUBE_URL: ${{ matrix.youtube_url }}
+        run: |
+          python - <<'PY'
+          import os, urllib.parse
+          from playwright.sync_api import sync_playwright
+          target = "https://chordify.net/?search=" + urllib.parse.quote(os.environ["YOUTUBE_URL"], safe="")
+          with sync_playwright() as p:
+              b = p.chromium.launch(headless=True)
+              page = b.new_page()
+              page.goto(target, wait_until="domcontentloaded", timeout=30000)
+              page.wait_for_timeout(5000)
+              print("CHORDIFY_URL:", page.url)
+              print("CHORDIFY_TITLE:", page.title())
+              print("CHORDIFY_BODY:", page.locator("body").inner_text(timeout=10000)[:2500])
+              b.close()
+          PY
+
       - name: Run Methodic Truth + Essentia
         env:
           YOUTUBE_URL: ${{ matrix.youtube_url }}
