@@ -1,6 +1,11 @@
 name: QC BTC Probe
 
 on:
+  push:
+    paths:
+      - 'tools/**'
+      - 'requirements.txt'
+      - 'src/**'
   pull_request:
     paths:
       - 'tools/**'
