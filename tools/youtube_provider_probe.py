@@ -153,6 +153,106 @@ def run_provider(page, provider: str) -> dict:
         if proc.returncode == 0 and output_path.exists():
             result["harmony_payload"] = json.loads(output_path.read_text(encoding="utf-8"))
         return result
+    if provider == "songscription":
+        # Songscription's Chord Finder accepts a public YouTube URL and renders
+        # chord symbols aligned to the score/piano roll. Keep this separate from
+        # note transcription: Jacques needs harmony evidence only.
+        inputs = page.locator("input")
+        target = None
+        for idx in range(inputs.count()):
+            item = inputs.nth(idx)
+            placeholder = (item.get_attribute("placeholder") or "").lower()
+            input_type = (item.get_attribute("type") or "").lower()
+            if input_type in ("url", "text") and any(
+                x in placeholder for x in ("youtube", "url", "link", "video")
+            ):
+                target = item
+                break
+        if target is None:
+            # Some builds expose the link box without a descriptive placeholder.
+            for idx in range(inputs.count()):
+                item = inputs.nth(idx)
+                if (item.get_attribute("type") or "").lower() in ("url", "text"):
+                    target = item
+                    break
+        if target is None:
+            raise RuntimeError("Songscription media URL input not found")
+        target.fill(YOUTUBE_URL)
+
+        buttons = page.get_by_role("button")
+        clicked = False
+        for idx in range(buttons.count()):
+            b = buttons.nth(idx)
+            label = (b.inner_text()).strip().lower()
+            if any(x in label for x in ("transcribe", "generate", "analyze", "get chords", "create")):
+                b.click()
+                clicked = True
+                break
+        if not clicked:
+            # Fallback: submit the surrounding form.
+            try:
+                target.press("Enter")
+                clicked = True
+            except Exception:
+                pass
+        if not clicked:
+            raise RuntimeError("Songscription chord analysis submit control not found")
+
+        deadline_ms = cfg["wait_seconds"] * 1_000
+        poll_ms = 5_000
+        elapsed_ms = 0
+        text = ""
+        while elapsed_ms < deadline_ms:
+            page.wait_for_timeout(poll_ms)
+            elapsed_ms += poll_ms
+            text = extract_visible_text(page)
+            lower = text.lower()
+            if any(x in lower for x in ("chord symbols", "lead sheet", "piano roll")) and len(text) > 800:
+                break
+            if any(x in lower for x in ("error", "failed", "invalid", "not found", "sign in")):
+                break
+
+        result["final_url"] = page.url
+        result["final_text_excerpt"] = text[:16_000]
+        result["poll_elapsed_seconds"] = elapsed_ms / 1_000
+
+        # First-pass extraction: Songscription exposes chord symbols in the
+        # rendered result. Accept only explicit chord tokens; do not infer them.
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        chord_re = re.compile(
+            r"^[A-G](?:#|b)?(?:maj7|maj|min7|min|m7|m|dim7|dim|aug|sus2|sus4|sus|7|6|9|11|13|add9)?$"
+        )
+        timestamp_re = re.compile(r"^\d{1,2}:\d{2}(?::\d{2})?$")
+        chord_rows = []
+        pending = None
+        for line in lines:
+            if chord_re.fullmatch(line):
+                pending = line
+                continue
+            if pending and timestamp_re.fullmatch(line):
+                parts = [int(x) for x in line.split(":")]
+                sec = parts[0] * 60 + parts[1] if len(parts) == 2 else parts[0] * 3600 + parts[1] * 60 + parts[2]
+                chord_rows.append({"start_sec": float(sec), "chord": pending})
+                pending = None
+        if chord_rows:
+            for idx, row in enumerate(chord_rows):
+                row["end_sec"] = chord_rows[idx + 1]["start_sec"] if idx + 1 < len(chord_rows) else None
+            result["harmony_payload"] = {
+                "source": "songscription",
+                "source_url": page.url,
+                "youtube_url": YOUTUBE_URL,
+                "confidence": None,
+                "segments": chord_rows,
+                "segment_count": len(chord_rows),
+                "method": "youtube_browser_chord_finder",
+            }
+            result["status"] = "success"
+        elif any(x in text.lower() for x in ("error", "failed", "invalid", "not found", "sign in")):
+            result["status"] = "provider_error_or_rejection"
+        else:
+            result["status"] = "accepted_or_processing"
+        return result
+
     if provider == "magic_chords":
         payload = analyze_magic_chords(page, YOUTUBE_URL)
         return {"provider": "magic_chords", "youtube_url": YOUTUBE_URL,
