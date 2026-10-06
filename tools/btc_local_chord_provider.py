@@ -45,3 +45,5 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     print(json.dumps(analyze(args.audio, args.output), ensure_ascii=False, indent=2))
+
+# QC trigger
