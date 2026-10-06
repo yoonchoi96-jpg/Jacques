@@ -1,5 +1,5 @@
 name: Temporary Songscription QC Probe
-# rerun after provider fix
+# rerun after result-state fix
 
 on:
   push:
