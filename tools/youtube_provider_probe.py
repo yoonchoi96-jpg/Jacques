@@ -38,6 +38,10 @@ PROVIDER_CONFIG = {
         "url": "https://www.mazmazika.com/chordanalyzer",
         "wait_seconds": 60,
     },
+    "mazmazika": {
+        "url": "https://www.mazmazika.com/chordanalyzer",
+        "wait_seconds": 60,
+    },
     "methodic_truth": {
         "url": "https://methodictruth.com/song-analyzer",
         "wait_seconds": 35,
@@ -49,6 +53,44 @@ def safe_name(value: str) -> str:
 
 def extract_visible_text(page) -> str:
     return page.locator("body").inner_text(timeout=15_000)
+
+
+def _parse_timestamp(value: str) -> float | None:
+    value = value.strip()
+    if not re.fullmatch(r"\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?", value):
+        return None
+    parts = value.split(":")
+    try:
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + float(parts[1])
+        return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+    except ValueError:
+        return None
+
+
+def extract_timed_chords(text: str) -> list[dict]:
+    """Parse provider-rendered chord/timestamp pairs conservatively."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    chord_re = re.compile(
+        r"^[A-G](?:#|b)?(?:maj13|maj11|maj9|maj7|maj|min13|min11|min9|min7|min|m13|m11|m9|m7|m|dim7|dim|aug|sus2|sus4|sus|add9|add11|7|6|9|11|13)?(?:/[A-G](?:#|b)?)?$"
+    )
+    rows = []
+    pending = None
+    for line in lines:
+        ts = _parse_timestamp(line)
+        if ts is not None and pending:
+            if not rows or ts > rows[-1]["start_sec"]:
+                rows.append({"start_sec": ts, "chord": pending})
+            pending = None
+            continue
+        if chord_re.fullmatch(line):
+            pending = line
+    for idx, row in enumerate(rows):
+        if idx + 1 < len(rows):
+            row["end_sec"] = rows[idx + 1]["start_sec"]
+        else:
+            row["end_sec"] = None
+    return [row for row in rows if row.get("end_sec") is not None and row["end_sec"] > row["start_sec"]]
 
 
 
@@ -234,7 +276,71 @@ def run_provider(page, provider: str) -> dict:
         return result
 
     if provider == "mazmazika":
-        # Mazmazika accepts a YouTube URL and exposes a timestamped chord timeline.
+        # Mazmazika accepts a YouTube URL and performs server-side audio decoding.
+        # Jacques never downloads or stores the released audio.
+        inputs = page.locator("input")
+        target = None
+        for idx in range(inputs.count()):
+            item = inputs.nth(idx)
+            placeholder = (item.get_attribute("placeholder") or "").lower()
+            input_type = (item.get_attribute("type") or "").lower()
+            if "youtube" in placeholder or "soundcloud" in placeholder or input_type == "url":
+                target = item
+                break
+        if target is None:
+            raise RuntimeError("Mazmazika media URL input not found")
+        target.fill(YOUTUBE_URL)
+
+        buttons = page.get_by_role("button")
+        clicked = False
+        for idx in range(buttons.count()):
+            b = buttons.nth(idx)
+            label = (b.inner_text()).strip().lower()
+            if "analy" in label:
+                b.click()
+                clicked = True
+                break
+        if not clicked:
+            raise RuntimeError("Mazmazika analyze button not found")
+
+        deadline_ms = cfg["wait_seconds"] * 1_000
+        poll_ms = 5_000
+        elapsed_ms = 0
+        text = ""
+        chord_rows = []
+        while elapsed_ms < deadline_ms:
+            page.wait_for_timeout(poll_ms)
+            elapsed_ms += poll_ms
+            text = extract_visible_text(page)
+            chord_rows = extract_timed_chords(text)
+            lower = text.lower()
+            if chord_rows:
+                break
+            if any(x in lower for x in ("error", "failed", "invalid", "not found")):
+                break
+
+        result["final_url"] = page.url
+        result["final_text_excerpt"] = text[:16_000]
+        result["poll_elapsed_seconds"] = elapsed_ms / 1_000
+        if chord_rows:
+            result["harmony_payload"] = {
+                "source": "mazmazika",
+                "source_url": page.url,
+                "youtube_url": YOUTUBE_URL,
+                "confidence": None,
+                "segments": chord_rows,
+                "segment_count": len(chord_rows),
+                "method": "youtube_browser_analysis",
+            }
+            result["status"] = "success"
+        elif any(x in text.lower() for x in ("error", "failed", "invalid", "not found")):
+            result["status"] = "provider_error_or_rejection"
+        else:
+            result["status"] = "accepted_or_processing"
+        return result
+
+    if provider == "mazmazika_legacy":
+        # Retained only as a compatibility branch; use the implementation above.
         inputs = page.locator('input')
         target = None
         for idx in range(inputs.count()):
