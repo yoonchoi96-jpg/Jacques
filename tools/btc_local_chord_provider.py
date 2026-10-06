@@ -47,3 +47,5 @@ if __name__ == "__main__":
     print(json.dumps(analyze(args.audio, args.output), ensure_ascii=False, indent=2))
 
 # QC trigger
+
+# QC probe trigger
