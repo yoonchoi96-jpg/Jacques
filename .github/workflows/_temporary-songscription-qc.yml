@@ -1,5 +1,5 @@
 name: Temporary Songscription QC Probe
-# rerun after result-state fix
+# rerun after regex-scope fix
 
 on:
   push:
