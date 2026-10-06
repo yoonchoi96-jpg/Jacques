@@ -1,6 +1,9 @@
 name: YouTube Music Analysis Probe
 
 on:
+  push:
+    paths:
+      - ".github/workflows/youtube-analysis-probe.yml"
   workflow_dispatch:
     inputs:
       youtube_url:
