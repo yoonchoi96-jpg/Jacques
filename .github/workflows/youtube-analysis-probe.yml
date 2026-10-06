@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/youtube-analysis-probe.yml"
+      - "tools/btc_local_chord_provider.py"
   workflow_dispatch:
     inputs:
       youtube_url:
