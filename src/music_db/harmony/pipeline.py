@@ -56,8 +56,9 @@ def _family(chord):
     return chord if chord else None
 
 def _split(chord):
+    """Normalize common chord spellings, including Harte/BTC notation."""
     chord = _family(chord)
-    if not chord or chord.upper() in {"N", "NO_CHORD", "N.C."}:
+    if not chord or chord.upper() in {"N", "NO_CHORD", "N.C.", "X"}:
         return None, None, None
     root = chord[:2] if len(chord) > 1 and chord[1] in "#b" else chord[:1]
     remainder = chord[len(root):]
@@ -66,6 +67,21 @@ def _split(chord):
         quality, bass = remainder.split("/", 1)
     else:
         quality = remainder
+    quality = quality.lstrip(":").strip()
+    quality = {
+        "maj": "",
+        "major": "",
+        "min": "m",
+        "minor": "m",
+        "min7": "m7",
+        "minor7": "m7",
+        "min6": "m6",
+        "minor6": "m6",
+        "maj7": "maj7",
+        "major7": "maj7",
+        "dom7": "7",
+        "dominant7": "7",
+    }.get(quality, quality)
     return root, quality or "", bass
 
 def _pitch_classes(chord):
