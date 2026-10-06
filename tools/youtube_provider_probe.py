@@ -156,6 +156,8 @@ def run_provider(page, provider: str) -> dict:
             result["harmony_payload"] = json.loads(output_path.read_text(encoding="utf-8"))
         return result
     if provider == "songscription":
+        page.goto(cfg["url"], wait_until="domcontentloaded", timeout=30_000)
+        page.wait_for_timeout(3_000)
         # Songscription's Chord Finder accepts a public YouTube URL and renders
         # chord symbols aligned to the score/piano roll. Keep this separate from
         # note transcription: Jacques needs harmony evidence only.
