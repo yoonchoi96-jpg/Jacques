@@ -1,6 +1,12 @@
 name: YouTube Music Analysis Probe
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/youtube-analysis-probe.yml'
+      - 'tools/**'
+      - 'requirements.txt'
+      - 'src/**'
   workflow_dispatch:
     inputs:
       youtube_url:
