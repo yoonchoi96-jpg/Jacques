@@ -44,6 +44,7 @@ SOURCE_PRIORITY = {
     "chordidentifier": 10,
     "chordino": 20,
     "magic_chords": 25,
+    "essentia_local": 18,
     "essentia": 30,
     "librosa_chroma_template": 40,
     "methodic_truth": 15,
