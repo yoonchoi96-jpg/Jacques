@@ -196,3 +196,9 @@ def test_structure_map_is_bar_aware_and_never_invents_semantics():
     assert structure[0]["end_bar"] == 2
     assert structure[0]["semantic_label_evidence"] is False
     assert "[Section 01] Bars 01-02" in profile["prompt_harmony"]
+
+def test_btc_harte_notation_normalizes_to_jacques_identity():
+    assert _split("C:maj7") == ("C", "maj7", None)
+    assert _split("A:min") == ("A", "m", None)
+    assert _split("D:7") == ("D", "7", None)
+    assert _split("F#:min7") == ("F#", "m7", None)
