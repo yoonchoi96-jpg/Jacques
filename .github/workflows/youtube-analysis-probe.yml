@@ -10,7 +10,7 @@ on:
       providers:
         description: "Comma-separated providers"
         required: true
-        default: "methodic_truth,mazmazika,chordidentifier,magic_chords"
+        default: "methodic_truth,essentia_local,mazmazika,chordidentifier,magic_chords"
       track_id:
         description: "Optional Jacques track_id; persists returned provider evidence when supplied"
         required: false
@@ -32,7 +32,7 @@ jobs:
       - name: Install Playwright
         run: |
           python -m pip install --upgrade pip
-          pip install playwright
+          pip install -r requirements.txt yt-dlp playwright
           python -m playwright install --with-deps chromium
 
       - name: Run provider probe
