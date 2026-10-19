@@ -7,9 +7,6 @@ on:
         description: "Number of global chart tracks to analyze"
         required: false
         default: "3"
-  schedule:
-    - cron: "30 15 * * *"
-
 permissions:
   contents: write
 

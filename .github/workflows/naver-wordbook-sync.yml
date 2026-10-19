@@ -11,11 +11,6 @@ on:
         options:
           - sync
           - probe
-  schedule:
-    # 07:00 KST and 19:00 KST
-    - cron: "0 22 * * *"
-    - cron: "0 10 * * *"
-
 permissions:
   contents: write
 

@@ -17,13 +17,6 @@ on:
         default: "methodic_truth,essentia_local,mazmazika,chordidentifier,magic_chords"
         type: string
 
-  push:
-    paths-ignore:
-      - "db/music.db"
-
-  schedule:
-    - cron: "0 0,8,15 * * *"
-
 permissions:
   contents: write
 
