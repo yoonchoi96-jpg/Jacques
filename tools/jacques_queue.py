@@ -26,6 +26,9 @@ TASK_FIELDS = frozenset(("version", "target", "operation", "path_values",
 PARAM_FIELDS = frozenset(("limit", "offset", "market", "type", "time_range",
     "after", "before", "q", "fields", "uris", "additional_types", "include_groups"))
 MAC_OPERATIONS = frozenset(("mac.health", "mac.db_counts"))
+# Non-idempotent player control and playlist creation are CLI-only, not GitHub queued.
+QUEUE_WRITES = frozenset(("playlist.add", "playlist.remove", "playlist.update",
+                         "playlist.edit", "library.save", "library.remove"))
 DONE = "JACQUES_RESULT: EXECUTED"
 
 def parse_task(source):
@@ -45,6 +48,8 @@ def parse_task(source):
         if op not in ENDPOINTS:
             raise ValueError("Spotify operation is not on the allowlist")
         is_write = ENDPOINTS[op].method != "GET"
+        if is_write and op not in QUEUE_WRITES:
+            raise ValueError("Unsafe queued write: use direct Spotify CLI instead")
     elif target == "mac":
         if op not in MAC_OPERATIONS:
             raise ValueError("Mac operation is not on the allowlist")
