@@ -89,6 +89,19 @@ class SpotifyAPITest(unittest.TestCase):
         self.assertFalse(result["truncated"])
         self.assertEqual(self.session.request.call_args_list[1].kwargs["params"]["offset"], 1)
 
+    def test_nested_search_pagination(self):
+        self.session.request.side_effect = [
+            self.response(200, {"tracks": {"items": [{"id": "A"}], "next": "next", "total": 2}}),
+            self.response(200, {"tracks": {"items": [{"id": "B"}], "next": None, "total": 2}}),
+        ]
+        result = self.client.all_pages("catalog.search", params={"type": "track", "q": "band"})
+        self.assertEqual([x["id"] for x in result["items"]], ["A", "B"])
+        self.assertEqual(result["pages_fetched"], 2)
+
+    def test_cursor_endpoint_cannot_offset_loop(self):
+        with self.assertRaisesRegex(ValueError, "cursor pagination"):
+            self.client.all_pages("player.recent")
+
     def test_shared_quota_never_retries(self):
         self.session.request.return_value = self.response(429, {"error": {"reason": "QUOTA_EXCEEDED"}})
         with self.assertRaisesRegex(SpotifyAPIError, "QUOTA_EXCEEDED"):

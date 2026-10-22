@@ -172,27 +172,39 @@ class SpotifyClient:
             return {"ok": True, "status": response.status_code}
 
     def all_pages(self, operation, *, path_values=None, params=None, max_pages=100):
+        """Offset pagination for documented paged resources; never follow untrusted next URLs."""
         if ENDPOINTS[operation].method != "GET":
             raise ValueError("Pagination is read-only")
         if not 1 <= max_pages <= 200:
             raise ValueError("max_pages must be 1..200")
+        # Recently played / followed artists are cursor-paginated, not offset-paginated.
+        if operation in ("player.recent", "library.followed_artists"):
+            raise ValueError(f"{operation} uses cursor pagination; use individual calls with after/before")
         params = dict(params or {})
-        params.setdefault("limit", 10 if operation == "catalog.search" else 50)
+        if operation == "catalog.search":
+            kind = str(params.get("type", ""))
+            if "," in kind or kind not in {
+                "album", "artist", "playlist", "track", "show", "episode", "audiobook"
+            }:
+                raise ValueError("Search pagination needs exactly one type")
+            bucket = kind + "s"
+        else:
+            bucket = None
+        params.setdefault("limit", 10 if bucket else 50)
         offset = int(params.get("offset", 0))
         all_items = []
-        for _ in range(max_pages):
+        for page_number in range(1, max_pages + 1):
             params["offset"] = offset
             page = self.call(operation, path_values=path_values, params=params)
+            page = page.get(bucket, {}) if bucket else page
             if not isinstance(page, dict):
-                break
-            # Most Spotify list endpoints have a top-level items array.
-            # Search has per-type buckets; callers should paginate search themselves.
+                raise ValueError("Pagination expected a response object")
             items = page.get("items")
             if not isinstance(items, list):
                 raise ValueError(f"{operation} is not an items-paginated endpoint")
             all_items.extend(items)
             if not page.get("next") or not items:
                 return {"items": all_items, "total": page.get("total", len(all_items)),
-                        "truncated": False, "pages_fetched": (offset - int(params.get("_start", 0))) // int(params["limit"]) + 1}
+                        "truncated": False, "pages_fetched": page_number}
             offset += len(items)
         return {"items": all_items, "truncated": True, "pages_fetched": max_pages}
