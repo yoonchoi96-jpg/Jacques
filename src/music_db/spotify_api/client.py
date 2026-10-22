@@ -5,6 +5,7 @@ import base64
 import os
 import re
 import time
+from pathlib import Path
 from urllib.parse import quote
 
 import requests
@@ -79,6 +80,10 @@ class SpotifyClient:
         self.client_id = client_id or os.getenv("SPOTIFY_CLIENT_ID")
         self.client_secret = client_secret or os.getenv("SPOTIFY_CLIENT_SECRET")
         self.refresh_token = refresh_token or os.getenv("SPOTIFY_REFRESH_TOKEN")
+        if not self.refresh_token:
+            local_file = Path(__file__).resolve().parents[3] / ".spotify_refresh_token"
+            if local_file.is_file():
+                self.refresh_token = local_file.read_text(encoding="utf-8").strip()
         self.session = session or requests.Session()
         self.sleep = sleeper or time.sleep
 

@@ -54,7 +54,7 @@ redirected URL, and writes .spotify_refresh_token (mode 0600, gitignored).
 Never put client secrets, access tokens or redirect URLs containing codes
 into Git, a public Actions log, a public MCP URL or a chat.
 
-After consent, a user who wants to update GitHub Actions can run locally:
+After consent, local CLI calls read the protected .spotify_refresh_token file automatically (or use environment variables). A user who wants to update GitHub Actions can run locally:
 
     gh secret set SPOTIFY_REFRESH_TOKEN < .spotify_refresh_token
 
