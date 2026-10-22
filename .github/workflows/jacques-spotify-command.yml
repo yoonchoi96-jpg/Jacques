@@ -1,0 +1,65 @@
+name: Jacques Spotify Command Queue
+
+# Manual-only: GitHub Issues do not trigger this workflow directly.
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Owner-authored [Jacques Queue] Issue number"
+        required: true
+        type: string
+      mode:
+        description: "Reads: execute. Writes: preview, then manual execute."
+        required: true
+        default: execute
+        type: choice
+        options:
+          - execute
+          - preview
+      approval:
+        description: "For writes only: APPROVE_WRITE"
+        required: false
+        type: string
+      plan_digest:
+        description: "For writes only: digest from preview"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: jacques-spotify-queue-${{ inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  spotify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install minimal dependency
+        run: python -m pip install 'requests>=2.31,<3'
+      - name: Execute validated task
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+          TASK_ISSUE: ${{ inputs.issue_number }}
+          TASK_MODE: ${{ inputs.mode }}
+          TASK_APPROVAL: ${{ inputs.approval }}
+          TASK_DIGEST: ${{ inputs.plan_digest }}
+        run: |
+          python tools/jacques_queue.py \
+            --issue "$TASK_ISSUE" \
+            --mode "$TASK_MODE" \
+            --approval "$TASK_APPROVAL" \
+            --plan-digest "$TASK_DIGEST"
