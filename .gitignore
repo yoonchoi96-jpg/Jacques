@@ -7,6 +7,8 @@ __pycache__/
 .env
 .env.*
 .spotify_cache
+.spotify_cache_full
+.spotify_refresh_token
 
 # macOS
 .DS_Store
